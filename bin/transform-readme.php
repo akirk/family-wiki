@@ -171,6 +171,11 @@ function convert_readme_md( $readme_md, $print_errors = false ) {
 		'$1',
 		$readme_txt
 	);
+	$readme_txt = preg_replace(
+		'#^!\[([^\]]+)\]\(/assets/screenshot-.*\)#m',
+		'$1',
+		$readme_txt
+	);
 
 	return $readme_txt;
 }
