@@ -52,8 +52,8 @@ For displaying the red missing links or green external links, all pages are eval
 ![3. Gutenberg view of a person page with the shortcodes.](/assets/screenshot-3.png)
 ![4. A 404 page exposing the "Create Page" link in the header.](/assets/screenshot-4.png)
 ![5. A person page with external links.](/assets/screenshot-5.png)
-![6. A calendar page.](/assets/screenshot-5.png)
-![7. Inserting a birthday calendar block.](/assets/screenshot-6.png)
+![6. A calendar page.](/assets/screenshot-6.png)
+![7. Inserting a birthday calendar block.](/assets/screenshot-7.png)
 
 ## Changelog
 
