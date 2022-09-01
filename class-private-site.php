@@ -22,7 +22,7 @@ class Private_Site {
 		?>
 		<br />
 		<input id="blog-private" type="radio" name="blog_public" value="-1" <?php checked( \get_option( 'blog_public' ), '-1' ); ?> />
-		<label for="blog-private"><?php esc_html_e( 'I would like my site to be private, visible only to myself and users I choose', 'family-wiki' ); ?></label>
+		<label for="blog-private"><?php esc_html_e( 'Private, visible only to administrators, editors, and wiki users', 'family-wiki' ); ?></label>
 		<?php
 	}
 

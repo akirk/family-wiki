@@ -9,7 +9,7 @@ class Main {
 
 		\add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		\add_action( 'the_content', array( $this, 'the_content' ) );
-		$this->activate_plugin();
+
 		register_activation_hook( __FILE__, array( $this, 'activate_plugin' ) );
 
 	}
