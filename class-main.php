@@ -11,11 +11,10 @@ class Main {
 		add_action( 'the_content', array( $this, 'the_content' ) );
 
 		register_activation_hook( __FILE__, array( $this, 'activate_plugin' ) );
-
 	}
 
 	public function template_redirect() {
-		if ( is_404() && current_user_can( 'edit_pages' ) ) {
+		if ( is_404() && current_user_can( Private_Site::MINIMUM_CAPABILITY ) ) {
 			add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 139 );
 		}
 	}
@@ -108,6 +107,4 @@ class Main {
 		$wiki_editor->add_cap( 'family-wiki' );
 		$wiki_editor->add_cap( 'level_0' );
 	}
-
-
 }

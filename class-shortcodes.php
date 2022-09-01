@@ -5,6 +5,8 @@ class Shortcodes {
 	public function __construct() {
 		add_shortcode( 'born', array( $this, 'born' ) );
 		add_shortcode( 'died', array( $this, 'died' ) );
+
+		do_action( 'family_wiki_shortcodes' );
 	}
 
 	public function born( $atts, $content ) {
