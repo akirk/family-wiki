@@ -3,8 +3,8 @@ namespace Family_Wiki;
 
 class Shortcodes {
 	public function __construct() {
-		\add_shortcode( 'born', array( $this, 'born' ) );
-		\add_shortcode( 'died', array( $this, 'died' ) );
+		add_shortcode( 'born', array( $this, 'born' ) );
+		add_shortcode( 'died', array( $this, 'died' ) );
 	}
 
 	public function born( $atts, $content ) {
@@ -17,9 +17,9 @@ class Shortcodes {
 			return $atts['date'];
 		}
 		if ( ! $birth ) return $atts['date'];
-		$return = \date_i18n( \get_option( 'date_format' ), $birth->format( 'U' ) );
-		if ( \get_option( 'family_wiki_calendar_page' ) ) {
-			$return = '<a href="' . \get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $birth->format( 'U' ) ). '">' . $return . '</a>';
+		$return = date_i18n( get_option( 'date_format' ), $birth->format( 'U' ) );
+		if ( get_option( 'family_wiki_calendar_page' ) ) {
+			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $birth->format( 'U' ) ). '">' . $return . '</a>';
 		}
 
 		$age = '';
@@ -60,7 +60,7 @@ class Shortcodes {
 
 		$age = $birth->diff( $death );
 
-		$return = date_i18n( \get_option( 'date_format' ), $death->format( 'U' ) );
+		$return = date_i18n( get_option( 'date_format' ), $death->format( 'U' ) );
 		if ( get_option( 'family_wiki_calendar_page' ) ) {
 			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $death->format( 'U' ) ) . '">' . $return . '</a>';
 		}

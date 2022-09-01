@@ -7,8 +7,8 @@ class Main {
 		new Shortcodes();
 		new Private_Site();
 
-		\add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-		\add_action( 'the_content', array( $this, 'the_content' ) );
+		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
+		add_action( 'the_content', array( $this, 'the_content' ) );
 
 		register_activation_hook( __FILE__, array( $this, 'activate_plugin' ) );
 
@@ -16,7 +16,7 @@ class Main {
 
 	public function template_redirect() {
 		if ( is_404() && current_user_can( 'edit_pages' ) ) {
-			\add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 139 );
+			add_action( 'admin_bar_menu', array( $this, 'admin_bar' ), 139 );
 		}
 	}
 
@@ -26,7 +26,7 @@ class Main {
 			array(
 				'id'     => 'create-page-title',
 				'title'  => 'Create "' . $title . '"',
-				'href'   => \self_admin_url( 'post-new.php?post_type=page&post_title=' . urlencode( $title ) ),
+				'href'   => self_admin_url( 'post-new.php?post_type=page&post_title=' . urlencode( $title ) ),
 			)
 		);
 	}

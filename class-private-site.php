@@ -5,7 +5,7 @@ class Private_Site {
 	const MINIMUM_CAPABILITY = 'edit_others_pages';
 
 	public function __construct() {
-		\add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
+		add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
 
 		add_filter( 'xmlrpc_methods', array( $this, 'xmlrpc_methods' ) );
 		add_action( 'parse_request', array( $this, 'parse_request' ), 100 );
@@ -21,7 +21,7 @@ class Private_Site {
 	public function blog_privacy_selector() {
 		?>
 		<br />
-		<input id="blog-private" type="radio" name="blog_public" value="-1" <?php checked( \get_option( 'blog_public' ), '-1' ); ?> />
+		<input id="blog-private" type="radio" name="blog_public" value="-1" <?php checked( get_option( 'blog_public' ), '-1' ); ?> />
 		<label for="blog-private"><?php esc_html_e( 'Private, visible only to administrators, editors, and wiki users', 'family-wiki' ); ?></label>
 		<?php
 	}
@@ -33,7 +33,7 @@ class Private_Site {
 			return $is_private;
 		}
 
-		if ( \get_option( 'blog_public' ) >= 0 ) {
+		if ( get_option( 'blog_public' ) >= 0 ) {
 			$is_private = false;
 			return $is_private;
 		}
@@ -83,7 +83,7 @@ class Private_Site {
 			return;
 		}
 
-		$full_request_url = empty( $_SERVER['HTTPS'] || $_SERVER['HTTPS'] === 'off' ? 'http' : 'https') . '://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		$full_request_url = ( ( empty( $_SERVER['HTTPS'] ) || $_SERVER['HTTPS'] === 'off' ) ? 'http' : 'https' ) . '://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
 
 		if ( untrailingslashit( $full_request_url ) === site_url( '/robots.txt' ) ) {
 			do_action( 'do_robots' );
@@ -130,7 +130,7 @@ class Private_Site {
 			return null;
 		}
 
-		if ( \get_option( 'blog_public' ) === -1 ) {
+		if ( get_option( 'blog_public' ) === -1 ) {
 			return new \WP_Error( 'private_site', __( 'This site is private.', 'family-wiki' ), array( 'status' => 403 ) );
 		}
 
@@ -155,6 +155,6 @@ class Private_Site {
 		return $value;
 	}
 	function robots_txt() {
-		return "User-agent: *\nDisallow: /\n";
+		return "User-agent: *nDisallow: /n";
 	}
 }

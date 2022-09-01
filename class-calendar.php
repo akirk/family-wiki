@@ -5,18 +5,18 @@ class Calendar {
 	private $all_dates = null;
 
 	public function __construct() {
-		\add_action( 'init', array( $this, 'init' ) );
-		\add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_block_editor_assets' ) );
+		add_action( 'init', array( $this, 'init' ) );
+		add_action( 'enqueue_block_editor_assets', array( $this, 'enqueue_block_editor_assets' ) );
 	}
 
 	public function init() {
-		\register_block_type(
+		register_block_type(
 			'family-wiki/family-calendar',
 			array(
 				'render_callback' => array( $this, 'render_family_calendar' ),
 			)
 		);
-		\register_block_type(
+		register_block_type(
 			'family-wiki/birthday-calendar',
 			array(
 				'render_callback' => array( $this, 'render_birthday_calendar' ),
@@ -25,18 +25,18 @@ class Calendar {
 	}
 
 	public function enqueue_block_editor_assets() {
-		\wp_enqueue_script(
+		wp_enqueue_script(
 			'family-wiki-family-calendar',
-			\plugin_dir_url( __FILE__ ) . 'family-calendar.js',
+			plugin_dir_url( __FILE__ ) . 'family-calendar.js',
 			array( 'wp-blocks', 'wp-server-side-render' ),
-			filemtime( \plugin_dir_path( __FILE__ ) . 'family-calendar.js' ),
+			filemtime( plugin_dir_path( __FILE__ ) . 'family-calendar.js' ),
 			true
 		);
-		\wp_enqueue_script(
+		wp_enqueue_script(
 			'family-wiki-birthday-calendar',
-			\plugin_dir_url( __FILE__ ) . 'birthday-calendar.js',
+			plugin_dir_url( __FILE__ ) . 'birthday-calendar.js',
 			array( 'wp-blocks', 'wp-server-side-render' ),
-			filemtime( \plugin_dir_path( __FILE__ ) . 'birthday-calendar.js' ),
+			filemtime( plugin_dir_path( __FILE__ ) . 'birthday-calendar.js' ),
 			true
 		);
 	}
@@ -88,7 +88,7 @@ class Calendar {
 							// translators: %1$s is a name, %2%s is a date.
 								__( '%1$s was born on %2$s', 'family-wiki' ),
 								$arr['text'],
-								date_i18n( \get_option( 'date_format' ), $date->format( 'U' ) )
+								date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
 							);
 							if ( strpos( $shortcode[0], 'showage' ) ) {
 								if ( $date->format( 'm' ) < $now->format( 'm' ) || ( $date->format( 'm' ) == $now->format( 'm' ) && $date->format( 'j' ) < $now->format( 'j' ) ) ) {
@@ -97,7 +97,7 @@ class Calendar {
 									// translators: %d is an age in years.
 										$age = sprintf( _n( 'turned %d', 'turned %d', $age->y, 'family-wiki' ), $age->y );
 									} else {
-										$age = __( 'was born' );
+										$age = __( 'was born', 'family-wiki' );
 									}
 								} elseif ( $date->format( 'm-d' ) == $now->format( 'm-d' ) ) {
 									$age = $date->diff( $now );
@@ -124,7 +124,7 @@ class Calendar {
 							// translators: %1$s is a name, %2%s is a date.
 								__( '%1$s died on %2$s', 'family-wiki' ),
 								$arr['text'],
-								date_i18n( \get_option( 'date_format' ), $date->format( 'U' ) )
+								date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
 							);
 							$age = $now->format( 'Y' ) - $date->format( 'Y' );
 							// translators: %s is a number of years.
