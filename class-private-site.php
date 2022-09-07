@@ -83,7 +83,7 @@ class Private_Site {
 			return;
 		}
 
-		$full_request_url = ( ( empty( $_SERVER['HTTPS'] ) || $_SERVER['HTTPS'] === 'off' ) ? 'http' : 'https' ) . '://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		$full_request_url = sanitize_url( ( ( empty( $_SERVER['HTTPS'] ) || $_SERVER['HTTPS'] === 'off' ) ? 'http' : 'https' ) . '://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 
 		if ( untrailingslashit( $full_request_url ) === site_url( '/robots.txt' ) ) {
 			do_action( 'do_robots' );
