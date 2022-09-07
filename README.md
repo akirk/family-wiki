@@ -8,7 +8,7 @@ Keep your family history in a wiki hosted on WordPress.
 **Tested up to:** 5.9
 **Requires PHP:** 5.2.4
 **License:** [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-**Stable tag:** trunk
+**Stable tag:** 1.0.0
 
 ## Description
 

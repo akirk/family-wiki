@@ -20,7 +20,7 @@ class Main {
 	}
 
 	public function admin_bar( \WP_Admin_Bar $wp_menu ) {
-		$title = mb_convert_case( trim( strtr( urldecode( $_SERVER['REQUEST_URI'] ), '/_-', '   ' ) ), MB_CASE_TITLE );
+		$title = sanitize_title( mb_convert_case( trim( strtr( urldecode( $_SERVER['REQUEST_URI'] ), '/_-', '   ' ) ), MB_CASE_TITLE ) );
 		$wp_menu->add_menu(
 			array(
 				'id'     => 'create-page-title',

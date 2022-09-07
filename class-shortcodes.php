@@ -6,6 +6,7 @@ class Shortcodes {
 		add_shortcode( 'born', array( $this, 'born' ) );
 		add_shortcode( 'died', array( $this, 'died' ) );
 
+		// You can add more shortcodes by hooking into this.
 		do_action( 'family_wiki_shortcodes' );
 	}
 
