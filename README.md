@@ -39,11 +39,17 @@ You can also use a textual date: `[died date="January 1, 2000" birth="January 1,
 
 ### Gutenberg Blocks
 
-The *Family Calendar* block will show all dates in the wiki
+The *Family Calendar* block will show all dates from the wiki.
+
+The *Birthday Calendar* block will show all dates of living people (determined by `showage`, see above) from the wiki.
+
 
 ### Performance
 
 For displaying the red missing links or green external links, all pages are evaluated on page load. This works for small sites but won't work well if you have thousands of pages.
+
+**Development of this plugin is done [on GitHub](https://github.com/akirk/family-wiki). Pull requests welcome. Please see [issues](https://github.com/akirk/family-wiki/issues) reported there before going to the [plugin forum](https://wordpress.org/support/plugin/family-wiki).**
+
 
 ## Screenshots
 

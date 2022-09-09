@@ -68,6 +68,6 @@ class Shortcodes {
 			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $death->format( 'U' ) ) . '">' . $return . '</a>';
 		}
 		// translators: %d is an age in years.
-		return $return . ' (' . sprintf( __( 'aged %d', 'aged %d', $age->y, 'family-wiki' ), $age->y ) . ')';
+		return $return . ' (' . sprintf( _n( 'aged %d', 'aged %d', $age->y, 'family-wiki' ), $age->y ) . ')';
 	}
 }
