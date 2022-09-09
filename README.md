@@ -20,7 +20,7 @@ In wp-admin go to *Settings* → *Reading* and set a static homepage. The plugin
 
 Create new users with *Wiki User* (can edit pages) or *Wiki Editor* (can also delete pages). Unfortunately otherwise only the roles *Editor* or *Administrator* will allow them to edit pages.
 
-If you created a calendar page, set the option `family_wiki_calendar_page`, for example with the cli command `wp option add family_wiki_calendar_page /Calendar`, then the dates will be linked to that page.                                                                     ``
+If you created a calendar page, set the option `family_wiki_calendar_page`, for example with the cli command `wp option add family_wiki_calendar_page /Calendar`, then the dates will be linked to that page.
 
 ### Shortcodes
 To populate the calendars, use these shortcodes for 
