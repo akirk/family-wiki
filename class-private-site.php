@@ -109,6 +109,7 @@ class Private_Site {
 		</head>
 		<body>
 			<?php esc_html_e( 'This site is private.', 'family-wiki' ); ?>
+                        <a href="<?php echo esc_url( wp_login_url() ); ?>"><?php esc_html_e( 'Login' ); ?></a>
 		</body>
 		</html>
 		<?php
