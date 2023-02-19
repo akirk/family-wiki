@@ -20,4 +20,10 @@ require __DIR__ . '/class-private-site.php';
 require __DIR__ . '/class-shortcodes.php';
 
 require __DIR__ . '/class-main.php';
+
+add_action( 'upgrader_process_complete', array( __NAMESPACE__ . '\Main', 'upgrade_plugin' ) );
+register_activation_hook( __FILE__, array( __NAMESPACE__ . '\Main', 'activate_plugin' ) );
+add_action( 'activate_blog', array( __NAMESPACE__ . '\Main', 'activate_plugin' ) );
+add_action( 'wp_initialize_site', array( __NAMESPACE__ . '\Main', 'activate_for_blog' ) );
+
 new Main;

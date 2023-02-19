@@ -9,8 +9,6 @@ class Main {
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'the_content', array( $this, 'the_content' ) );
-
-		register_activation_hook( __FILE__, array( $this, 'activate_plugin' ) );
 	}
 
 	public function template_redirect() {
@@ -73,38 +71,110 @@ class Main {
 		return $content;
 	}
 
-	public function activate_plugin() {
-		$wiki_user = get_role( 'wiki-user' );
-		if ( ! $wiki_user ) {
-			$wiki_user = add_role( 'wiki-user', 'Wiki User' );
-		}
-		$wiki_user->add_cap( 'edit_pages' );
-		$wiki_user->add_cap( 'edit_others_pages' );
-		$wiki_user->add_cap( 'edit_published_pages' );
-		$wiki_user->add_cap( 'publish_pages' );
-		$wiki_user->add_cap( 'edit_files' );
-		$wiki_user->add_cap( 'upload_files' );
-		$wiki_user->add_cap( 'read' );
-		$wiki_user->add_cap( 'wiki-user' );
-		$wiki_user->add_cap( 'family-wiki' );
-		$wiki_user->add_cap( 'level_0' );
+	public static function activate_plugin( $network_activate = null ) {
+		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+			if ( $network_activate ) {
+				// Only Super Admins can use Network Activate.
+				if ( ! is_super_admin() ) {
+					return;
+				}
 
-		$wiki_editor = get_role( 'wiki-editor' );
-		if ( ! $wiki_editor ) {
-			$wiki_editor = add_role( 'wiki-editor', 'Wiki Editor' );
+				// Activate for each site.
+				foreach ( get_sites() as $blog ) {
+					self::activate_for_blog( $blog->blog_id );
+					self::setup();
+					restore_current_blog();
+				}
+			} elseif ( current_user_can( 'activate_plugins' ) ) {
+				self::setup();
+			}
+			return;
 		}
-		$wiki_editor->add_cap( 'edit_pages' );
-		$wiki_editor->add_cap( 'edit_others_pages' );
-		$wiki_editor->add_cap( 'edit_published_pages' );
-		$wiki_editor->add_cap( 'publish_pages' );
-		$wiki_editor->add_cap( 'delete_pages' );
-		$wiki_editor->add_cap( 'delete_others_pages' );
-		$wiki_editor->add_cap( 'delete_published_pages' );
-		$wiki_editor->add_cap( 'edit_files' );
-		$wiki_editor->add_cap( 'upload_files' );
-		$wiki_editor->add_cap( 'read' );
-		$wiki_editor->add_cap( 'wiki-editor' );
-		$wiki_editor->add_cap( 'family-wiki' );
-		$wiki_editor->add_cap( 'level_0' );
+
+		self::setup();
+	}
+
+	public static function activate_for_blog( $blog_id ) {
+		if ( ! function_exists( 'is_plugin_active_for_network' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		if ( $blog_id instanceof \WP_Site ) {
+			$blog_id = (int) $blog_id->blog_id;
+		}
+
+		if ( is_plugin_active_for_network( 'family-wiki/family-wiki.php' ) ) {
+			switch_to_blog( $blog_id );
+			self::setup();
+			restore_current_blog();
+		}
+	}
+
+	public static function setup() {
+		self::setup_roles();
+		self::upgrade_plugin();
+	}
+
+	public static function upgrade_plugin() {
+	}
+
+	public static function setup_roles() {
+		$default_roles = array(
+			'wiki-user'   => _x( 'Wiki User', 'User role', 'family-wiki' ),
+			'wiki-editor' => _x( 'Wiki Editor', 'User role', 'family-wiki' ),
+		);
+
+		$roles = new \WP_Roles;
+
+		foreach ( $default_roles as $type => $name ) {
+			$role = false;
+			foreach ( $roles->roles as $slug => $data ) {
+				if ( isset( $data['capabilities'][ $type ] ) ) {
+					$role = get_role( $slug );
+					break;
+				}
+			}
+			if ( ! $role ) {
+				$role = add_role( $type, $name, self::get_role_capabilities( $type ) );
+				continue;
+			}
+
+			// This might update missing capabilities.
+			foreach ( array_keys( self::get_role_capabilities( $type ) ) as $cap ) {
+				$role->add_cap( $cap );
+			}
+		}
+	}
+
+	public static function get_role_capabilities( $role ) {
+		$capabilities = array();
+
+		$capabilities['wiki-user'] = array(
+			'edit_pages' => true,
+			'edit_others_pages' => true,
+			'edit_published_pages' => true,
+			'publish_pages' => true,
+			'edit_files' => true,
+			'upload_files' => true,
+			'read' => true,
+		);
+
+		$capabilities['wiki-editor'] = $capabilities['wiki-user'];
+		$capabilities['wiki-editor'] = array(
+			'delete_pages' => true,
+			'delete_others_pages' => true,
+			'delete_published_pages' => true,
+		);
+
+		// All roles belonging to this plugin have the friends_plugin capability.
+		foreach ( array_keys( $capabilities ) as $type ) {
+			$capabilities[ $type ]['family-wiki'] = true;
+		}
+
+		if ( ! isset( $capabilities[ $role ] ) ) {
+			return array();
+		}
+
+		return $capabilities[ $role ];
 	}
 }
