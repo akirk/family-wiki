@@ -8,7 +8,13 @@ class Main {
 		new Private_Site();
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
-		add_action( 'the_content', array( $this, 'the_content' ) );
+		add_action( 'the_content', array( $this, 'the_content' ), 100 );
+		add_action( 'acf/settings/load_json', array( $this, 'acf_json_dir' ) );
+		add_action( 'acf/settings/save_json', array( $this, 'acf_json_dir' ) );
+	}
+
+	public function acf_json_dir() {
+		return __DIR__ . '/acf-json';
 	}
 
 	public function template_redirect() {
@@ -21,9 +27,9 @@ class Main {
 		$title = sanitize_title( mb_convert_case( trim( strtr( urldecode( $_SERVER['REQUEST_URI'] ), '/_-', '   ' ) ), MB_CASE_TITLE ) );
 		$wp_menu->add_menu(
 			array(
-				'id'     => 'create-page-title',
-				'title'  => 'Create "' . $title . '"',
-				'href'   => self_admin_url( 'post-new.php?post_type=page&post_title=' . urlencode( $title ) ),
+				'id'    => 'create-page-title',
+				'title' => 'Create "' . $title . '"',
+				'href'  => self_admin_url( 'post-new.php?post_type=page&post_title=' . urlencode( $title ) ),
 			)
 		);
 	}
@@ -31,43 +37,54 @@ class Main {
 	public function the_content( $content ) {
 		static $all_pages;
 		if ( ! isset( $all_pages ) ) {
-			$p = get_posts( array( 'post_type' => 'page', 'post_status' => 'published', 'posts_per_page' => -1, 'fields' => 'post_name' ) );
+			$p = get_posts(
+				array(
+					'post_type'      => 'page',
+					'post_status'    => 'published',
+					'posts_per_page' => -1,
+					'fields'         => 'post_name',
+				)
+			);
 			$all_pages = array();
 			foreach ( $p as $page ) {
 				$all_pages[ $page->post_name ] = $page->ID;
 			}
 		}
-		$content = preg_replace_callback( '/<a .*?href="([^"]+)"/i', function( $m ) use ( $all_pages ) {
-			$p = strtolower( $m[1] );
-			if ( 0 === strpos( $p, home_url() ) ) {
-				$p = substr( $p, strlen( home_url() ) );
-			}
-			if ( 0 === strpos( $p, '/wp-content' ) ) {
-				return $m[0];
-			}
-			if ( false !== strpos( $p, '#' ) ) {
-				$p = strtok( $p, '#' );
-			}
-			if ( 0 === strpos( $p, 'http://' ) || 0 === strpos( $p, 'https://' ) ) {
-				return $m[0] . ' style="color: #090"';
-			}
-
-			$p = trim( $p, '/' );
-
-			if ( isset( $all_pages[ $p ] ) ) {
-				return $m[0];
-			}
-			$l = strlen( $p );
-			foreach ( array_keys( $all_pages ) as $k ) {
-				if ( $p === substr( $k, 0, $l ) ) {
+		$content = preg_replace_callback(
+			'/<a .*?href="([^"]+)"/i',
+			function ( $m ) use ( $all_pages ) {
+				$p = strtolower( $m[1] );
+				if ( 0 === strpos( $p, home_url() ) ) {
+					$p = substr( $p, strlen( home_url() ) );
+				}
+				if ( 0 === strpos( $p, '/wp-content' ) ) {
 					return $m[0];
 				}
-			}
-			if ( isset( $all_pages[ $p ] ) ) {
-				return $m[0];
-			}
-			return $m[0] . ' style="color: #f00"';
-		}, $content );
+				if ( false !== strpos( $p, '#' ) ) {
+					$p = strtok( $p, '#' );
+				}
+				if ( 0 === strpos( $p, 'http://' ) || 0 === strpos( $p, 'https://' ) ) {
+					return $m[0] . ' style="color: #090"';
+				}
+
+				$p = trim( $p, '/' );
+
+				if ( isset( $all_pages[ $p ] ) ) {
+					return $m[0];
+				}
+				$l = strlen( $p );
+				foreach ( array_keys( $all_pages ) as $k ) {
+					if ( $p === substr( $k, 0, $l ) ) {
+						return $m[0];
+					}
+				}
+				if ( isset( $all_pages[ $p ] ) ) {
+					return $m[0];
+				}
+				return $m[0] . ' style="color: #f00"';
+			},
+			$content
+		);
 		return $content;
 	}
 
@@ -124,7 +141,7 @@ class Main {
 			'wiki-editor' => _x( 'Wiki Editor', 'User role', 'family-wiki' ),
 		);
 
-		$roles = new \WP_Roles;
+		$roles = new \WP_Roles();
 
 		foreach ( $default_roles as $type => $name ) {
 			$role = false;
@@ -150,19 +167,19 @@ class Main {
 		$capabilities = array();
 
 		$capabilities['wiki-user'] = array(
-			'edit_pages' => true,
-			'edit_others_pages' => true,
+			'edit_pages'           => true,
+			'edit_others_pages'    => true,
 			'edit_published_pages' => true,
-			'publish_pages' => true,
-			'edit_files' => true,
-			'upload_files' => true,
-			'read' => true,
+			'publish_pages'        => true,
+			'edit_files'           => true,
+			'upload_files'         => true,
+			'read'                 => true,
 		);
 
 		$capabilities['wiki-editor'] = $capabilities['wiki-user'];
 		$capabilities['wiki-editor'] = array(
-			'delete_pages' => true,
-			'delete_others_pages' => true,
+			'delete_pages'           => true,
+			'delete_others_pages'    => true,
 			'delete_published_pages' => true,
 		);
 

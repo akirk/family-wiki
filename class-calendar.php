@@ -41,99 +41,115 @@ class Calendar {
 		);
 	}
 
+	private function get_calendar_dates() {
+		if ( is_null( $this->all_dates ) ) {
+			// get all fields birth_date and death_date from all posts via advanced custom fields
+
+
+		}
+	}
 	private function get_dates() {
 		if ( is_null( $this->all_dates ) ) {
-			$p = get_posts( array( 'post_type' => 'page', 'post_status' => 'published', 'posts_per_page' => -1 ) );
+			$args = array(
+				'post_type'      => 'page', // Update with your post type if not 'post'
+				'posts_per_page' => -1, // Get all posts
+				'meta_query'     => array(
+					'relation' => 'OR',
+					array(
+						'key'     => 'birth_date', // Replace with your ACF birth_date field key
+						'compare' => 'EXISTS',
+					),
+					array(
+						'key'     => 'death_date', // Replace with your ACF death_date field key
+						'compare' => 'EXISTS',
+					),
+				),
+			);
+
+			$p = get_posts( $args );
 			$this->all_dates = array();
 			$now = new \DateTime( 'now' );
 			foreach ( $p as $page ) {
-				preg_match_all( '/\[(born|died)[^\]]+\]/', $page->post_content, $shortcodes, PREG_SET_ORDER );
-				$dead = false;
-				foreach ( $shortcodes as $shortcode ) {
-					if ( 'died' === $shortcode[1] ) {
-						$dead = true;
+				$dates = array();
+				try {
+					if ( get_field( 'birth_date', $page->ID  ) && ! get_field( 'exact_birth_date_unknown', $page->ID  ) ) {
+						$dates['born'] = new \DateTime( get_field( 'birth_date', $page->ID  ) );
 					}
+				} catch ( \Exception $e ) {
+				}
+				try {
+					if ( get_field( 'death_date', $page->ID  ) && ! get_field( 'exact_death_date_unknown', $page->ID  ) ) {
+						$dates['died'] = new \DateTime( get_field( 'death_date', $page->ID  ) );
+					}
+				} catch ( \Exception $e ) {
 				}
 
-				foreach ( $shortcodes as $shortcode ) {
-					if ( preg_match( '/date="([^"]+)"/', $shortcode[0], $m ) ) {
-						if ( 4 === strlen( trim( $m[1] ) ) && is_numeric( $m[1] ) ) {
-							continue;
-						}
-						try {
-							$date = new \DateTime( $m[1] );
-						} catch ( \Exception $e ) {
-							continue;
-						}
+				foreach ( $dates as $type => $date ) {
+					$month_day = $date->format( 'm-d' );
+					if ( ! isset( $this->all_dates[ $month_day ] ) ) {
+						$this->all_dates[ $month_day ] = array();
+					}
+					$arr = array(
+						'date'   => $date,
+						'type'   => $type,
+						'ID'     => $page->ID,
+						'text'   => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a> ',
+						'person' => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a>',
+						'dead'   => ! get_field( 'alive', $page->ID  ),
+						'age'    => '',
+					);
+					$age = $date->diff( $now );
 
-
-
-						$month_day = $date->format( 'm-d' );
-						if ( ! isset( $this->all_dates[ $month_day ] ) ) {
-							$this->all_dates[ $month_day ] = array();
-						}
-						$arr = array(
-							'date'   => $date,
-							'type'   => $shortcode[1],
-							'ID'     => $page->ID,
-							'text'   => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a> ',
-							'person' => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a>',
-							'dead'   => $dead,
-							'age'    => '',
+					if ( 'born' === $type ) {
+						$arr['text'] = sprintf(
+						// translators: %1$s is a name, %2%s is a date.
+							__( '%1$s was born on %2$s', 'family-wiki' ),
+							$arr['text'],
+							date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
 						);
-						$age = $date->diff( $now );
-
-						if ( 'born' === $shortcode[1] ) {
-							$arr['text'] = sprintf(
-							// translators: %1$s is a name, %2%s is a date.
-								__( '%1$s was born on %2$s', 'family-wiki' ),
-								$arr['text'],
-								date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
-							);
-							if ( strpos( $shortcode[0], 'showage' ) ) {
-								if ( $date->format( 'm' ) < $now->format( 'm' ) || ( $date->format( 'm' ) == $now->format( 'm' ) && $date->format( 'j' ) < $now->format( 'j' ) ) ) {
-									$age = $date->diff( $now );
-									if ( $age->y ) {
-									// translators: %d is an age in years.
-										$age = sprintf( _n( 'turned %d', 'turned %d', $age->y, 'family-wiki' ), $age->y );
-									} else {
-										$age = __( 'was born', 'family-wiki' );
-									}
-								} elseif ( $date->format( 'm-d' ) == $now->format( 'm-d' ) ) {
-									$age = $date->diff( $now );
-									if ( $age->y ) {
-									// translators: %d is an age in years.
-										$age = sprintf( _n( 'turns %d today', 'turns %d today', $age->y, 'family-wiki' ), $age->y );
-									} else {
-										$age = __( 'was born today', 'family-wiki' );
-									}
-								} else {
-									$age = $now->format( 'Y' ) - $date->format( 'Y' );
+						if ( get_field( 'alive', $page->ID  ) ) {
+							if ( $date->format( 'm' ) < $now->format( 'm' ) || ( $date->format( 'm' ) == $now->format( 'm' ) && $date->format( 'j' ) < $now->format( 'j' ) ) ) {
+								$age = $date->diff( $now );
+								if ( $age->y ) {
 								// translators: %d is an age in years.
-									$age = sprintf( _n( 'will turn %d', 'will turn %d', $age, 'family-wiki' ), $age );
+									$age = sprintf( _n( 'turned %d', 'turned %d', $age->y, 'family-wiki' ), $age->y );
+								} else {
+									$age = __( 'was born', 'family-wiki' );
 								}
-								$arr['age'] = $age;
-								$arr['text'] .= ' (' . $age . ')';
+							} elseif ( $date->format( 'm-d' ) == $now->format( 'm-d' ) ) {
+								$age = $date->diff( $now );
+								if ( $age->y ) {
+								// translators: %d is an age in years.
+									$age = sprintf( _n( 'turns %d today', 'turns %d today', $age->y, 'family-wiki' ), $age->y );
+								} else {
+									$age = __( 'was born today', 'family-wiki' );
+								}
 							} else {
 								$age = $now->format( 'Y' ) - $date->format( 'Y' );
-							// translators: %s is a number of years.
-								$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
+							// translators: %d is an age in years.
+								$age = sprintf( _n( 'will turn %d', 'will turn %d', $age, 'family-wiki' ), $age );
 							}
+							$arr['age'] = $age;
+							$arr['text'] .= ' (' . $age . ')';
 						} else {
-							$arr['text'] = sprintf(
-							// translators: %1$s is a name, %2%s is a date.
-								__( '%1$s died on %2$s', 'family-wiki' ),
-								$arr['text'],
-								date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
-							);
 							$age = $now->format( 'Y' ) - $date->format( 'Y' );
-							// translators: %s is a number of years.
+						// translators: %s is a number of years.
 							$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
 						}
-
-
-						$this->all_dates[ $month_day ][] = $arr;
+					} else {
+						$arr['text'] = sprintf(
+						// translators: %1$s is a name, %2%s is a date.
+							__( '%1$s died on %2$s', 'family-wiki' ),
+							$arr['text'],
+							date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
+						);
+						$age = $now->format( 'Y' ) - $date->format( 'Y' );
+						// translators: %s is a number of years.
+						$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
 					}
+
+
+					$this->all_dates[ $month_day ][] = $arr;
 				}
 			}
 			ksort( $this->all_dates );

@@ -8,11 +8,11 @@ Keep your family history in a wiki hosted on WordPress.
 **Tested up to:** 6.1
 **Requires PHP:** 5.2.4
 **License:** [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-**Stable tag:** 1.0.0
+**Stable tag:** 1.1.0
 
 ## Description
 
-This plugin transforms your WordPress install into a Wiki for keeping your family history. 
+This plugin transforms your WordPress install into a Wiki for keeping your family history.
 
 ### Recommended setup
 
@@ -22,27 +22,17 @@ Create new users with *Wiki User* (can edit pages) or *Wiki Editor* (can also de
 
 If you created a calendar page, set the option `family_wiki_calendar_page`, for example with the cli command `wp option add family_wiki_calendar_page /Calendar`, then the dates will be linked to that page.
 
-### Shortcodes
-To populate the calendars, use these shortcodes for 
+### Advanced Custom Fields
 
-`[born date="1910-01-01"]`
+The plugin has switched to using Advanced Custom Fields for wiki page metadata. Please install that plugin in version 6.2 or up. The fields should be automatically restored using the provided JSON file in the `acf-json/` directory.
 
-Notes: 
-- You can also use a textual date: `[born date="January 1, 1910"]`
-- For living people, add a `showage`, like this: `[born date="January 1, 1910" showage]`. It will then be displayed in the birthday calendar.
-
-For deceased relatives, specify the date when they died like this:
-
-`[died date="2000-01-01" birth="1910-01-01"]`
-
-You can also use a textual date: `[died date="January 1, 2000" birth="January 1, 1910"]`
+For each wiki page, you can enter data like birth or death date as well as mother/father/children relationships. This data is used for the calendar page but also for automatically generating a short bio using the shortcode `[name_with_bio]`. You'd put this as the first thing in a wiki page.
 
 ### Gutenberg Blocks
 
 The *Family Calendar* block will show all dates from the wiki.
 
 The *Birthday Calendar* block will show all dates of living people (determined by `showage`, see above) from the wiki.
-
 
 ### Performance
 
@@ -62,6 +52,9 @@ For displaying the red missing links or green external links, all pages are eval
 ![7. Inserting a birthday calendar block.](/assets/screenshot-7.png)
 
 ## Changelog
+
+### 1.1.0
+- Switch to using Advanced Custom Fields for metadata.
 
 ### 1.0.0
 - Initial version
