@@ -51,16 +51,16 @@ class Calendar {
 	private function get_dates() {
 		if ( is_null( $this->all_dates ) ) {
 			$args = array(
-				'post_type'      => 'page', // Update with your post type if not 'post'
-				'posts_per_page' => -1, // Get all posts
+				'post_type'      => 'page',
+				'posts_per_page' => -1,
 				'meta_query'     => array(
 					'relation' => 'OR',
 					array(
-						'key'     => 'birth_date', // Replace with your ACF birth_date field key
+						'key'     => 'birth_date',
 						'compare' => 'EXISTS',
 					),
 					array(
-						'key'     => 'death_date', // Replace with your ACF death_date field key
+						'key'     => 'death_date',
 						'compare' => 'EXISTS',
 					),
 				),
