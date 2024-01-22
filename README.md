@@ -8,7 +8,7 @@ Keep your family history in a wiki hosted on WordPress.
 - Tested up to: 6.4
 - Requires PHP: 5.2.4
 - License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-- Stable tag: 1.1.3
+- Stable tag: 1.1.4
 
 ## Description
 
@@ -52,6 +52,9 @@ For displaying the red missing links or green external links, all pages are eval
 ![7. Inserting a birthday calendar block.](/assets/screenshot-7.png)
 
 ## Changelog
+
+### 1.1.4
+- Introduce more gender based translation.
 
 ### 1.1.3
 - Fix translation loading to translate.wordpress.org.
