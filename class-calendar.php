@@ -41,13 +41,6 @@ class Calendar {
 		);
 	}
 
-	private function get_calendar_dates() {
-		if ( is_null( $this->all_dates ) ) {
-			// get all fields birth_date and death_date from all posts via advanced custom fields
-
-
-		}
-	}
 	private function get_dates() {
 		if ( is_null( $this->all_dates ) ) {
 			$args = array(

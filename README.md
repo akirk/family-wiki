@@ -2,13 +2,13 @@
 
 Keep your family history in a wiki hosted on WordPress.
 
-**Contributors:** akirk
-**Tags:** family, wiki
-**Requires at least:** 5.0
-**Tested up to:** 6.1
-**Requires PHP:** 5.2.4
-**License:** [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-**Stable tag:** 1.1.1
+- Contributors: akirk
+- Tags: family, wiki
+- Requires at least: 5.0
+- Tested up to: 6.4
+- Requires PHP: 5.2.4
+- License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
+- Stable tag: 1.1.1
 
 ## Description
 
