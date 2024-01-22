@@ -6,7 +6,7 @@ Keep your family history in a wiki hosted on WordPress.
 - Tags: family, wiki
 - Tested up to: 6.4
 - License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-- Stable tag: 1.1.5
+- Stable tag: 1.1.6
 
 ## Description
 
