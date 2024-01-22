@@ -7,6 +7,8 @@ class Main {
 		new Shortcodes();
 		new Private_Site();
 
+		load_plugin_textdomain( 'family-wiki' );
+
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'the_content', array( $this, 'the_content' ), 100 );
 		add_action( 'acf/settings/load_json', array( $this, 'acf_json_dir' ) );
