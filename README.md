@@ -51,9 +51,9 @@ For displaying the red missing links or green external links, all pages are eval
 
 ## Changelog
 
-### 1.1.7
+### 1.1.8
 - Translated ACF fields to German.
-- Introduce more gender based translation.
+- Lots of translation fixes.
 - Fix translation loading to translate.wordpress.org.
 - Redirect to the front page after logging in.
 - Improve output escaping.
