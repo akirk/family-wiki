@@ -43,7 +43,7 @@ class Shortcodes {
 			if ( 'Male' === get_field( 'sex' ) ) {
 				return sprintf(
 					// translators: %1$s is a first child's name, %2$s is a second child's name.
-					_x( 'father of %1$s and %2$s', 'family-wiki' ),
+					__( 'father of %1$s and %2$s', 'family-wiki' ),
 					array_shift( $children ),
 					array_shift( $children )
 				);
@@ -51,7 +51,7 @@ class Shortcodes {
 			if ( 'Female' === get_field( 'sex' ) ) {
 				return sprintf(
 					// translators: %1$s is a first child's name, %2$s is a second child's name.
-					_x( 'mother of %1$s and %2$s', 'family-wiki' ),
+					__( 'mother of %1$s and %2$s', 'family-wiki' ),
 					array_shift( $children ),
 					array_shift( $children )
 				);
@@ -70,7 +70,7 @@ class Shortcodes {
 			if ( 'Male' === get_field( 'sex' ) ) {
 				return sprintf(
 					// translators: %1$s is a list of children, %2$s is a child's name.
-					_x( 'father of %1$s, and %2$s', 'family-wiki' ),
+					__( 'father of %1$s, and %2$s', 'family-wiki' ),
 					implode( ', ', $children ),
 					$last_child
 				);
@@ -78,7 +78,7 @@ class Shortcodes {
 			if ( 'Female' === get_field( 'sex' ) ) {
 				return sprintf(
 					// translators: %1$s is a list of children, %2$s is a child's name.
-					_x( 'mother of %1$s, and %2$s', 'family-wiki' ),
+					__( 'mother of %1$s, and %2$s', 'family-wiki' ),
 					implode( ', ', $children ),
 					$last_child
 				);
@@ -95,7 +95,7 @@ class Shortcodes {
 		if ( 'Male' === get_field( 'sex' ) ) {
 			return sprintf(
 				// translators: %s is a child
-				_x( 'father of %s', 'family-wiki' ),
+				__( 'father of %s', 'family-wiki' ),
 				array_shift( $children ),
 				array_shift( $children )
 			);
@@ -266,12 +266,12 @@ class Shortcodes {
 			$age = $birth->diff( new \DateTime( 'now' ) );
 			$age_ca_placeholder = sprintf(
 				// translators: %s is an age in years.
-				_n( 'age: ~%d', 'aged: ~%d', $age->y, 'family-wiki' ),
+				_n( 'age: ~%d', 'age: ~%d', $age->y, 'family-wiki' ),
 				$age->y
 			);
 			$age_placeholder = sprintf(
 				// translators: %s is an age in years.
-				_n( 'age: %d', 'aged: %d', $age->y, 'family-wiki' ),
+				_n( 'age: %d', 'age: %d', $age->y, 'family-wiki' ),
 				$age->y
 			);
 
