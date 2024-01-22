@@ -4,6 +4,8 @@
  * Plugin author: Alex Kirk
  * Plugin URI: https://github.com/akirk/family-wiki
  * Version: 1.1.5
+ * Requires at least: 5.0
+ * Requires PHP: 5.2.4
  *
  * Description: Keep your family history in a wiki hosted on WordPress.
  *
