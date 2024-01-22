@@ -76,7 +76,7 @@ class Main {
 				}
 				$l = strlen( $p );
 				foreach ( array_keys( $all_pages ) as $k ) {
-					if ( $p === substr( $k, 0, $l ) ) {
+					if ( substr( $k, 0, $l ) === $p ) {
 						return $m[0];
 					}
 				}

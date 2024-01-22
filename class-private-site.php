@@ -15,7 +15,6 @@ class Private_Site {
 		add_filter( 'bloginfo', array( $this, 'bloginfo' ), 3, 2 );
 		add_filter( 'preprocess_comment', array( $this, 'parse_request' ), 0 );
 		add_filter( 'robots_txt', array( $this, 'robots_txt' ) );
-
 	}
 
 	public function blog_privacy_selector() {
@@ -83,7 +82,7 @@ class Private_Site {
 			return;
 		}
 
-		$full_request_url = sanitize_url( ( ( empty( $_SERVER['HTTPS'] ) || $_SERVER['HTTPS'] === 'off' ) ? 'http' : 'https' ) . '://'. $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+		$full_request_url = sanitize_url( ( ( empty( $_SERVER['HTTPS'] ) || 'off' === $_SERVER['HTTPS'] ) ? 'http' : 'https' ) . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 
 		if ( untrailingslashit( $full_request_url ) === site_url( '/robots.txt' ) ) {
 			do_action( 'do_robots' );
@@ -109,7 +108,7 @@ class Private_Site {
 		</head>
 		<body>
 			<?php esc_html_e( 'This site is private.', 'family-wiki' ); ?>
-                        <a href="<?php echo esc_url( wp_login_url( '/' ) ); ?>"><?php esc_html_e( 'Login' ); ?></a>
+						<a href="<?php echo esc_url( wp_login_url( '/' ) ); ?>"><?php esc_html_e( 'Login' ); ?></a>
 		</body>
 		</html>
 		<?php
@@ -118,7 +117,7 @@ class Private_Site {
 	}
 
 	public function rest_dispatch_request( $dispatch_result, $request, $route ) {
-		if ( $dispatch_result !== null ) {
+		if ( null !== $dispatch_result ) {
 			return $dispatch_result;
 		}
 		$allowed_routes = array(
@@ -148,14 +147,14 @@ class Private_Site {
 		exit;
 	}
 
-	function bloginfo($value, $what ) {
-		if ( ( $what === 'name' || $what === 'title' ) && $this->is_private() ) {
+	public function bloginfo( $value, $what ) {
+		if ( ( 'name' === $what || 'title' === $what ) && $this->is_private() ) {
 			return __( 'This site is private.', 'family-wiki' );
 		}
 
 		return $value;
 	}
-	function robots_txt() {
-		return "User-agent: *nDisallow: /n";
+	public function robots_txt() {
+		return 'User-agent: *nDisallow: /n';
 	}
 }

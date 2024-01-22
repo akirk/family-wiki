@@ -65,14 +65,14 @@ class Calendar {
 			foreach ( $p as $page ) {
 				$dates = array();
 				try {
-					if ( get_field( 'birth_date', $page->ID  ) && ! get_field( 'exact_birth_date_unknown', $page->ID  ) ) {
-						$dates['born'] = new \DateTime( get_field( 'birth_date', $page->ID  ) );
+					if ( get_field( 'birth_date', $page->ID ) && ! get_field( 'exact_birth_date_unknown', $page->ID ) ) {
+						$dates['born'] = new \DateTime( get_field( 'birth_date', $page->ID ) );
 					}
 				} catch ( \Exception $e ) {
 				}
 				try {
-					if ( get_field( 'death_date', $page->ID  ) && ! get_field( 'exact_death_date_unknown', $page->ID  ) ) {
-						$dates['died'] = new \DateTime( get_field( 'death_date', $page->ID  ) );
+					if ( get_field( 'death_date', $page->ID ) && ! get_field( 'exact_death_date_unknown', $page->ID ) ) {
+						$dates['died'] = new \DateTime( get_field( 'death_date', $page->ID ) );
 					}
 				} catch ( \Exception $e ) {
 				}
@@ -88,7 +88,7 @@ class Calendar {
 						'ID'     => $page->ID,
 						'text'   => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a> ',
 						'person' => '<a href="/' . $page->post_name . '">' . $page->post_title . '</a>',
-						'dead'   => ! get_field( 'alive', $page->ID  ),
+						'dead'   => ! get_field( 'alive', $page->ID ),
 						'age'    => '',
 					);
 					$age = $date->diff( $now );
@@ -100,33 +100,33 @@ class Calendar {
 							$arr['text'],
 							date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
 						);
-						if ( get_field( 'alive', $page->ID  ) ) {
-							if ( $date->format( 'm' ) < $now->format( 'm' ) || ( $date->format( 'm' ) == $now->format( 'm' ) && $date->format( 'j' ) < $now->format( 'j' ) ) ) {
+						if ( get_field( 'alive', $page->ID ) ) {
+							if ( $date->format( 'm' ) < $now->format( 'm' ) || ( $date->format( 'm' ) === $now->format( 'm' ) && $date->format( 'j' ) < $now->format( 'j' ) ) ) {
 								$age = $date->diff( $now );
 								if ( $age->y ) {
-								// translators: %d is an age in years.
+									// translators: %d is an age in years.
 									$age = sprintf( _n( 'turned %d', 'turned %d', $age->y, 'family-wiki' ), $age->y );
 								} else {
 									$age = __( 'was born', 'family-wiki' );
 								}
-							} elseif ( $date->format( 'm-d' ) == $now->format( 'm-d' ) ) {
+							} elseif ( $date->format( 'm-d' ) === $now->format( 'm-d' ) ) {
 								$age = $date->diff( $now );
 								if ( $age->y ) {
-								// translators: %d is an age in years.
+									// translators: %d is an age in years.
 									$age = sprintf( _n( 'turns %d today', 'turns %d today', $age->y, 'family-wiki' ), $age->y );
 								} else {
 									$age = __( 'was born today', 'family-wiki' );
 								}
 							} else {
 								$age = $now->format( 'Y' ) - $date->format( 'Y' );
-							// translators: %d is an age in years.
+								// translators: %d is an age in years.
 								$age = sprintf( _n( 'will turn %d', 'will turn %d', $age, 'family-wiki' ), $age );
 							}
 							$arr['age'] = $age;
 							$arr['text'] .= ' (' . $age . ')';
 						} else {
 							$age = $now->format( 'Y' ) - $date->format( 'Y' );
-						// translators: %s is a number of years.
+							// translators: %s is a number of years.
 							$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
 						}
 					} else {
@@ -140,7 +140,6 @@ class Calendar {
 						// translators: %s is a number of years.
 						$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
 					}
-
 
 					$this->all_dates[ $month_day ][] = $arr;
 				}

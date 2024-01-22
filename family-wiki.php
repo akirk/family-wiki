@@ -26,4 +26,4 @@ register_activation_hook( __FILE__, array( __NAMESPACE__ . '\Main', 'activate_pl
 add_action( 'activate_blog', array( __NAMESPACE__ . '\Main', 'activate_plugin' ) );
 add_action( 'wp_initialize_site', array( __NAMESPACE__ . '\Main', 'activate_for_blog' ) );
 
-new Main;
+new Main();

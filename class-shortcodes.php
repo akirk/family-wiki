@@ -218,7 +218,7 @@ class Shortcodes {
 				return sprintf(
 					// translators: %1$s is a maiden name, %2$s is a birth date, %3$s is an age in years.
 					__( 'born as %1$s on %2$s (age: %3$s)', 'family-wiki' ),
-						'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
+					'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
 					$this->get_date( $birth ),
 					$age->y
 				);
