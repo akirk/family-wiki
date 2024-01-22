@@ -71,16 +71,16 @@ class Shortcodes {
 				return sprintf(
 					// translators: %1$s is a list of children, %2$s is a child's name.
 					_x( 'father of %1$s, and %2$s', 'family-wiki' ),
-					array_shift( $children ),
-					array_shift( $children )
+					implode( ', ', $children ),
+					$last_child
 				);
 			}
 			if ( 'Female' === get_field( 'sex' ) ) {
 				return sprintf(
 					// translators: %1$s is a list of children, %2$s is a child's name.
 					_x( 'mother of %1$s, and %2$s', 'family-wiki' ),
-					array_shift( $children ),
-					array_shift( $children )
+					implode( ', ', $children ),
+					$last_child
 				);
 			}
 
@@ -183,13 +183,13 @@ class Shortcodes {
 				$return[] = sprintf(
 					// translators: %s is a list of siblings.
 					__( 'half-brother of %s', 'family-wiki' ),
-					implode( ', ', $siblings )
+					implode( ', ', $half_siblings )
 				);
 			} elseif ( 'Female' === get_field( 'sex' ) ) {
 				$return[] = sprintf(
 					// translators: %s is a list of siblings.
 					__( 'half-sister of %s', 'family-wiki' ),
-					implode( ', ', $siblings )
+					implode( ', ', $half_siblings )
 				);
 			} else {
 				$return[] = sprintf(
@@ -264,85 +264,92 @@ class Shortcodes {
 				return '';
 			}
 			$age = $birth->diff( new \DateTime( 'now' ) );
+			$age_ca_placeholder = sprintf(
+				// translators: %s is an age in years.
+				_n( 'age: ~%d', 'aged: ~%d', $age->y, 'family-wiki' ),
+				$age->y
+			);
+			$age_placeholder = sprintf(
+				// translators: %s is an age in years.
+				_n( 'age: %d', 'aged: %d', $age->y, 'family-wiki' ),
+				$age->y
+			);
 
 			if ( get_field( 'born_as' ) ) {
 				if ( get_field( 'birth_place' ) ) {
 					if ( get_field( 'exact_birth_date_unknown' ) ) {
 						return sprintf(
-							// translators: %1$s is a maiden name, %2$s is a birth year, %3$s is an age in years, %4$s is a birth place.
-							__( 'born as %1$s in %2$s (age: ~%3$s) in %4$s', 'family-wiki' ),
+							// translators: %1$s is a maiden name, %2$s is a birth year, %3$s is the translation of age: %d, %4$s is a birth place.
+							__( 'born as %1$s in %2$s (%3$s) in %4$s', 'family-wiki' ),
 							'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
 							$birth->format( 'Y' ),
-							$age->y,
+							$age_ca_placeholder,
 							esc_html( get_field( 'birth_place' ) )
 						);
 					}
 					return sprintf(
-						// translators: %1$s is a maiden name, %2$s is a birth date, %3$s is an age in years, %4$s is a birth place.
-						__( 'born as %1$s on %2$s (age: %3$s) in %4$s', 'family-wiki' ),
+						// translators: %1$s is a maiden name, %2$s is a birth date, %3$s is the translation of age: ~%d, %4$s is a birth place.
+						__( 'born as %1$s on %2$s (%3$s) in %4$s', 'family-wiki' ),
 						'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
 						$this->get_date( $birth ),
-						$age->y,
+						$age_placeholder,
 						esc_html( get_field( 'birth_place' ) )
 					);
 				}
 				if ( get_field( 'exact_birth_date_unknown' ) ) {
 					return sprintf(
-						// translators: %1$s is a maiden name, %2$s is a birth year, %3$s is an age in years.
-						__( 'born as %1$s in %2$s (age: ~%3$s)', 'family-wiki' ),
+						// translators: %1$s is a maiden name, %2$s is a birth year, %3$s is the translation of age: ~%d.
+						__( 'born as %1$s in %2$s (%3$s)', 'family-wiki' ),
 						'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
 						$birth->format( 'Y' ),
-						$age->y
+						$age_ca_placeholder
 					);
 				}
 				return sprintf(
-					// translators: %1$s is a maiden name, %2$s is a birth date, %3$s is an age in years.
-					__( 'born as %1$s on %2$s (age: %3$s)', 'family-wiki' ),
+					// translators: %1$s is a maiden name, %2$s is a birth date, %3$s is the translation of age: %d.
+					__( 'born as %1$s on %2$s (%3$s)', 'family-wiki' ),
 					'<i>' . esc_html( get_field( 'born_as' ) ) . '</i>',
 					$this->get_date( $birth ),
-					$age->y
+					$age_placeholder
 				);
 			}
+
 			if ( get_field( 'birth_place' ) ) {
 				if ( get_field( 'exact_birth_date_unknown' ) ) {
 					return sprintf(
-						// translators: %1$s is a birth year, %2$s is an age in years, %3$s is a birth place.
-						__( 'born in %1$s (age: ~%2$s) in %3$s', 'family-wiki' ),
+						// translators: %1$s is a birth year, %2$s is the translation of age: %d, %3$s is a birth place.
+						__( 'born in %1$s (%2$s) in %3$s', 'family-wiki' ),
 						$birth->format( 'Y' ),
-						$age->y,
+						$age_ca_placeholder,
 						esc_html( get_field( 'birth_place' ) )
 					);
 				}
 				return sprintf(
-					// translators: %1$s is a birth date, %2$s is an age in years, %3$s is a birth place.
-					__( 'born on %1$s (age: %2$s) in %3$s', 'family-wiki' ),
+					// translators: %1$s is a birth date, %2$s is the translation of age: ~%d, %3$s is a birth place.
+					__( 'born on %1$s (%2$s) in %3$s', 'family-wiki' ),
 					$this->get_date( $birth ),
-					$age->y,
+					$age_placeholder,
 					esc_html( get_field( 'birth_place' ) )
 				);
 			}
 			if ( get_field( 'exact_birth_date_unknown' ) ) {
 				return sprintf(
-					// translators: %1$s is a birth year, %2$s is an age in years.
-					__( 'born in %1$s (age: ~%2$s)', 'family-wiki' ),
+					// translators: %1$s is a birth year, %2$s is the translation of age: ~%d.
+					__( 'born in %1$s (%2$s)', 'family-wiki' ),
 					$birth->format( 'Y' ),
-					$age->y
+					$age_ca_placeholder
 				);
 			}
 			return sprintf(
-				// translators: %1$s is a birth date, %2$s is an age in years.
-				__( 'born on %1$s (age: %2$s)', 'family-wiki' ),
+				// translators: %1$s is a birth date, %2$s is the translation of age: %d.
+				__( 'born on %1$s (%2$s)', 'family-wiki' ),
 				$this->get_date( $birth ),
-				$age->y
+				$age_placeholder
 			);
 		}
 
 		if ( ! get_field( 'birth_date' ) && ! get_field( 'death_date' ) ) {
 			return '';
-		}
-
-		if ( get_field( 'birth_date' ) && get_field( 'death_date' ) ) {
-			$aged = $birth->diff( $death );
 		}
 
 		if ( get_field( 'born_as' ) ) {
@@ -401,7 +408,7 @@ class Shortcodes {
 			} else {
 				if ( get_field( 'exact_birth_date_unknown' ) ) {
 					$return = sprintf(
-					// translators: %s is a birth year.
+						// translators: %s is a birth year.
 						__( 'born in %s', 'family-wiki' ),
 						$birth->format( 'Y' )
 					);
@@ -415,39 +422,69 @@ class Shortcodes {
 			}
 		}
 
-		if ( get_field( 'death_place' ) ) {
-			if ( get_field( 'exact_death_date_unknown' ) ) {
+		if ( get_field( 'birth_date' ) && get_field( 'death_date' ) ) {
+			$aged = $birth->diff( $death );
+
+			$aged_placeholder = sprintf(
+				// translators: %s is an age in years.
+				_n( 'aged: %d', 'aged: %d', $aged->y, 'family-wiki' ),
+				$aged->y
+			);
+			$aged_ca_placeholder = sprintf(
+				// translators: %s is an age in years.
+				_n( 'aged: ~%d', 'aged: ~%d', $aged->y, 'family-wiki' ),
+				$aged->y
+			);
+
+			if ( get_field( 'death_place' ) ) {
+				if ( get_field( 'exact_death_date_unknown' ) ) {
+					return $return . ', ' . sprintf(
+						// translators: %1$s is a death year, %2$s is the translation of aged: %d, %3$s is a death place.
+						__( 'died in %1$s (%2$s) in %3$s', 'family-wiki' ),
+						$death->format( 'Y' ),
+						$aged_ca_placeholder,
+						esc_html( get_field( 'death_place' ) )
+					);
+				}
+
 				return $return . ', ' . sprintf(
-					// translators: %1$s is a birth year, %2$s is an age in years, %3$s is a death place.
-					__( 'died in %1$s (aged: %2$s) in %3$s', 'family-wiki' ),
-					$death->format( 'Y' ),
-					$aged->y,
+					// translators: %1$s is a death date, %2$s is a death date, %3$s is the translation of aged: %d.
+					__( 'died on %1$s (%2$s) in %3$s', 'family-wiki' ),
+					$this->get_date( $death ),
+					$aged_placeholder,
 					esc_html( get_field( 'death_place' ) )
 				);
 			}
 
+			if ( get_field( 'exact_death_date_unknown' ) ) {
+				return $return . ', ' . sprintf(
+					// translators: %1$s is a death year, %2$s is the translation of aged: %d.
+					__( 'died in %1$s (%2$s)', 'family-wiki' ),
+					$death->format( 'Y' ),
+					$aged_ca_placeholder
+				);
+			}
 			return $return . ', ' . sprintf(
-				// translators: %1$s is a birth date, %2$s is a death date, %3$s is an age in years.
-				__( 'died on %1$s (aged: %2$s) in %3$s', 'family-wiki' ),
+				// translators: %1$s is a death date, %2$s is the translation of aged: %d.
+				__( 'died on %1$s (%2$s)', 'family-wiki' ),
 				$this->get_date( $death ),
-				$aged->y,
-				esc_html( get_field( 'death_place' ) )
+				$aged_placeholder
 			);
 		}
 
 		if ( get_field( 'exact_death_date_unknown' ) ) {
 			return $return . ', ' . sprintf(
-				// translators: %1$s is a birth year, %2$s is an age in years.
-				__( 'died on %1$s (aged: %2$s)', 'family-wiki' ),
-				$death->format( 'Y' ),
-				$aged->y
+				// translators: %s is a death year.
+				__( 'died in %s', 'family-wiki' ),
+				$death->format( 'Y' )
 			);
 		}
+
 		return $return . ', ' . sprintf(
-			// translators: %1$s is a birth date, %2$s is an age in years.
-			__( 'died on %1$s (aged: %2$s)', 'family-wiki' ),
+			// translators: %s is a death date.
+			__( 'died on %s', 'family-wiki' ),
 			$this->get_date( $death ),
-			$aged->y
+			$aged_placeholder
 		);
 	}
 
@@ -473,7 +510,11 @@ class Shortcodes {
 		if ( isset( $atts['showage'] ) || in_array( 'showage', $atts, true ) ) {
 			$age = $birth->diff( new \DateTime( 'now' ) );
 			// translators: %d is an age in years.
-			$age = ' (' . sprintf( _n( 'age %d', 'age %d', $age->y, 'family-wiki' ), $age->y ) . ')';
+			$age = ' (' . sprintf(
+			// translators: %s is an age in years.
+				_n( 'age %d', 'age %d', $age->y, 'family-wiki' ),
+				$age->y
+			) . ')';
 		}
 
 		return $return . $age;
@@ -515,6 +556,10 @@ class Shortcodes {
 			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $death->format( 'U' ) ) . '">' . $return . '</a>';
 		}
 		// translators: %d is an age in years.
-		return $return . ' (' . sprintf( _n( 'aged %d', 'aged %d', $age->y, 'family-wiki' ), $age->y ) . ')';
+		return $return . ' (' . sprintf(
+		// translators: %s is an age in years.
+			_n( 'aged %d', 'aged %d', $age->y, 'family-wiki' ),
+			$age->y
+		) . ')';
 	}
 }
