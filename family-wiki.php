@@ -3,7 +3,7 @@
  * Plugin Name: Family Wiki
  * Plugin author: Alex Kirk
  * Plugin URI: https://github.com/akirk/family-wiki
- * Version: 1.1.4
+ * Version: 1.1.5
  *
  * Description: Keep your family history in a wiki hosted on WordPress.
  *
