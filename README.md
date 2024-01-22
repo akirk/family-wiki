@@ -51,7 +51,7 @@ For displaying the red missing links or green external links, all pages are eval
 
 ## Changelog
 
-### 1.1.5
+### 1.1.6
 - Introduce more gender based translation.
 - Fix translation loading to translate.wordpress.org.
 - Redirect to the front page after logging in.
