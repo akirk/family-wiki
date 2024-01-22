@@ -16,7 +16,12 @@ class Main {
 	}
 
 	public function acf_json_dir() {
-		return __DIR__ . '/acf-json';
+		$dir = __DIR__ . '/acf-json';
+		if ( file_exists( $dir . '/' . get_locale() ) ) {
+			$dir .= '/' . get_locale();
+			echo 1;exit;
+		}
+		return $dir;
 	}
 
 	public function template_redirect() {
