@@ -40,6 +40,23 @@ class Shortcodes {
 		}
 
 		if ( 2 === count( $children ) ) {
+			if ( 'Male' === get_field( 'sex' ) ) {
+				return sprintf(
+					// translators: %1$s is a first child's name, %2$s is a second child's name.
+					_x( 'father of %1$s and %2$s', 'family-wiki' ),
+					array_shift( $children ),
+					array_shift( $children )
+				);
+			}
+			if ( 'Female' === get_field( 'sex' ) ) {
+				return sprintf(
+					// translators: %1$s is a first child's name, %2$s is a second child's name.
+					_x( 'mother of %1$s and %2$s', 'family-wiki' ),
+					array_shift( $children ),
+					array_shift( $children )
+				);
+			}
+
 			return sprintf(
 				// translators: %1$s is a first child's name, %2$s is a second child's name.
 				__( 'parent of %1$s and %2$s', 'family-wiki' ),
@@ -50,13 +67,48 @@ class Shortcodes {
 
 		$last_child = array_pop( $children );
 		if ( $children ) {
+			if ( 'Male' === get_field( 'sex' ) ) {
+				return sprintf(
+					// translators: %1$s is a list of children, %2$s is a child's name.
+					_x( 'father of %1$s, and %2$s', 'family-wiki' ),
+					array_shift( $children ),
+					array_shift( $children )
+				);
+			}
+			if ( 'Female' === get_field( 'sex' ) ) {
+				return sprintf(
+					// translators: %1$s is a list of children, %2$s is a child's name.
+					_x( 'mother of %1$s, and %2$s', 'family-wiki' ),
+					array_shift( $children ),
+					array_shift( $children )
+				);
+			}
+
 			return sprintf(
-				// translators: %1$s is a list of children, %2$s is a last child's name.
-				__( 'parent of %1$s and %2$s', 'family-wiki' ),
+				// translators: %1$s is a list of children, %2$s is a child's name.
+				__( 'parent of %1$s, and %2$s', 'family-wiki' ),
 				implode( ', ', $children ),
 				$last_child
 			);
 		}
+
+		if ( 'Male' === get_field( 'sex' ) ) {
+			return sprintf(
+				// translators: %s is a child
+				_x( 'father of %s', 'family-wiki' ),
+				array_shift( $children ),
+				array_shift( $children )
+			);
+		}
+		if ( 'Female' === get_field( 'sex' ) ) {
+			return sprintf(
+				// translators: %s is a child
+				_x( 'mother of %s', 'family-wiki' ),
+				array_shift( $children ),
+				array_shift( $children )
+			);
+		}
+
 		return sprintf(
 			// translators: %s is a child
 			__( 'parent of %s', 'family-wiki' ),
@@ -106,18 +158,46 @@ class Shortcodes {
 
 		$return = array();
 		if ( $siblings ) {
-			$return[] = sprintf(
-				// translators: %1$s is a list of siblings.
-				__( 'sibling of %1$s', 'family-wiki' ),
-				implode( ', ', $siblings )
-			);
+			if ( 'Male' === get_field( 'sex' ) ) {
+				$return[] = sprintf(
+					// translators: %s is a list of siblings.
+					__( 'brother of %s', 'family-wiki' ),
+					implode( ', ', $siblings )
+				);
+			} elseif ( 'Female' === get_field( 'sex' ) ) {
+				$return[] = sprintf(
+					// translators: %s is a list of siblings.
+					__( 'sister of %s', 'family-wiki' ),
+					implode( ', ', $siblings )
+				);
+			} else {
+				$return[] = sprintf(
+					// translators: %s is a list of siblings.
+					__( 'sibling of %s', 'family-wiki' ),
+					implode( ', ', $siblings )
+				);
+			}
 		}
 		if ( $half_siblings ) {
-			$return[] = sprintf(
-				// translators: %1$s is a list of half-siblings.
-				__( 'half-sibling of %1$s', 'family-wiki' ),
-				implode( ', ', $half_siblings )
-			);
+			if ( 'Male' === get_field( 'sex' ) ) {
+				$return[] = sprintf(
+					// translators: %s is a list of siblings.
+					__( 'half-brother of %s', 'family-wiki' ),
+					implode( ', ', $siblings )
+				);
+			} elseif ( 'Female' === get_field( 'sex' ) ) {
+				$return[] = sprintf(
+					// translators: %s is a list of siblings.
+					__( 'half-sister of %s', 'family-wiki' ),
+					implode( ', ', $siblings )
+				);
+			} else {
+				$return[] = sprintf(
+					// translators: %s is a list of half-siblings.
+					__( 'half-sibling of %s', 'family-wiki' ),
+					implode( ', ', $half_siblings )
+				);
+			}
 		}
 
 		return implode( ', ', $return );
