@@ -419,7 +419,7 @@ class Shortcodes {
 			if ( get_field( 'exact_death_date_unknown' ) ) {
 				return $return . ', ' . sprintf(
 					// translators: %1$s is a birth year, %2$s is an age in years, %3$s is a death place.
-					__( 'died in %1$s (aged: %1$s) in %4$s', 'family-wiki' ),
+					__( 'died in %1$s (aged: %2$s) in %3$s', 'family-wiki' ),
 					$death->format( 'Y' ),
 					$aged->y,
 					esc_html( get_field( 'death_place' ) )
