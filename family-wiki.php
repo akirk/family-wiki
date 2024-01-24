@@ -3,7 +3,7 @@
  * Plugin Name: Family Wiki
  * Plugin author: Alex Kirk
  * Plugin URI: https://github.com/akirk/family-wiki
- * Version: 1.1.8
+ * Version: 1.1.9
  * Requires at least: 5.0
  * Requires PHP: 5.2.4
  *

@@ -4,7 +4,7 @@
 - Tags: family, wiki
 - Tested up to: 6.4
 - License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-- Stable tag: 1.1.8
+- Stable tag: 1.1.9
 
 Keep your family history in a wiki hosted on WordPress.
 
@@ -51,7 +51,7 @@ For displaying the red missing links or green external links, all pages are eval
 
 ## Changelog
 
-### 1.1.8
+### 1.1.9
 - Translated ACF fields to German.
 - Lots of translation fixes.
 - Fix translation loading to translate.wordpress.org.
