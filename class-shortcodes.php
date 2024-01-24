@@ -96,16 +96,14 @@ class Shortcodes {
 			return sprintf(
 				// translators: %s is a child
 				__( 'father of %s', 'family-wiki' ),
-				array_shift( $children ),
-				array_shift( $children )
+				$last_child
 			);
 		}
 		if ( 'Female' === get_field( 'sex' ) ) {
 			return sprintf(
 				// translators: %s is a child
-				_x( 'mother of %s', 'family-wiki' ),
-				array_shift( $children ),
-				array_shift( $children )
+				__( 'mother of %s', 'family-wiki' ),
+				$last_child
 			);
 		}
 
