@@ -42,6 +42,9 @@ class Main {
 
 	public function the_content( $content ) {
 		static $all_pages;
+		if ( 'page' !== get_post_type() ) {
+			return $content;
+		}
 		if ( ! isset( $all_pages ) ) {
 			$p = get_posts(
 				array(
