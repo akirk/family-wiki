@@ -319,6 +319,13 @@
 	padding-top: 0.35rem;
 }
 
+.family-wiki-calendar-month__event-year {
+	cursor: help;
+	text-decoration-line: underline;
+	text-decoration-style: dotted;
+	text-underline-offset: 0.15em;
+}
+
 @media (max-width: 700px) {
 	.family-wiki-infobox {
 		float: none;
