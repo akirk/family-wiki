@@ -28,7 +28,7 @@ Person pages can have related pages as direct child pages, for example `/person-
 
 The plugin has switched to using Advanced Custom Fields for wiki page metadata. Please install that plugin in version 6.2 or up. The fields should be automatically restored using the provided JSON file in the `acf-json/` directory.
 
-For each wiki page, you can enter data like birth or death date as well as mother/father/children relationships. This data is used for the calendar page but also for automatically generating a short bio using the shortcode `[name_with_bio]`. You'd put this as the first thing in a wiki page.
+For each wiki page, you can enter data like birth or death date, citizenships, and mother/father/children relationships. Dates and family relationships are used for the calendar page and for automatically generating a short bio using the shortcode `[name_with_bio]`. You'd put this as the first thing in a wiki page.
 
 ### Gutenberg Blocks
 

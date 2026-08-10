@@ -70,6 +70,26 @@
             "append": ""
         },
         {
+            "key": "field_66c0000000001",
+            "label": "Citizenships",
+            "name": "citizenships",
+            "aria-label": "",
+            "type": "textarea",
+            "instructions": "Enter one citizenship per line.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "rows": "",
+            "placeholder": "",
+            "new_lines": ""
+        },
+        {
             "key": "field_65aa3a29619a5",
             "label": "Birth Date",
             "name": "birth_date",
