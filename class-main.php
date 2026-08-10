@@ -15,6 +15,11 @@ class Main {
 
 		add_action( 'template_redirect', array( $this, 'template_redirect' ) );
 		add_action( 'the_content', array( $this, 'the_content' ), 100 );
+		add_action( 'save_post_page', array( $this, 'flush_family_data_cache' ) );
+		add_action( 'before_delete_post', array( $this, 'flush_family_data_cache' ) );
+		add_action( 'trashed_post', array( $this, 'flush_family_data_cache' ) );
+		add_action( 'untrashed_post', array( $this, 'flush_family_data_cache' ) );
+		add_action( 'acf/save_post', array( $this, 'flush_family_data_cache' ), 20 );
 		add_action( 'acf/settings/load_json', array( $this, 'acf_json_dir' ) );
 		add_action( 'acf/settings/save_json', array( $this, 'acf_json_dir' ) );
 	}
@@ -45,24 +50,11 @@ class Main {
 	}
 
 	public function the_content( $content ) {
-		static $all_pages;
-		if ( 'page' !== get_post_type() ) {
+		if ( is_admin() || ! is_singular( 'page' ) || ! in_the_loop() || ! is_main_query() || 'page' !== get_post_type() || false === stripos( $content, '<a ' ) ) {
 			return $content;
 		}
-		if ( ! isset( $all_pages ) ) {
-			$p = get_posts(
-				array(
-					'post_type'      => 'page',
-					'post_status'    => 'published',
-					'posts_per_page' => -1,
-				)
-			);
-			$all_pages = array();
-			foreach ( $p as $page ) {
-				$all_pages[ $page->post_name ] = $page->ID;
-				$all_pages[ get_page_uri( $page ) ] = $page->ID;
-			}
-		}
+
+		$all_pages = $this->get_page_path_index();
 		$content = preg_replace_callback(
 			'/<a .*?href="([^"]+)"/i',
 			function ( $m ) use ( $all_pages ) {
@@ -107,6 +99,61 @@ class Main {
 			$content
 		);
 		return $content;
+	}
+
+	private function get_page_path_index() {
+		static $all_pages;
+
+		if ( isset( $all_pages ) ) {
+			return $all_pages;
+		}
+
+		$cache_key = 'family_wiki_page_path_index_' . get_current_blog_id();
+		$all_pages = wp_cache_get( $cache_key, 'family-wiki' );
+		if ( false !== $all_pages && is_array( $all_pages ) ) {
+			return $all_pages;
+		}
+
+		$all_pages = get_transient( $cache_key );
+		if ( false !== $all_pages && is_array( $all_pages ) ) {
+			wp_cache_set( $cache_key, $all_pages, 'family-wiki', HOUR_IN_SECONDS );
+			return $all_pages;
+		}
+
+		$pages = get_posts(
+			array(
+				'post_type'              => 'page',
+				'post_status'            => 'publish',
+				'posts_per_page'         => -1,
+				'fields'                 => 'ids',
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+			)
+		);
+		$all_pages = array();
+		foreach ( $pages as $page_id ) {
+			$slug               = get_post_field( 'post_name', $page_id );
+			$all_pages[ $slug ] = $page_id;
+			$all_pages[ get_page_uri( $page_id ) ] = $page_id;
+		}
+
+		wp_cache_set( $cache_key, $all_pages, 'family-wiki', HOUR_IN_SECONDS );
+		set_transient( $cache_key, $all_pages, HOUR_IN_SECONDS );
+
+		return $all_pages;
+	}
+
+	public function flush_family_data_cache( $post_id = null ) {
+		if ( $post_id && 'page' !== get_post_type( $post_id ) ) {
+			return;
+		}
+
+		$cache_key = 'family_wiki_page_path_index_' . get_current_blog_id();
+		wp_cache_delete( $cache_key, 'family-wiki' );
+		delete_transient( $cache_key );
+		Calendar::flush_dates_cache();
+		Front_Page::flush_cache();
 	}
 
 	public static function activate_plugin( $network_activate = null ) {

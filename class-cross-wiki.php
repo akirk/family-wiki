@@ -94,8 +94,16 @@ class Cross_Wiki {
 	}
 
 	private static function get_remote_page_data( $site_url, $slug ) {
+		static $pages = array();
+
+		$cache_key = untrailingslashit( $site_url ) . '|' . trim( strtolower( $slug ), '/' );
+		if ( array_key_exists( $cache_key, $pages ) ) {
+			return $pages[ $cache_key ];
+		}
+
 		$blog_id = self::get_blog_id_for_url( $site_url );
 		if ( ! $blog_id ) {
+			$pages[ $cache_key ] = false;
 			return false;
 		}
 
@@ -103,16 +111,17 @@ class Cross_Wiki {
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		if ( ! $page || 'publish' !== $page->post_status ) {
 			restore_current_blog();
+			$pages[ $cache_key ] = false;
 			return false;
 		}
 
-		$data = array(
+		$pages[ $cache_key ] = array(
 			'url'   => get_permalink( $page ),
 			'title' => get_the_title( $page ),
 		);
 		restore_current_blog();
 
-		return $data;
+		return $pages[ $cache_key ];
 	}
 
 	private static function get_blog_id_for_url( $site_url ) {

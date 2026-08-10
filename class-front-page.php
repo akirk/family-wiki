@@ -36,11 +36,26 @@ class Front_Page {
 	}
 
 	private function render_box() {
+		$cache_key = self::get_box_cache_key();
+		$cached    = wp_cache_get( $cache_key, 'family-wiki' );
+		if ( false === $cached ) {
+			$cached = get_transient( $cache_key );
+			if ( false !== $cached ) {
+				wp_cache_set( $cache_key, $cached, 'family-wiki', 15 * MINUTE_IN_SECONDS );
+			}
+		}
+
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
+
 		$random_person = $this->get_random_person();
 		$birthdays     = $this->get_upcoming_events( 'birth' );
 		$death_dates   = $this->get_upcoming_events( 'death' );
 
 		if ( ! $random_person && empty( $birthdays ) && empty( $death_dates ) ) {
+			wp_cache_set( $cache_key, '', 'family-wiki', 15 * MINUTE_IN_SECONDS );
+			set_transient( $cache_key, '', 15 * MINUTE_IN_SECONDS );
 			return '';
 		}
 
@@ -58,7 +73,20 @@ class Front_Page {
 		$return .= '</div>';
 		$return .= '</section>';
 
+		wp_cache_set( $cache_key, $return, 'family-wiki', 15 * MINUTE_IN_SECONDS );
+		set_transient( $cache_key, $return, 15 * MINUTE_IN_SECONDS );
+
 		return $return;
+	}
+
+	public static function flush_cache() {
+		$cache_key = self::get_box_cache_key();
+		wp_cache_delete( $cache_key, 'family-wiki' );
+		delete_transient( $cache_key );
+	}
+
+	private static function get_box_cache_key() {
+		return 'family_wiki_front_page_box_' . get_current_blog_id() . '_' . get_locale();
 	}
 
 	private function render_random_person( $person ) {

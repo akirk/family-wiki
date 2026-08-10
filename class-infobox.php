@@ -150,8 +150,8 @@ class Infobox {
 			$post_id = get_the_ID();
 		}
 
-		foreach ( array( 'born_as', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'father_name', 'mother', 'mother_name', 'children', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
-			if ( get_field( $field, $post_id ) ) {
+		foreach ( array( 'born_as', 'citizenships', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'father_name', 'mother', 'mother_name', 'children', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
+			if ( get_post_meta( $post_id, $field, true ) ) {
 				return true;
 			}
 		}
@@ -183,6 +183,7 @@ class Infobox {
 				$this->row( __( 'Half-siblings', 'family-wiki' ), $this->siblings_links( true ) ),
 				$this->row( __( 'Spouse', 'family-wiki' ), $this->spouse_value() ),
 				$this->row( __( 'Children', 'family-wiki' ), $this->children_links() ),
+				$this->row( __( 'Citizenship', 'family-wiki' ), $this->citizenships_value() ),
 				$settings['show_related_pages'] ? $this->row( __( 'Related pages', 'family-wiki' ), $this->related_pages_links( $display_post_id ) ) : '',
 				$settings['show_cross_wiki'] ? $this->cross_wiki_rows() : '',
 			)
@@ -285,6 +286,20 @@ class Infobox {
 		}
 
 		return esc_html( $value );
+	}
+
+	private function citizenships_value() {
+		$value = get_field( 'citizenships' );
+		if ( ! $value ) {
+			return '';
+		}
+
+		$citizenships = array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', $value ) ) );
+		if ( empty( $citizenships ) ) {
+			return '';
+		}
+
+		return implode( '<br />', array_map( 'esc_html', $citizenships ) );
 	}
 
 	private function event_value( $type ) {

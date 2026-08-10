@@ -81,7 +81,7 @@ class Calendar {
 		}
 	}
 
-	public static function get_calendar_url( \DateTime $date = null ) {
+	public static function get_calendar_url( $date = null ) {
 		$url = home_url( '/family-wiki/calendar/' );
 
 		if ( $date ) {
@@ -110,6 +110,12 @@ class Calendar {
 
 	public static function is_birthdays_enabled() {
 		return Settings::virtual_page_enabled( self::VIEW_BIRTHDAYS );
+	}
+
+	public static function flush_dates_cache() {
+		$cache_key = self::get_dates_cache_key();
+		wp_cache_delete( $cache_key, 'family-wiki' );
+		delete_transient( $cache_key );
 	}
 
 	public function query_vars( $query_vars ) {
@@ -345,6 +351,20 @@ class Calendar {
 
 	private function get_dates() {
 		if ( is_null( $this->all_dates ) ) {
+			$cache_key = self::get_dates_cache_key();
+			$cached    = wp_cache_get( $cache_key, 'family-wiki' );
+			if ( false === $cached ) {
+				$cached = get_transient( $cache_key );
+				if ( false !== $cached ) {
+					wp_cache_set( $cache_key, $cached, 'family-wiki', HOUR_IN_SECONDS );
+				}
+			}
+
+			if ( is_array( $cached ) ) {
+				$this->all_dates = $cached;
+				return $this->all_dates;
+			}
+
 			$args = array(
 				'post_type'      => 'page',
 				'posts_per_page' => -1,
@@ -447,8 +467,14 @@ class Calendar {
 				}
 			}
 			ksort( $this->all_dates );
+			wp_cache_set( $cache_key, $this->all_dates, 'family-wiki', HOUR_IN_SECONDS );
+			set_transient( $cache_key, $this->all_dates, HOUR_IN_SECONDS );
 		}
 		return $this->all_dates;
+	}
+
+	private static function get_dates_cache_key() {
+		return 'family_wiki_calendar_dates_' . get_current_blog_id() . '_' . get_locale();
 	}
 
 	public function render_family_calendar() {
