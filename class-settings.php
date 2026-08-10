@@ -246,22 +246,6 @@ class Settings {
 							<?php esc_html_e( 'Enable the birthdays virtual page', 'family-wiki' ); ?>
 						</label>
 					</div>
-					<ul>
-						<li>
-							<?php if ( $virtual_pages['calendar'] ) : ?>
-								<a href="<?php echo esc_url( Calendar::get_calendar_url() ); ?>"><?php esc_html_e( 'Family Calendar', 'family-wiki' ); ?></a>
-							<?php else : ?>
-								<?php esc_html_e( 'Family Calendar disabled', 'family-wiki' ); ?>
-							<?php endif; ?>
-						</li>
-						<li>
-							<?php if ( $virtual_pages['birthdays'] ) : ?>
-								<a href="<?php echo esc_url( Calendar::get_birthdays_url() ); ?>"><?php esc_html_e( 'Birthdays', 'family-wiki' ); ?></a>
-							<?php else : ?>
-								<?php esc_html_e( 'Birthdays disabled', 'family-wiki' ); ?>
-							<?php endif; ?>
-						</li>
-					</ul>
 				</section>
 
 				<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>
