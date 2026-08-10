@@ -114,8 +114,220 @@
 	clear: right;
 }
 
+.family-wiki-homepage-box {
+	background: #f8f9fa;
+	border: 1px solid #a2a9b1;
+	clear: right;
+	color: #202122;
+	float: right;
+	font-size: 0.9375rem;
+	line-height: 1.45;
+	margin: 0 0 1rem 1.5rem;
+	max-width: 22rem;
+	width: 34%;
+}
+
+.family-wiki-homepage-box__title {
+	background: #eaecf0;
+	border-bottom: 1px solid #a2a9b1;
+	font-size: 1.125rem;
+	font-weight: 700;
+	line-height: 1.25;
+	margin: 0;
+	padding: 0.55rem 0.75rem;
+	text-align: center;
+}
+
+.family-wiki-homepage-box__content {
+	display: block;
+}
+
+.family-wiki-homepage-box__section {
+	border-top: 1px solid #c8ccd1;
+	padding: 0.75rem;
+}
+
+.family-wiki-homepage-box__section:first-child {
+	border-top: 0;
+}
+
+.family-wiki-homepage-box__section h3 {
+	font-size: 1rem;
+	margin: 0 0 0.5rem;
+}
+
+.family-wiki-homepage-box__section h3 a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.family-wiki-homepage-box__section h3 a:hover,
+.family-wiki-homepage-box__section h3 a:focus {
+	text-decoration: underline;
+}
+
+.family-wiki-homepage-box__person {
+	align-items: flex-start;
+	display: flex;
+	gap: 0.75rem;
+}
+
+.family-wiki-homepage-box__image {
+	flex: 0 0 4.5rem;
+}
+
+.family-wiki-homepage-box__image img {
+	display: block;
+	height: auto;
+	max-width: 4.5rem;
+}
+
+.family-wiki-homepage-box__person-name {
+	font-weight: 700;
+}
+
+.family-wiki-homepage-box__events {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.family-wiki-homepage-box__events li + li {
+	border-top: 1px solid #eaecf0;
+	margin-top: 0.45rem;
+	padding-top: 0.45rem;
+}
+
+.family-wiki-homepage-box__event-date {
+	font-weight: 700;
+}
+
+.family-wiki-homepage-box__meta,
+.family-wiki-homepage-box__empty {
+	color: #54595d;
+	margin: 0.35rem 0 0;
+}
+
+.family-wiki-calendar-month {
+	clear: both;
+	margin: 0 0 2rem;
+}
+
+.family-wiki-calendar-month__header {
+	align-items: center;
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: 2.5rem 1fr 2.5rem;
+	margin: 0 0 1rem;
+}
+
+.family-wiki-calendar-month__header h2 {
+	font-size: 1.75rem;
+	line-height: 1.2;
+	margin: 0;
+	min-width: 0;
+	text-align: center;
+}
+
+.family-wiki-calendar-month__nav-slot {
+	display: flex;
+}
+
+.family-wiki-calendar-month__nav-slot:last-child {
+	justify-content: flex-end;
+}
+
+.family-wiki-calendar-month__nav {
+	align-items: center;
+	background: #eaecf0;
+	border: 1px solid #a2a9b1;
+	box-sizing: border-box;
+	color: #202122;
+	display: flex;
+	flex: 0 0 2.5rem;
+	font-size: 2rem;
+	height: 2.5rem;
+	justify-content: center;
+	line-height: 1;
+	margin: 0;
+	max-width: 2.5rem;
+	min-width: 2.5rem;
+	padding: 0;
+	text-decoration: none;
+	width: 2.5rem;
+}
+
+.family-wiki-calendar-month__nav:hover,
+.family-wiki-calendar-month__nav:focus {
+	background: #d8ecff;
+	text-decoration: none;
+}
+
+.family-wiki-calendar-month table {
+	border-collapse: collapse;
+	margin: 0;
+	table-layout: fixed;
+	width: 100%;
+}
+
+.family-wiki-calendar-month th,
+.family-wiki-calendar-month td {
+	border: 1px solid #a2a9b1;
+	padding: 0.45rem;
+	vertical-align: top;
+}
+
+.family-wiki-calendar-month th {
+	background: #eaecf0;
+	color: #54595d;
+	font-size: 0.875rem;
+	font-weight: 700;
+	padding: 0.45rem;
+	text-align: center;
+}
+
+.family-wiki-calendar-month__day {
+	background: #fff;
+	height: 8rem;
+}
+
+.family-wiki-calendar-month__day--empty {
+	background: #f8f9fa;
+}
+
+.family-wiki-calendar-month__empty {
+	background: #f8f9fa;
+}
+
+.family-wiki-calendar-month__date {
+	display: block;
+	font-weight: 700;
+	margin: 0 0 0.35rem;
+}
+
+.family-wiki-calendar-month__events {
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.family-wiki-calendar-month__events li + li {
+	border-top: 1px solid #eaecf0;
+	margin-top: 0.35rem;
+	padding-top: 0.35rem;
+}
+
 @media (max-width: 700px) {
 	.family-wiki-infobox {
+		float: none;
+		margin: 0 0 1rem;
+		max-width: none;
+		width: 100%;
+	}
+
+	.family-wiki-homepage-box {
 		float: none;
 		margin: 0 0 1rem;
 		max-width: none;
@@ -137,5 +349,32 @@
 
 	.family-wiki-infobox--collapsible:not(.family-wiki-infobox--opened) .family-wiki-infobox__content {
 		display: none;
+	}
+
+	.family-wiki-calendar-month table {
+		table-layout: auto;
+	}
+
+	.family-wiki-calendar-month__day {
+		height: 6rem;
+		min-width: 8rem;
+	}
+
+	.family-wiki-calendar-month__header {
+		gap: 0.5rem;
+		grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
+	}
+
+	.family-wiki-calendar-month__header h2 {
+		font-size: 1.35rem;
+	}
+
+	.family-wiki-calendar-month__nav {
+		flex-basis: 2.25rem;
+		font-size: 1.75rem;
+		height: 2.25rem;
+		max-width: 2.25rem;
+		min-width: 2.25rem;
+		width: 2.25rem;
 	}
 }

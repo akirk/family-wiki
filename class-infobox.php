@@ -322,8 +322,8 @@ class Infobox {
 
 	private function linked_date( \DateTime $date ) {
 		$return = date_i18n( get_option( 'date_format' ), $date->format( 'U' ) );
-		if ( get_option( 'family_wiki_calendar_page' ) ) {
-			$return = '<a href="' . esc_url( get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $date->format( 'U' ) ) ) . '">' . esc_html( $return ) . '</a>';
+		if ( Calendar::is_calendar_enabled() ) {
+			$return = '<a href="' . esc_url( Calendar::get_calendar_url( $date ) ) . '">' . esc_html( $return ) . '</a>';
 		} else {
 			$return = esc_html( $return );
 		}

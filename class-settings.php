@@ -4,6 +4,7 @@ namespace Family_Wiki;
 class Settings {
 	const PAGE = 'family-wiki';
 	const INFOBOX_OPTION = 'family_wiki_infobox_settings';
+	const VIRTUAL_PAGES_OPTION = 'family_wiki_virtual_pages';
 
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -39,6 +40,15 @@ class Settings {
 				'default'           => self::get_default_infobox_settings(),
 			)
 		);
+
+		register_setting(
+			self::PAGE,
+			self::VIRTUAL_PAGES_OPTION,
+			array(
+				'sanitize_callback' => array( $this, 'sanitize_virtual_pages_settings' ),
+				'default'           => self::get_default_virtual_pages_settings(),
+			)
+		);
 	}
 
 	public static function get_infobox_settings() {
@@ -58,6 +68,28 @@ class Settings {
 		);
 	}
 
+	public static function get_virtual_pages_settings() {
+		$settings = get_option( self::VIRTUAL_PAGES_OPTION, array() );
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array_merge( self::get_default_virtual_pages_settings(), $settings );
+	}
+
+	public static function get_default_virtual_pages_settings() {
+		return array(
+			'calendar'  => true,
+			'birthdays' => true,
+		);
+	}
+
+	public static function virtual_page_enabled( $page ) {
+		$settings = self::get_virtual_pages_settings();
+
+		return ! empty( $settings[ $page ] );
+	}
+
 	public function admin_bar_menu( \WP_Admin_Bar $wp_admin_bar ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
@@ -66,8 +98,8 @@ class Settings {
 		$wp_admin_bar->add_node(
 			array(
 				'id'     => 'family-wiki-settings',
-				'parent' => 'site-name',
-				'title'  => __( 'Family Wiki Settings', 'family-wiki' ),
+				'parent' => Calendar::MENU_ID,
+				'title'  => __( 'Settings', 'family-wiki' ),
 				'href'   => admin_url( 'options-general.php?page=' . self::PAGE ),
 			)
 		);
@@ -81,6 +113,7 @@ class Settings {
 		$sites        = Cross_Wiki::get_sites();
 		$current_pages = $this->get_page_choices();
 		$infobox      = self::get_infobox_settings();
+		$virtual_pages = self::get_virtual_pages_settings();
 		$is_multisite = function_exists( 'is_multisite' ) && is_multisite();
 		?>
 		<div class="wrap">
@@ -97,12 +130,8 @@ class Settings {
 				}
 
 				.family-wiki-settings__intro {
-					background: #fff;
-					border-left: 4px solid #2271b1;
-					box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 					margin: 1rem 0;
 					max-width: 70rem;
-					padding: 1rem 1rem 0.75rem;
 				}
 
 				.family-wiki-settings__intro h2 {
@@ -115,7 +144,6 @@ class Settings {
 				}
 
 				.family-wiki-settings__site {
-					background: #fff;
 					border: 1px solid #c3c4c7;
 					padding: 1rem;
 				}
@@ -154,11 +182,8 @@ class Settings {
 				}
 
 				.family-wiki-settings__notice {
-					background: #fff;
 					border-left: 4px solid #dba617;
-					box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 					max-width: 70rem;
-					padding: 1rem;
 				}
 
 				.family-wiki-settings__site-template,
@@ -200,40 +225,57 @@ class Settings {
 					</div>
 				</section>
 
-				<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>
-				<?php if ( ! $is_multisite ) : ?>
-					<div class="family-wiki-settings__notice">
-						<p><?php esc_html_e( 'Cross-wiki links are only available on WordPress multisite networks. This site is not currently running as part of a multisite network.', 'family-wiki' ); ?></p>
+				<section class="family-wiki-settings__section">
+					<h2><?php esc_html_e( 'Virtual pages', 'family-wiki' ); ?></h2>
+					<p><?php esc_html_e( 'Family Wiki provides these pages automatically. They do not need to be created as WordPress pages.', 'family-wiki' ); ?></p>
+					<div class="family-wiki-settings__choices">
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::VIRTUAL_PAGES_OPTION ); ?>[calendar]" value="1" <?php checked( $virtual_pages['calendar'] ); ?> />
+							<?php esc_html_e( 'Enable the family calendar virtual page', 'family-wiki' ); ?>
+						</label>
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::VIRTUAL_PAGES_OPTION ); ?>[birthdays]" value="1" <?php checked( $virtual_pages['birthdays'] ); ?> />
+							<?php esc_html_e( 'Enable the birthdays virtual page', 'family-wiki' ); ?>
+						</label>
 					</div>
-				<?php else : ?>
-					<div class="family-wiki-settings__intro">
-						<h3><?php esc_html_e( 'How cross-wiki links work', 'family-wiki' ); ?></h3>
-						<p><?php esc_html_e( 'Connect this family wiki to another family wiki in the same WordPress multisite network.', 'family-wiki' ); ?></p>
-						<ul>
-							<li><?php esc_html_e( 'Pages with the same URL slug are matched automatically and shown in the infobox under "Also on".', 'family-wiki' ); ?></li>
-							<li><?php esc_html_e( 'Missing local wiki links are checked on the connected wikis before being marked as missing.', 'family-wiki' ); ?></li>
-							<li><?php esc_html_e( 'Use page matches only when the same page has different URL slugs on two wikis.', 'family-wiki' ); ?></li>
-						</ul>
-					</div>
+				</section>
 
-					<datalist id="family-wiki-current-pages">
-						<?php $this->render_page_options( $current_pages ); ?>
-					</datalist>
+				<section class="family-wiki-settings__section">
+					<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>
+					<?php if ( ! $is_multisite ) : ?>
+						<div class="family-wiki-settings__notice">
+							<p><?php esc_html_e( 'Cross-wiki links are only available on WordPress multisite networks. This site is not currently running as part of a multisite network.', 'family-wiki' ); ?></p>
+						</div>
+					<?php else : ?>
+						<div class="family-wiki-settings__intro">
+							<h3><?php esc_html_e( 'How cross-wiki links work', 'family-wiki' ); ?></h3>
+							<p><?php esc_html_e( 'Connect this family wiki to another family wiki in the same WordPress multisite network.', 'family-wiki' ); ?></p>
+							<ul>
+								<li><?php esc_html_e( 'Pages with the same URL slug are matched automatically and shown in the infobox under "Also on".', 'family-wiki' ); ?></li>
+								<li><?php esc_html_e( 'Missing local wiki links are checked on the connected wikis before being marked as missing.', 'family-wiki' ); ?></li>
+								<li><?php esc_html_e( 'Use page matches only when the same page has different URL slugs on two wikis.', 'family-wiki' ); ?></li>
+							</ul>
+						</div>
 
-					<div class="family-wiki-settings__sites" data-family-wiki-sites>
-						<?php if ( empty( $sites ) ) : ?>
-							<p class="description" data-family-wiki-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
-						<?php endif; ?>
+						<datalist id="family-wiki-current-pages">
+							<?php $this->render_page_options( $current_pages ); ?>
+						</datalist>
 
-						<?php foreach ( $sites as $index => $site ) : ?>
-							<?php $this->render_site_card( $site, $index ); ?>
-						<?php endforeach; ?>
-					</div>
+						<div class="family-wiki-settings__sites" data-family-wiki-sites>
+							<?php if ( empty( $sites ) ) : ?>
+								<p class="description" data-family-wiki-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
+							<?php endif; ?>
 
-					<p>
-						<button type="button" class="button" data-family-wiki-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
-					</p>
-				<?php endif; ?>
+							<?php foreach ( $sites as $index => $site ) : ?>
+								<?php $this->render_site_card( $site, $index ); ?>
+							<?php endforeach; ?>
+						</div>
+
+						<p>
+							<button type="button" class="button" data-family-wiki-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
+						</p>
+					<?php endif; ?>
+				</section>
 
 				<?php submit_button(); ?>
 			</form>
@@ -340,6 +382,17 @@ class Settings {
 			'show_related_pages' => ! empty( $settings['show_related_pages'] ),
 			'show_cross_wiki'    => ! empty( $settings['show_cross_wiki'] ),
 			'collapse_mobile'    => ! empty( $settings['collapse_mobile'] ),
+		);
+	}
+
+	public function sanitize_virtual_pages_settings( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array(
+			'calendar'  => ! empty( $settings['calendar'] ),
+			'birthdays' => ! empty( $settings['birthdays'] ),
 		);
 	}
 
