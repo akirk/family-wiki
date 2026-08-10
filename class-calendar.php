@@ -42,7 +42,7 @@ class Calendar {
 	}
 
 	public function enqueue_styles() {
-		if ( ! $this->is_calendar_route( get_query_var( self::QUERY_VAR ) ) && ! $this->get_view_from_request_path() ) {
+		if ( ! $this->is_enabled_route( get_query_var( self::QUERY_VAR ) ) && ! $this->get_view_from_request_path() ) {
 			return;
 		}
 
@@ -72,9 +72,13 @@ class Calendar {
 	}
 
 	public static function register_rewrite_rules() {
-		add_rewrite_rule( '^family-wiki/calendar/(0?[1-9]|1[0-2])/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_CALENDAR . '&' . self::MONTH_QUERY_VAR . '=$matches[1]', 'top' );
-		add_rewrite_rule( '^family-wiki/calendar/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_CALENDAR, 'top' );
-		add_rewrite_rule( '^family-wiki/birthdays/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_BIRTHDAYS, 'top' );
+		if ( self::is_calendar_enabled() ) {
+			add_rewrite_rule( '^family-wiki/calendar/(0?[1-9]|1[0-2])/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_CALENDAR . '&' . self::MONTH_QUERY_VAR . '=$matches[1]', 'top' );
+			add_rewrite_rule( '^family-wiki/calendar/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_CALENDAR, 'top' );
+		}
+		if ( self::is_birthdays_enabled() ) {
+			add_rewrite_rule( '^family-wiki/birthdays/?$', 'index.php?' . self::QUERY_VAR . '=' . self::VIEW_BIRTHDAYS, 'top' );
+		}
 	}
 
 	public static function get_calendar_url( \DateTime $date = null ) {
@@ -100,6 +104,14 @@ class Calendar {
 		return home_url( '/family-wiki/birthdays/' );
 	}
 
+	public static function is_calendar_enabled() {
+		return Settings::virtual_page_enabled( self::VIEW_CALENDAR );
+	}
+
+	public static function is_birthdays_enabled() {
+		return Settings::virtual_page_enabled( self::VIEW_BIRTHDAYS );
+	}
+
 	public function query_vars( $query_vars ) {
 		$query_vars[] = self::QUERY_VAR;
 		$query_vars[] = self::MONTH_QUERY_VAR;
@@ -120,23 +132,27 @@ class Calendar {
 			)
 		);
 
-		$wp_admin_bar->add_node(
-			array(
-				'id'     => 'family-wiki-calendar',
-				'parent' => self::MENU_ID,
-				'title'  => __( 'Calendar', 'family-wiki' ),
-				'href'   => self::get_calendar_url(),
-			)
-		);
+		if ( self::is_calendar_enabled() ) {
+			$wp_admin_bar->add_node(
+				array(
+					'id'     => 'family-wiki-calendar',
+					'parent' => self::MENU_ID,
+					'title'  => __( 'Calendar', 'family-wiki' ),
+					'href'   => self::get_calendar_url(),
+				)
+			);
+		}
 
-		$wp_admin_bar->add_node(
-			array(
-				'id'     => 'family-wiki-birthdays',
-				'parent' => self::MENU_ID,
-				'title'  => __( 'Birthdays', 'family-wiki' ),
-				'href'   => self::get_birthdays_url(),
-			)
-		);
+		if ( self::is_birthdays_enabled() ) {
+			$wp_admin_bar->add_node(
+				array(
+					'id'     => 'family-wiki-birthdays',
+					'parent' => self::MENU_ID,
+					'title'  => __( 'Birthdays', 'family-wiki' ),
+					'href'   => self::get_birthdays_url(),
+				)
+			);
+		}
 	}
 
 	public function the_title( $title, $post_id = null ) {
@@ -170,7 +186,7 @@ class Calendar {
 	}
 
 	public function pre_get_posts( $query ) {
-		if ( is_admin() || ! $query->is_main_query() || ! $this->is_calendar_route( $query->get( self::QUERY_VAR ) ) ) {
+		if ( is_admin() || ! $query->is_main_query() || ! $this->is_enabled_route( $query->get( self::QUERY_VAR ) ) ) {
 			return;
 		}
 
@@ -181,7 +197,7 @@ class Calendar {
 	}
 
 	public function the_posts( $posts, $query ) {
-		if ( is_admin() || ! $query->is_main_query() || ! $this->is_calendar_route( $query->get( self::QUERY_VAR ) ) ) {
+		if ( is_admin() || ! $query->is_main_query() || ! $this->is_enabled_route( $query->get( self::QUERY_VAR ) ) ) {
 			return $posts;
 		}
 
@@ -193,7 +209,7 @@ class Calendar {
 	}
 
 	public function pre_handle_404( $preempt, $query ) {
-		if ( $this->is_calendar_route( $query->get( self::QUERY_VAR ) ) ) {
+		if ( $this->is_enabled_route( $query->get( self::QUERY_VAR ) ) ) {
 			$query->is_404 = false;
 			status_header( 200 );
 
@@ -242,10 +258,26 @@ class Calendar {
 		return in_array( $view, array( self::VIEW_CALENDAR, self::VIEW_BIRTHDAYS ), true );
 	}
 
+	private function is_enabled_route( $view ) {
+		if ( self::VIEW_CALENDAR === $view ) {
+			return self::is_calendar_enabled();
+		}
+
+		if ( self::VIEW_BIRTHDAYS === $view ) {
+			return self::is_birthdays_enabled();
+		}
+
+		return false;
+	}
+
 	public static function is_virtual_route( $path ) {
 		$path = trim( $path, '/' );
 
-		return in_array( $path, array( 'family-wiki/calendar', 'family-wiki/birthdays' ), true ) || (bool) preg_match( '#^family-wiki/calendar/(0?[1-9]|1[0-2])$#', $path );
+		if ( self::is_calendar_enabled() && ( 'family-wiki/calendar' === $path || preg_match( '#^family-wiki/calendar/(0?[1-9]|1[0-2])$#', $path ) ) ) {
+			return true;
+		}
+
+		return self::is_birthdays_enabled() && 'family-wiki/birthdays' === $path;
 	}
 
 	private function get_view_from_request_path() {
@@ -269,6 +301,9 @@ class Calendar {
 		$path = trim( $path, '/' );
 
 		if ( preg_match( '#^family-wiki/calendar/(0?[1-9]|1[0-2])$#', $path, $matches ) ) {
+			if ( ! self::is_calendar_enabled() ) {
+				return array();
+			}
 			return array(
 				'view'  => self::VIEW_CALENDAR,
 				'month' => $matches[1],
@@ -276,10 +311,16 @@ class Calendar {
 		}
 
 		if ( 'family-wiki/calendar' === $path ) {
+			if ( ! self::is_calendar_enabled() ) {
+				return array();
+			}
 			return array( 'view' => self::VIEW_CALENDAR );
 		}
 
 		if ( 'family-wiki/birthdays' === $path ) {
+			if ( ! self::is_birthdays_enabled() ) {
+				return array();
+			}
 			return array( 'view' => self::VIEW_BIRTHDAYS );
 		}
 

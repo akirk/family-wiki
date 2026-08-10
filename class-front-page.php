@@ -52,8 +52,8 @@ class Front_Page {
 			$return .= $this->render_random_person( $random_person );
 		}
 
-		$return .= $this->render_event_list( __( 'Upcoming Birthdays', 'family-wiki' ), $birthdays, Calendar::get_birthdays_url() );
-		$return .= $this->render_event_list( __( 'Upcoming Death Dates', 'family-wiki' ), $death_dates, Calendar::get_calendar_url() );
+		$return .= $this->render_event_list( __( 'Upcoming Birthdays', 'family-wiki' ), $birthdays, Calendar::is_birthdays_enabled() ? Calendar::get_birthdays_url() : '' );
+		$return .= $this->render_event_list( __( 'Upcoming Death Dates', 'family-wiki' ), $death_dates, Calendar::is_calendar_enabled() ? Calendar::get_calendar_url() : '' );
 
 		$return .= '</div>';
 		$return .= '</section>';
@@ -108,10 +108,19 @@ class Front_Page {
 			return '';
 		}
 
-		$birth_year = $birth ? '<a href="' . esc_url( Calendar::get_calendar_url( $birth ) ) . '">' . esc_html( $birth->format( 'Y' ) ) . '</a>' : '';
-		$death_year = $death ? '<a href="' . esc_url( Calendar::get_calendar_url( $death ) ) . '">' . esc_html( $death->format( 'Y' ) ) . '</a>' : '';
+		$birth_year = $birth ? $this->calendar_year_link( $birth ) : '';
+		$death_year = $death ? $this->calendar_year_link( $death ) : '';
 
 		return $birth_year . '-' . $death_year;
+	}
+
+	private function calendar_year_link( \DateTime $date ) {
+		$year = esc_html( $date->format( 'Y' ) );
+		if ( ! Calendar::is_calendar_enabled() ) {
+			return $year;
+		}
+
+		return '<a href="' . esc_url( Calendar::get_calendar_url( $date ) ) . '">' . $year . '</a>';
 	}
 
 	private function get_relationship_bios( $person ) {
@@ -320,7 +329,7 @@ class Front_Page {
 
 	private function render_event_list( $title, $events, $url ) {
 		$return  = '<section class="family-wiki-homepage-box__section">';
-		$return .= '<h3><a href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a></h3>';
+		$return .= $url ? '<h3><a href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a></h3>' : '<h3>' . esc_html( $title ) . '</h3>';
 
 		if ( empty( $events ) ) {
 			$return .= '<p class="family-wiki-homepage-box__empty">' . esc_html__( 'No upcoming dates found.', 'family-wiki' ) . '</p>';

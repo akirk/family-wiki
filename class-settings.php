@@ -4,6 +4,7 @@ namespace Family_Wiki;
 class Settings {
 	const PAGE = 'family-wiki';
 	const INFOBOX_OPTION = 'family_wiki_infobox_settings';
+	const VIRTUAL_PAGES_OPTION = 'family_wiki_virtual_pages';
 
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -39,6 +40,15 @@ class Settings {
 				'default'           => self::get_default_infobox_settings(),
 			)
 		);
+
+		register_setting(
+			self::PAGE,
+			self::VIRTUAL_PAGES_OPTION,
+			array(
+				'sanitize_callback' => array( $this, 'sanitize_virtual_pages_settings' ),
+				'default'           => self::get_default_virtual_pages_settings(),
+			)
+		);
 	}
 
 	public static function get_infobox_settings() {
@@ -56,6 +66,28 @@ class Settings {
 			'show_cross_wiki'    => true,
 			'collapse_mobile'    => true,
 		);
+	}
+
+	public static function get_virtual_pages_settings() {
+		$settings = get_option( self::VIRTUAL_PAGES_OPTION, array() );
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array_merge( self::get_default_virtual_pages_settings(), $settings );
+	}
+
+	public static function get_default_virtual_pages_settings() {
+		return array(
+			'calendar'  => true,
+			'birthdays' => true,
+		);
+	}
+
+	public static function virtual_page_enabled( $page ) {
+		$settings = self::get_virtual_pages_settings();
+
+		return ! empty( $settings[ $page ] );
 	}
 
 	public function admin_bar_menu( \WP_Admin_Bar $wp_admin_bar ) {
@@ -81,6 +113,7 @@ class Settings {
 		$sites        = Cross_Wiki::get_sites();
 		$current_pages = $this->get_page_choices();
 		$infobox      = self::get_infobox_settings();
+		$virtual_pages = self::get_virtual_pages_settings();
 		$is_multisite = function_exists( 'is_multisite' ) && is_multisite();
 		?>
 		<div class="wrap">
@@ -203,9 +236,31 @@ class Settings {
 				<section class="family-wiki-settings__section">
 					<h2><?php esc_html_e( 'Virtual pages', 'family-wiki' ); ?></h2>
 					<p><?php esc_html_e( 'Family Wiki provides these pages automatically. They do not need to be created as WordPress pages.', 'family-wiki' ); ?></p>
+					<div class="family-wiki-settings__choices">
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::VIRTUAL_PAGES_OPTION ); ?>[calendar]" value="1" <?php checked( $virtual_pages['calendar'] ); ?> />
+							<?php esc_html_e( 'Enable the family calendar virtual page', 'family-wiki' ); ?>
+						</label>
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::VIRTUAL_PAGES_OPTION ); ?>[birthdays]" value="1" <?php checked( $virtual_pages['birthdays'] ); ?> />
+							<?php esc_html_e( 'Enable the birthdays virtual page', 'family-wiki' ); ?>
+						</label>
+					</div>
 					<ul>
-						<li><a href="<?php echo esc_url( Calendar::get_calendar_url() ); ?>"><?php esc_html_e( 'Family Calendar', 'family-wiki' ); ?></a></li>
-						<li><a href="<?php echo esc_url( Calendar::get_birthdays_url() ); ?>"><?php esc_html_e( 'Birthdays', 'family-wiki' ); ?></a></li>
+						<li>
+							<?php if ( $virtual_pages['calendar'] ) : ?>
+								<a href="<?php echo esc_url( Calendar::get_calendar_url() ); ?>"><?php esc_html_e( 'Family Calendar', 'family-wiki' ); ?></a>
+							<?php else : ?>
+								<?php esc_html_e( 'Family Calendar disabled', 'family-wiki' ); ?>
+							<?php endif; ?>
+						</li>
+						<li>
+							<?php if ( $virtual_pages['birthdays'] ) : ?>
+								<a href="<?php echo esc_url( Calendar::get_birthdays_url() ); ?>"><?php esc_html_e( 'Birthdays', 'family-wiki' ); ?></a>
+							<?php else : ?>
+								<?php esc_html_e( 'Birthdays disabled', 'family-wiki' ); ?>
+							<?php endif; ?>
+						</li>
 					</ul>
 				</section>
 
@@ -349,6 +404,17 @@ class Settings {
 			'show_related_pages' => ! empty( $settings['show_related_pages'] ),
 			'show_cross_wiki'    => ! empty( $settings['show_cross_wiki'] ),
 			'collapse_mobile'    => ! empty( $settings['collapse_mobile'] ),
+		);
+	}
+
+	public function sanitize_virtual_pages_settings( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array(
+			'calendar'  => ! empty( $settings['calendar'] ),
+			'birthdays' => ! empty( $settings['birthdays'] ),
 		);
 	}
 

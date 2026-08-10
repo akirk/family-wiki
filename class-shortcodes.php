@@ -13,7 +13,11 @@ class Shortcodes {
 
 	private function get_date( $date ) {
 		$return = date_i18n( get_option( 'date_format' ), $date->format( 'U' ) );
-		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $date ) ) . '">' . esc_html( $return ) . '</a>';
+		if ( Calendar::is_calendar_enabled() ) {
+			$return = '<a href="' . esc_url( Calendar::get_calendar_url( $date ) ) . '">' . esc_html( $return ) . '</a>';
+		} else {
+			$return = esc_html( $return );
+		}
 
 		return $return;
 	}
@@ -497,7 +501,11 @@ class Shortcodes {
 			return $atts['date'];
 		}
 		$return = date_i18n( get_option( 'date_format' ), $birth->format( 'U' ) );
-		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $birth ) ) . '">' . esc_html( $return ) . '</a>';
+		if ( Calendar::is_calendar_enabled() ) {
+			$return = '<a href="' . esc_url( Calendar::get_calendar_url( $birth ) ) . '">' . esc_html( $return ) . '</a>';
+		} else {
+			$return = esc_html( $return );
+		}
 
 		$age = '';
 
@@ -546,7 +554,11 @@ class Shortcodes {
 		$age = $birth->diff( $death );
 
 		$return = date_i18n( get_option( 'date_format' ), $death->format( 'U' ) );
-		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $death ) ) . '">' . esc_html( $return ) . '</a>';
+		if ( Calendar::is_calendar_enabled() ) {
+			$return = '<a href="' . esc_url( Calendar::get_calendar_url( $death ) ) . '">' . esc_html( $return ) . '</a>';
+		} else {
+			$return = esc_html( $return );
+		}
 		// translators: %d is an age in years.
 		return $return . ' (' . sprintf(
 		// translators: %s is an age in years.
