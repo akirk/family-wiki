@@ -304,6 +304,105 @@
             "bidirectional": 0,
             "ui": 1,
             "bidirectional_target": []
+        },
+        {
+            "key": "field_66b8f90100005",
+            "label": "Marriages",
+            "name": "marriages",
+            "aria-label": "",
+            "type": "family_wiki_marriages",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            }
+        },
+        {
+            "key": "field_66b8f90100001",
+            "label": "Spouse",
+            "name": "spouse",
+            "aria-label": "",
+            "type": "post_object",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "post_type": [
+                "page"
+            ],
+            "post_status": "",
+            "taxonomy": "",
+            "return_format": "object",
+            "multiple": 1,
+            "allow_null": 0,
+            "bidirectional": 0,
+            "ui": 1,
+            "bidirectional_target": []
+        },
+        {
+            "key": "field_66b8f90100002",
+            "label": "Spouse (Name)",
+            "name": "spouse_name",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Use this when there is no page for the spouse yet.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_66b8f90100003",
+            "label": "Marriage Date",
+            "name": "marriage_date",
+            "aria-label": "",
+            "type": "date_picker",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "display_format": "F j, Y",
+            "return_format": "Y-m-d",
+            "first_day": 1
+        },
+        {
+            "key": "field_66b8f90100004",
+            "label": "Marriage Place",
+            "name": "marriage_place",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
         }
     ],
     "location": [
@@ -327,5 +426,5 @@
     "active": true,
     "description": "",
     "show_in_rest": 0,
-    "modified": 1705662728
+    "modified": 1786340100
 }
