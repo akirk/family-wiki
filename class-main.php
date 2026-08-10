@@ -3,7 +3,9 @@ namespace Family_Wiki;
 
 class Main {
 	public function __construct() {
+		new ACF_Field_Marriages_Loader();
 		new Calendar();
+		new Infobox();
 		new Shortcodes();
 		new Private_Site();
 

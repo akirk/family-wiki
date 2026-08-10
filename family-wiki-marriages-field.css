@@ -1,0 +1,29 @@
+.family-wiki-marriages-field__table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.family-wiki-marriages-field__table th,
+.family-wiki-marriages-field__table td {
+	border-bottom: 1px solid #dcdcde;
+	padding: 8px;
+	text-align: left;
+	vertical-align: top;
+}
+
+.family-wiki-marriages-field__table input,
+.family-wiki-marriages-field__table select {
+	max-width: 100%;
+	width: 100%;
+}
+
+.family-wiki-marriages-field__table label {
+	display: block;
+	font-size: 12px;
+	font-weight: 600;
+	margin-bottom: 6px;
+}
+
+.family-wiki-marriages-field__add {
+	margin-top: 8px !important;
+}
