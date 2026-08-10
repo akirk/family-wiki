@@ -66,8 +66,8 @@ class Settings {
 		$wp_admin_bar->add_node(
 			array(
 				'id'     => 'family-wiki-settings',
-				'parent' => 'site-name',
-				'title'  => __( 'Family Wiki Settings', 'family-wiki' ),
+				'parent' => Calendar::MENU_ID,
+				'title'  => __( 'Settings', 'family-wiki' ),
 				'href'   => admin_url( 'options-general.php?page=' . self::PAGE ),
 			)
 		);
@@ -198,6 +198,15 @@ class Settings {
 							<?php esc_html_e( 'Collapse infoboxes by default on mobile screens', 'family-wiki' ); ?>
 						</label>
 					</div>
+				</section>
+
+				<section class="family-wiki-settings__section">
+					<h2><?php esc_html_e( 'Virtual pages', 'family-wiki' ); ?></h2>
+					<p><?php esc_html_e( 'Family Wiki provides these pages automatically. They do not need to be created as WordPress pages.', 'family-wiki' ); ?></p>
+					<ul>
+						<li><a href="<?php echo esc_url( Calendar::get_calendar_url() ); ?>"><?php esc_html_e( 'Family Calendar', 'family-wiki' ); ?></a></li>
+						<li><a href="<?php echo esc_url( Calendar::get_birthdays_url() ); ?>"><?php esc_html_e( 'Birthdays', 'family-wiki' ); ?></a></li>
+					</ul>
 				</section>
 
 				<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>

@@ -13,9 +13,7 @@ class Shortcodes {
 
 	private function get_date( $date ) {
 		$return = date_i18n( get_option( 'date_format' ), $date->format( 'U' ) );
-		if ( get_option( 'family_wiki_calendar_page' ) ) {
-			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $date->format( 'U' ) ) . '">' . $return . '</a>';
-		}
+		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $date ) ) . '">' . esc_html( $return ) . '</a>';
 
 		return $return;
 	}
@@ -499,9 +497,7 @@ class Shortcodes {
 			return $atts['date'];
 		}
 		$return = date_i18n( get_option( 'date_format' ), $birth->format( 'U' ) );
-		if ( get_option( 'family_wiki_calendar_page' ) ) {
-			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $birth->format( 'U' ) ) . '">' . $return . '</a>';
-		}
+		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $birth ) ) . '">' . esc_html( $return ) . '</a>';
 
 		$age = '';
 
@@ -550,9 +546,7 @@ class Shortcodes {
 		$age = $birth->diff( $death );
 
 		$return = date_i18n( get_option( 'date_format' ), $death->format( 'U' ) );
-		if ( get_option( 'family_wiki_calendar_page' ) ) {
-			$return = '<a href="' . get_option( 'family_wiki_calendar_page' ) . '#' . date_i18n( 'F', $death->format( 'U' ) ) . '">' . $return . '</a>';
-		}
+		$return = '<a href="' . esc_url( Calendar::get_calendar_url( $death ) ) . '">' . esc_html( $return ) . '</a>';
 		// translators: %d is an age in years.
 		return $return . ' (' . sprintf(
 		// translators: %s is an age in years.

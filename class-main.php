@@ -5,6 +5,7 @@ class Main {
 	public function __construct() {
 		new ACF_Field_Marriages_Loader();
 		new Calendar();
+		new Front_Page();
 		new Infobox();
 		new Shortcodes();
 		new Private_Site();
@@ -81,6 +82,10 @@ class Main {
 
 				$p = trim( $p, '/' );
 
+				if ( Calendar::is_virtual_route( $p ) ) {
+					return $m[0];
+				}
+
 				if ( isset( $all_pages[ $p ] ) ) {
 					return $m[0];
 				}
@@ -146,6 +151,8 @@ class Main {
 	public static function setup() {
 		self::setup_roles();
 		self::upgrade_plugin();
+		Calendar::register_rewrite_rules();
+		flush_rewrite_rules();
 	}
 
 	public static function upgrade_plugin() {

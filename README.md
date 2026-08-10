@@ -18,7 +18,7 @@ In wp-admin go to *Settings* → *Reading* and set a static homepage. The plugin
 
 Create new users with *Wiki User* (can edit pages) or *Wiki Editor* (can also delete pages). Unfortunately otherwise only the roles *Editor* or *Administrator* will allow them to edit pages.
 
-If you created a calendar page, set the option `family_wiki_calendar_page`, for example with the cli command `wp option add family_wiki_calendar_page /Calendar`, then the dates will be linked to that page.
+The plugin automatically provides a family calendar at `/family-wiki/calendar/` and a birthday calendar at `/family-wiki/birthdays/`. Date links in person pages point to the family calendar.
 
 On WordPress multisite, you can link related family wiki sites from the same network in *Settings* -> *Family Wiki*. When a page exists on the current wiki and a configured peer wiki with the same slug, the infobox shows an *Also on* row linking to that peer page using its title there. If the same person or page uses different slugs on the two wikis, add a slug mapping for that pair. Missing local wiki links are also checked against configured peer wikis; when a matching peer page exists, the link points to the peer page instead of being marked as missing.
 
