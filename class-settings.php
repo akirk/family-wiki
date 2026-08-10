@@ -130,12 +130,8 @@ class Settings {
 				}
 
 				.family-wiki-settings__intro {
-					background: #fff;
-					border-left: 4px solid #2271b1;
-					box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 					margin: 1rem 0;
 					max-width: 70rem;
-					padding: 1rem 1rem 0.75rem;
 				}
 
 				.family-wiki-settings__intro h2 {
@@ -148,7 +144,6 @@ class Settings {
 				}
 
 				.family-wiki-settings__site {
-					background: #fff;
 					border: 1px solid #c3c4c7;
 					padding: 1rem;
 				}
@@ -187,11 +182,8 @@ class Settings {
 				}
 
 				.family-wiki-settings__notice {
-					background: #fff;
 					border-left: 4px solid #dba617;
-					box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 					max-width: 70rem;
-					padding: 1rem;
 				}
 
 				.family-wiki-settings__site-template,
@@ -248,40 +240,42 @@ class Settings {
 					</div>
 				</section>
 
-				<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>
-				<?php if ( ! $is_multisite ) : ?>
-					<div class="family-wiki-settings__notice">
-						<p><?php esc_html_e( 'Cross-wiki links are only available on WordPress multisite networks. This site is not currently running as part of a multisite network.', 'family-wiki' ); ?></p>
-					</div>
-				<?php else : ?>
-					<div class="family-wiki-settings__intro">
-						<h3><?php esc_html_e( 'How cross-wiki links work', 'family-wiki' ); ?></h3>
-						<p><?php esc_html_e( 'Connect this family wiki to another family wiki in the same WordPress multisite network.', 'family-wiki' ); ?></p>
-						<ul>
-							<li><?php esc_html_e( 'Pages with the same URL slug are matched automatically and shown in the infobox under "Also on".', 'family-wiki' ); ?></li>
-							<li><?php esc_html_e( 'Missing local wiki links are checked on the connected wikis before being marked as missing.', 'family-wiki' ); ?></li>
-							<li><?php esc_html_e( 'Use page matches only when the same page has different URL slugs on two wikis.', 'family-wiki' ); ?></li>
-						</ul>
-					</div>
+				<section class="family-wiki-settings__section">
+					<h2><?php esc_html_e( 'Cross-wiki links', 'family-wiki' ); ?></h2>
+					<?php if ( ! $is_multisite ) : ?>
+						<div class="family-wiki-settings__notice">
+							<p><?php esc_html_e( 'Cross-wiki links are only available on WordPress multisite networks. This site is not currently running as part of a multisite network.', 'family-wiki' ); ?></p>
+						</div>
+					<?php else : ?>
+						<div class="family-wiki-settings__intro">
+							<h3><?php esc_html_e( 'How cross-wiki links work', 'family-wiki' ); ?></h3>
+							<p><?php esc_html_e( 'Connect this family wiki to another family wiki in the same WordPress multisite network.', 'family-wiki' ); ?></p>
+							<ul>
+								<li><?php esc_html_e( 'Pages with the same URL slug are matched automatically and shown in the infobox under "Also on".', 'family-wiki' ); ?></li>
+								<li><?php esc_html_e( 'Missing local wiki links are checked on the connected wikis before being marked as missing.', 'family-wiki' ); ?></li>
+								<li><?php esc_html_e( 'Use page matches only when the same page has different URL slugs on two wikis.', 'family-wiki' ); ?></li>
+							</ul>
+						</div>
 
-					<datalist id="family-wiki-current-pages">
-						<?php $this->render_page_options( $current_pages ); ?>
-					</datalist>
+						<datalist id="family-wiki-current-pages">
+							<?php $this->render_page_options( $current_pages ); ?>
+						</datalist>
 
-					<div class="family-wiki-settings__sites" data-family-wiki-sites>
-						<?php if ( empty( $sites ) ) : ?>
-							<p class="description" data-family-wiki-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
-						<?php endif; ?>
+						<div class="family-wiki-settings__sites" data-family-wiki-sites>
+							<?php if ( empty( $sites ) ) : ?>
+								<p class="description" data-family-wiki-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
+							<?php endif; ?>
 
-						<?php foreach ( $sites as $index => $site ) : ?>
-							<?php $this->render_site_card( $site, $index ); ?>
-						<?php endforeach; ?>
-					</div>
+							<?php foreach ( $sites as $index => $site ) : ?>
+								<?php $this->render_site_card( $site, $index ); ?>
+							<?php endforeach; ?>
+						</div>
 
-					<p>
-						<button type="button" class="button" data-family-wiki-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
-					</p>
-				<?php endif; ?>
+						<p>
+							<button type="button" class="button" data-family-wiki-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
+						</p>
+					<?php endif; ?>
+				</section>
 
 				<?php submit_button(); ?>
 			</form>
