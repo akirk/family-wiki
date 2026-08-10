@@ -12,14 +12,47 @@
 }
 
 .family-wiki-infobox__title {
+	align-items: center;
 	background: #eaecf0;
 	border-bottom: 1px solid #a2a9b1;
+	display: flex;
 	font-size: 1rem;
 	font-weight: 700;
+	gap: 0.5rem;
+	justify-content: center;
 	line-height: 1.25;
 	margin: 0;
 	padding: 0.45rem 0.65rem;
 	text-align: center;
+}
+
+.family-wiki-infobox__title span {
+	flex: 1;
+	min-width: 0;
+}
+
+.family-wiki-infobox__title a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.family-wiki-infobox__title a:hover,
+.family-wiki-infobox__title a:focus {
+	text-decoration: underline;
+}
+
+.family-wiki-infobox__toggle {
+	background: transparent;
+	border: 1px solid #a2a9b1;
+	border-radius: 2px;
+	color: inherit;
+	display: none;
+	font: inherit;
+	font-weight: 700;
+	height: 1.6rem;
+	line-height: 1;
+	padding: 0;
+	width: 1.6rem;
 }
 
 .family-wiki-infobox__image {
@@ -76,11 +109,33 @@
 	padding-top: 0.45rem;
 }
 
+.family-wiki-infobox ~ .alignright,
+.family-wiki-infobox ~ * .alignright {
+	clear: right;
+}
+
 @media (max-width: 700px) {
 	.family-wiki-infobox {
 		float: none;
 		margin: 0 0 1rem;
 		max-width: none;
 		width: 100%;
+	}
+
+	.family-wiki-infobox__toggle {
+		display: inline-block;
+	}
+
+	.family-wiki-infobox--collapsible:not(.family-wiki-infobox--opened) .family-wiki-infobox__title::before {
+		content: attr(data-collapsed-title);
+		flex: 1;
+	}
+
+	.family-wiki-infobox--collapsible:not(.family-wiki-infobox--opened) .family-wiki-infobox__title span {
+		display: none;
+	}
+
+	.family-wiki-infobox--collapsible:not(.family-wiki-infobox--opened) .family-wiki-infobox__content {
+		display: none;
 	}
 }
