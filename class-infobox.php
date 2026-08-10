@@ -4,8 +4,11 @@ namespace Family_Wiki;
 class Infobox {
 	public function __construct() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+		add_filter( 'the_title', array( $this, 'the_title' ), 10, 2 );
+		add_filter( 'document_title_parts', array( $this, 'document_title_parts' ) );
 		add_filter( 'the_content', array( $this, 'replace_short_bio_shortcode' ), 10 );
 		add_filter( 'the_content', array( $this, 'add_infobox' ), 12 );
+		add_filter( 'static_archive_post_html', array( $this, 'static_archive_post_html' ), 20, 3 );
 	}
 
 	public function enqueue_styles() {
@@ -19,6 +22,16 @@ class Infobox {
 			array(),
 			filemtime( plugin_dir_path( __FILE__ ) . 'family-wiki.css' )
 		);
+
+		if ( Settings::get_infobox_settings()['collapse_mobile'] ) {
+			wp_enqueue_script(
+				'family-wiki-infobox',
+				plugin_dir_url( __FILE__ ) . 'family-wiki-infobox.js',
+				array(),
+				filemtime( plugin_dir_path( __FILE__ ) . 'family-wiki-infobox.js' ),
+				true
+			);
+		}
 	}
 
 	public function replace_short_bio_shortcode( $content ) {
@@ -30,12 +43,76 @@ class Infobox {
 		return preg_replace( '/\[name_with_bio[^\]]*\]\s*/i', $title . ' ', $content );
 	}
 
+	public function the_title( $title, $post_id = null ) {
+		if ( is_admin() || ! is_singular( 'page' ) || ! $post_id || (int) $post_id !== (int) get_queried_object_id() ) {
+			return $title;
+		}
+
+		return $this->title_with_parent( $title, $post_id );
+	}
+
+	public function document_title_parts( $parts ) {
+		if ( ! is_singular( 'page' ) || empty( $parts['title'] ) ) {
+			return $parts;
+		}
+
+		$parts['title'] = $this->title_with_parent( $parts['title'], get_queried_object_id() );
+
+		return $parts;
+	}
+
 	public function add_infobox( $content ) {
-		if ( ! $this->is_wiki_page() || ! $this->has_infobox_data() ) {
+		if ( ! $this->is_wiki_page() ) {
 			return $content;
 		}
 
-		return $this->render_infobox() . $content;
+		$infobox_post_id = $this->get_infobox_post_id();
+		if ( ! $infobox_post_id ) {
+			return $content;
+		}
+
+		return $this->render_infobox( $infobox_post_id, get_the_ID() ) . $content;
+	}
+
+	public function static_archive_post_html( $html, $wp_post, $generator = null ) {
+		if ( ! $wp_post instanceof \WP_Post || 'page' !== $wp_post->post_type || false !== strpos( $html, 'family-wiki-infobox' ) ) {
+			return $html;
+		}
+
+		$infobox_post_id = $this->get_infobox_post_id_for( $wp_post->ID );
+		if ( ! $infobox_post_id ) {
+			return $html;
+		}
+
+		return $this->static_archive_assets() . $this->render_infobox_for_archive( $infobox_post_id, $wp_post->ID ) . $html;
+	}
+
+	private function title_with_parent( $title, $post_id ) {
+		$parent_id = wp_get_post_parent_id( $post_id );
+		if ( ! $parent_id || ! $this->has_infobox_data( $parent_id ) ) {
+			return $title;
+		}
+
+		$parent_title = get_the_title( $parent_id );
+		if ( ! $parent_title ) {
+			return $title;
+		}
+
+		$child_title = trim( $title );
+		if ( 0 === stripos( $child_title, $parent_title ) ) {
+			$child_title = trim( substr( $child_title, strlen( $parent_title ) ), " \t\n\r\0\x0B:-–—" );
+		}
+
+		if ( '' === $child_title ) {
+			return $parent_title;
+		}
+
+		return sprintf(
+			// translators: %1$s is a parent page title, %2$s is a child page title.
+			__( '%1$s: %2$s', 'family-wiki' ),
+			$parent_title,
+			$child_title
+		);
 	}
 
 	private function is_wiki_page() {
@@ -51,18 +128,51 @@ class Infobox {
 		return is_singular( 'page' ) || ( defined( 'WP_CLI' ) && WP_CLI );
 	}
 
-	private function has_infobox_data() {
+	private function get_infobox_post_id() {
+		return $this->get_infobox_post_id_for( get_the_ID() );
+	}
+
+	private function get_infobox_post_id_for( $post_id ) {
+		if ( $this->has_infobox_data( $post_id ) ) {
+			return $post_id;
+		}
+
+		$parent_id = wp_get_post_parent_id( $post_id );
+		if ( $parent_id && 'publish' === get_post_status( $parent_id ) && $this->has_infobox_data( $parent_id ) ) {
+			return $parent_id;
+		}
+
+		return 0;
+	}
+
+	private function has_infobox_data( $post_id = null ) {
+		if ( null === $post_id ) {
+			$post_id = get_the_ID();
+		}
+
 		foreach ( array( 'born_as', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'father_name', 'mother', 'mother_name', 'children', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
-			if ( get_field( $field ) ) {
+			if ( get_field( $field, $post_id ) ) {
 				return true;
 			}
 		}
 
-		return has_post_thumbnail();
+		return has_post_thumbnail( $post_id );
 	}
 
-	private function render_infobox() {
-		$rows = array_filter(
+	private function render_infobox( $post_id = null, $display_post_id = null ) {
+		if ( null === $post_id ) {
+			$post_id = get_the_ID();
+		}
+		if ( null === $display_post_id ) {
+			$display_post_id = get_the_ID();
+		}
+
+		if ( get_the_ID() !== $post_id ) {
+			return $this->render_infobox_for_post( $post_id, $display_post_id );
+		}
+
+		$settings = Settings::get_infobox_settings();
+		$rows     = array_filter(
 			array(
 				$this->row( __( 'Born as', 'family-wiki' ), $this->text_field( 'born_as' ) ),
 				$this->row( __( 'Born', 'family-wiki' ), $this->event_value( 'birth' ) ),
@@ -73,6 +183,8 @@ class Infobox {
 				$this->row( __( 'Half-siblings', 'family-wiki' ), $this->siblings_links( true ) ),
 				$this->row( __( 'Spouse', 'family-wiki' ), $this->spouse_value() ),
 				$this->row( __( 'Children', 'family-wiki' ), $this->children_links() ),
+				$settings['show_related_pages'] ? $this->row( __( 'Related pages', 'family-wiki' ), $this->related_pages_links( $display_post_id ) ) : '',
+				$settings['show_cross_wiki'] ? $this->cross_wiki_rows() : '',
 			)
 		);
 
@@ -80,8 +192,14 @@ class Infobox {
 			return '';
 		}
 
-		$return  = '<aside class="family-wiki-infobox" aria-label="' . esc_attr__( 'Family Wiki infobox', 'family-wiki' ) . '">';
-		$return .= '<h2 class="family-wiki-infobox__title">' . esc_html( get_the_title() ) . '</h2>';
+		$content_id = 'family-wiki-infobox-content-' . get_the_ID();
+		$classes    = array( 'family-wiki-infobox' );
+		if ( ! $settings['collapse_mobile'] ) {
+			$classes[] = 'family-wiki-infobox--always-open';
+		}
+		$return     = '<aside class="' . esc_attr( implode( ' ', $classes ) ) . '" aria-label="' . esc_attr__( 'Family Wiki infobox', 'family-wiki' ) . '">';
+		$return    .= '<h2 class="family-wiki-infobox__title" data-collapsed-title="' . esc_attr__( 'Infobox', 'family-wiki' ) . '"><span>' . $this->title_value( $display_post_id ) . '</span><button type="button" class="family-wiki-infobox__toggle" aria-controls="' . esc_attr( $content_id ) . '" aria-expanded="true" aria-label="' . esc_attr__( 'Toggle infobox', 'family-wiki' ) . '">-</button></h2>';
+		$return    .= '<div id="' . esc_attr( $content_id ) . '" class="family-wiki-infobox__content">';
 
 		if ( has_post_thumbnail() ) {
 			$return .= '<div class="family-wiki-infobox__image">' . get_the_post_thumbnail( get_the_ID(), 'medium' ) . '</div>';
@@ -91,9 +209,65 @@ class Infobox {
 			$return .= '<dl class="family-wiki-infobox__facts">' . implode( '', $rows ) . '</dl>';
 		}
 
+		$return .= '</div>';
 		$return .= '</aside>';
 
 		return $return;
+	}
+
+	private function render_infobox_for_post( $post_id, $display_post_id ) {
+		global $post;
+
+		$original_post = $post;
+		$post          = get_post( $post_id );
+		setup_postdata( $post );
+
+		$return = $this->render_infobox( $post_id, $display_post_id );
+
+		$post = $original_post;
+		setup_postdata( $post );
+
+		return $return;
+	}
+
+	private function render_infobox_for_archive( $post_id, $display_post_id ) {
+		global $post;
+
+		$original_post = $post;
+		$post          = get_post( $post_id );
+		setup_postdata( $post );
+
+		$return = $this->render_infobox( $post_id, $display_post_id );
+
+		$post = $original_post;
+		if ( $post ) {
+			setup_postdata( $post );
+		} else {
+			wp_reset_postdata();
+		}
+
+		return $return;
+	}
+
+	private function static_archive_assets() {
+		$css = file_get_contents( plugin_dir_path( __FILE__ ) . 'family-wiki.css' );
+		$return = '<style>' . $css . '</style>';
+
+		if ( Settings::get_infobox_settings()['collapse_mobile'] ) {
+			$js = file_get_contents( plugin_dir_path( __FILE__ ) . 'family-wiki-infobox.js' );
+			$return .= '<script>' . $js . '</script>';
+		}
+
+		return $return;
+	}
+
+	private function title_value( $display_post_id ) {
+		$title = esc_html( get_the_title() );
+		if ( get_the_ID() === $display_post_id ) {
+			return $title;
+		}
+
+		return '<a href="' . esc_url( get_permalink() ) . '">' . $title . '</a>';
 	}
 
 	private function row( $label, $value ) {
@@ -218,6 +392,55 @@ class Infobox {
 		}
 
 		return '';
+	}
+
+	private function cross_wiki_rows() {
+		$pages = Cross_Wiki::get_remote_pages( get_post_field( 'post_name', get_the_ID() ) );
+		if ( empty( $pages ) ) {
+			return '';
+		}
+
+		$links = array();
+		foreach ( $pages as $page ) {
+			$links[] = sprintf(
+				'%1$s: <a href="%2$s">%3$s</a>',
+				esc_html( $page['label'] ),
+				esc_url( $page['url'] ),
+				esc_html( $page['title'] )
+			);
+		}
+
+		return $this->row( __( 'Also on', 'family-wiki' ), implode( '<br />', $links ) );
+	}
+
+	private function related_pages_links( $display_post_id = null ) {
+		if ( null === $display_post_id ) {
+			$display_post_id = get_the_ID();
+		}
+
+		$pages = get_pages(
+			array(
+				'child_of'    => get_the_ID(),
+				'parent'      => get_the_ID(),
+				'post_status' => 'publish',
+				'sort_column' => 'menu_order,post_title',
+			)
+		);
+
+		if ( empty( $pages ) ) {
+			return '';
+		}
+
+		$links = array();
+		foreach ( $pages as $page ) {
+			if ( (int) $page->ID === (int) $display_post_id ) {
+				$links[] = '<strong>' . esc_html( get_the_title( $page ) ) . '</strong>';
+			} else {
+				$links[] = '<a href="' . esc_url( get_permalink( $page ) ) . '">' . esc_html( get_the_title( $page ) ) . '</a>';
+			}
+		}
+
+		return implode( '<br />', $links );
 	}
 
 	private function children_links() {

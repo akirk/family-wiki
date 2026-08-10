@@ -20,6 +20,10 @@ Create new users with *Wiki User* (can edit pages) or *Wiki Editor* (can also de
 
 If you created a calendar page, set the option `family_wiki_calendar_page`, for example with the cli command `wp option add family_wiki_calendar_page /Calendar`, then the dates will be linked to that page.
 
+On WordPress multisite, you can link related family wiki sites from the same network in *Settings* -> *Family Wiki*. When a page exists on the current wiki and a configured peer wiki with the same slug, the infobox shows an *Also on* row linking to that peer page using its title there. If the same person or page uses different slugs on the two wikis, add a slug mapping for that pair. Missing local wiki links are also checked against configured peer wikis; when a matching peer page exists, the link points to the peer page instead of being marked as missing.
+
+Person pages can have related pages as direct child pages, for example `/person-name/related-page/`. These child pages are recognized by the missing-link checker and listed in the person's infobox.
+
 ### Advanced Custom Fields
 
 The plugin has switched to using Advanced Custom Fields for wiki page metadata. Please install that plugin in version 6.2 or up. The fields should be automatically restored using the provided JSON file in the `acf-json/` directory.

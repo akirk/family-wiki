@@ -8,6 +8,7 @@ class Main {
 		new Infobox();
 		new Shortcodes();
 		new Private_Site();
+		new Settings();
 
 		load_plugin_textdomain( 'family-wiki' );
 
@@ -53,12 +54,12 @@ class Main {
 					'post_type'      => 'page',
 					'post_status'    => 'published',
 					'posts_per_page' => -1,
-					'fields'         => 'post_name',
 				)
 			);
 			$all_pages = array();
 			foreach ( $p as $page ) {
 				$all_pages[ $page->post_name ] = $page->ID;
+				$all_pages[ get_page_uri( $page ) ] = $page->ID;
 			}
 		}
 		$content = preg_replace_callback(
@@ -91,6 +92,10 @@ class Main {
 				}
 				if ( isset( $all_pages[ $p ] ) ) {
 					return $m[0];
+				}
+				$remote_page = Cross_Wiki::get_remote_page( $p );
+				if ( $remote_page ) {
+					return preg_replace( '/href="[^"]+"/i', 'href="' . esc_url( $remote_page['url'] ) . '"', $m[0], 1 ) . ' style="color: #090"';
 				}
 				return $m[0] . ' style="color: #f00"';
 			},
