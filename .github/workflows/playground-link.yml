@@ -55,7 +55,26 @@ jobs:
             let body = currentBody;
 
             if (hasBlueprint) {
-              const playgroundUrl = `https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${headRef}/blueprint.json`;
+              const response = await github.rest.repos.getContent({
+                owner,
+                repo,
+                path: 'blueprint.json',
+                ref: headRef,
+              });
+              const blueprint = JSON.parse(Buffer.from(response.data.content, response.data.encoding).toString('utf8'));
+              for (const step of blueprint.steps || []) {
+                if (
+                  step.step === 'installPlugin' &&
+                  step.pluginData &&
+                  step.pluginData.resource === 'git:directory' &&
+                  step.pluginData.url === `https://github.com/${owner}/${repo}`
+                ) {
+                  step.pluginData.ref = headRef;
+                  step.pluginData.refType = 'branch';
+                }
+              }
+              const encodedBlueprint = encodeURIComponent(JSON.stringify(blueprint));
+              const playgroundUrl = `https://playground.wordpress.net/?blueprint=${encodedBlueprint}`;
               const playgroundSection = [
                 markerStart,
                 '## WordPress Playground',
