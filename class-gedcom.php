@@ -381,7 +381,7 @@ class GEDCOM {
 				'post_type'    => 'page',
 				'post_status'  => 'publish',
 				'post_title'   => $title ? $title : $xref,
-				'post_content' => '[name_with_bio]',
+				'post_content' => '',
 			);
 
 			if ( $post_id ) {
