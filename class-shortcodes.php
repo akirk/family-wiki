@@ -34,7 +34,12 @@ class Shortcodes {
 
 	public function short_bio_children() {
 		$children = array();
-		foreach ( get_field( 'children' ) as $child ) {
+		$field_children = get_field( 'children' );
+		if ( empty( $field_children ) || ! is_array( $field_children ) ) {
+			return '';
+		}
+
+		foreach ( $field_children as $child ) {
 			$children[ $child->ID ] = '<a href="' . get_permalink( $child ) . '">' . get_the_title( $child ) . '</a>';
 		}
 		if ( empty( $children ) ) {
@@ -119,7 +124,9 @@ class Shortcodes {
 		$father_children = array();
 		$mother_children = array();
 		if ( get_field( 'father' ) ) {
-			foreach ( get_field( 'children', get_field( 'father' ) ) as $child ) {
+			$field_children = get_field( 'children', get_field( 'father' ) );
+			$field_children = is_array( $field_children ) ? $field_children : array();
+			foreach ( $field_children as $child ) {
 				if ( get_the_ID() !== $child->ID ) {
 					$father_children[ $child->ID ] = '<a href="' . get_permalink( $child ) . '">' . get_the_title( $child ) . '</a>';
 				}
@@ -127,7 +134,9 @@ class Shortcodes {
 		}
 
 		if ( get_field( 'mother' ) ) {
-			foreach ( get_field( 'children', get_field( 'mother' ) ) as $child ) {
+			$field_children = get_field( 'children', get_field( 'mother' ) );
+			$field_children = is_array( $field_children ) ? $field_children : array();
+			foreach ( $field_children as $child ) {
 				if ( get_the_ID() !== $child->ID ) {
 					$mother_children[ $child->ID ] = '<a href="' . get_permalink( $child ) . '">' . get_the_title( $child ) . '</a>';
 				}
@@ -248,19 +257,22 @@ class Shortcodes {
 	}
 
 	public function short_date_bio() {
+		$birth_value = get_field( 'birth_date' );
+		$death_value = get_field( 'death_date' );
+
 		try {
-			$birth = new \DateTime( get_field( 'birth_date' ) );
+			$birth = $birth_value ? new \DateTime( $birth_value ) : null;
 		} catch ( \Exception $e ) {
 			$birth = null;
 		}
 		try {
-			$death = new \DateTime( get_field( 'death_date' ) );
+			$death = $death_value ? new \DateTime( $death_value ) : null;
 		} catch ( \Exception $e ) {
 			$death = null;
 		}
 
 		if ( get_field( 'alive' ) ) {
-			if ( ! get_field( 'birth_date' ) ) {
+			if ( ! $birth ) {
 				return '';
 			}
 			$age = $birth->diff( new \DateTime( 'now' ) );
@@ -348,8 +360,42 @@ class Shortcodes {
 			);
 		}
 
-		if ( ! get_field( 'birth_date' ) && ! get_field( 'death_date' ) ) {
+		if ( ! $birth && ! $death ) {
 			return '';
+		}
+
+		if ( ! $birth ) {
+			if ( get_field( 'death_place' ) ) {
+				if ( get_field( 'exact_death_date_unknown' ) ) {
+					return sprintf(
+						// translators: %1$s is a death year, %2$s is a death place.
+						__( 'died in %1$s in %2$s', 'family-wiki' ),
+						$death->format( 'Y' ),
+						esc_html( get_field( 'death_place' ) )
+					);
+				}
+
+				return sprintf(
+					// translators: %1$s is a death date, %2$s is a death place.
+					__( 'died on %1$s in %2$s', 'family-wiki' ),
+					$this->get_date( $death ),
+					esc_html( get_field( 'death_place' ) )
+				);
+			}
+
+			if ( get_field( 'exact_death_date_unknown' ) ) {
+				return sprintf(
+					// translators: %s is a death year.
+					__( 'died in %s', 'family-wiki' ),
+					$death->format( 'Y' )
+				);
+			}
+
+			return sprintf(
+				// translators: %s is a death date.
+				__( 'died on %s', 'family-wiki' ),
+				$this->get_date( $death )
+			);
 		}
 
 		if ( get_field( 'born_as' ) ) {
@@ -422,67 +468,54 @@ class Shortcodes {
 			}
 		}
 
-		if ( get_field( 'birth_date' ) && get_field( 'death_date' ) ) {
-			$aged = $birth->diff( $death );
+		if ( ! $death ) {
+			return $return;
+		}
 
-			$aged_placeholder = sprintf(
-				// translators: %s is an age in years.
-				_n( 'aged: %d', 'aged: %d', $aged->y, 'family-wiki' ),
-				$aged->y
-			);
-			$aged_ca_placeholder = sprintf(
-				// translators: %s is an age in years.
-				_n( 'aged: ~%d', 'aged: ~%d', $aged->y, 'family-wiki' ),
-				$aged->y
-			);
+		$aged = $birth->diff( $death );
+		$aged_placeholder = sprintf(
+			// translators: %s is an age in years.
+			_n( 'aged: %d', 'aged: %d', $aged->y, 'family-wiki' ),
+			$aged->y
+		);
+		$aged_ca_placeholder = sprintf(
+			// translators: %s is an age in years.
+			_n( 'aged: ~%d', 'aged: ~%d', $aged->y, 'family-wiki' ),
+			$aged->y
+		);
 
-			if ( get_field( 'death_place' ) ) {
-				if ( get_field( 'exact_death_date_unknown' ) ) {
-					return $return . ', ' . sprintf(
-						// translators: %1$s is a death year, %2$s is the translation of aged: %d, %3$s is a death place.
-						__( 'died in %1$s (%2$s) in %3$s', 'family-wiki' ),
-						$death->format( 'Y' ),
-						$aged_ca_placeholder,
-						esc_html( get_field( 'death_place' ) )
-					);
-				}
-
+		if ( get_field( 'death_place' ) ) {
+			if ( get_field( 'exact_death_date_unknown' ) ) {
 				return $return . ', ' . sprintf(
-					// translators: %1$s is a death date, %2$s is a death date, %3$s is the translation of aged: %d.
-					__( 'died on %1$s (%2$s) in %3$s', 'family-wiki' ),
-					$this->get_date( $death ),
-					$aged_placeholder,
+					// translators: %1$s is a death year, %2$s is the translation of aged: %d, %3$s is a death place.
+					__( 'died in %1$s (%2$s) in %3$s', 'family-wiki' ),
+					$death->format( 'Y' ),
+					$aged_ca_placeholder,
 					esc_html( get_field( 'death_place' ) )
 				);
 			}
 
-			if ( get_field( 'exact_death_date_unknown' ) ) {
-				return $return . ', ' . sprintf(
-					// translators: %1$s is a death year, %2$s is the translation of aged: %d.
-					__( 'died in %1$s (%2$s)', 'family-wiki' ),
-					$death->format( 'Y' ),
-					$aged_ca_placeholder
-				);
-			}
 			return $return . ', ' . sprintf(
-				// translators: %1$s is a death date, %2$s is the translation of aged: %d.
-				__( 'died on %1$s (%2$s)', 'family-wiki' ),
+				// translators: %1$s is a death date, %2$s is a death date, %3$s is the translation of aged: %d.
+				__( 'died on %1$s (%2$s) in %3$s', 'family-wiki' ),
 				$this->get_date( $death ),
-				$aged_placeholder
+				$aged_placeholder,
+				esc_html( get_field( 'death_place' ) )
 			);
 		}
 
 		if ( get_field( 'exact_death_date_unknown' ) ) {
 			return $return . ', ' . sprintf(
-				// translators: %s is a death year.
-				__( 'died in %s', 'family-wiki' ),
-				$death->format( 'Y' )
+				// translators: %1$s is a death year, %2$s is the translation of aged: %d.
+				__( 'died in %1$s (%2$s)', 'family-wiki' ),
+				$death->format( 'Y' ),
+				$aged_ca_placeholder
 			);
 		}
 
 		return $return . ', ' . sprintf(
-			// translators: %s is a death date.
-			__( 'died on %s', 'family-wiki' ),
+			// translators: %1$s is a death date, %2$s is the translation of aged: %d.
+			__( 'died on %1$s (%2$s)', 'family-wiki' ),
 			$this->get_date( $death ),
 			$aged_placeholder
 		);
