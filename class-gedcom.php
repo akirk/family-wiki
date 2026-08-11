@@ -32,6 +32,7 @@ class GEDCOM {
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'register_importer' ) );
+		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 81 );
 		add_action( 'admin_post_family_wiki_gedcom_export', array( $this, 'export_download' ) );
 	}
 
@@ -78,6 +79,21 @@ class GEDCOM {
 			__( 'Family Wiki', 'family-wiki' ),
 			__( 'Import people and family relationships from a GEDCOM file into Family Wiki pages.', 'family-wiki' ),
 			array( $this, 'render_importer' )
+		);
+	}
+
+	public function admin_bar_menu( \WP_Admin_Bar $wp_admin_bar ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$wp_admin_bar->add_node(
+			array(
+				'id'     => 'family-wiki-import-export',
+				'parent' => Calendar::MENU_ID,
+				'title'  => __( 'Import / Export', 'family-wiki' ),
+				'href'   => admin_url( 'tools.php?page=' . self::MENU_SLUG ),
+			)
 		);
 	}
 
