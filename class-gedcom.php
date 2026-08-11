@@ -417,7 +417,7 @@ class GEDCOM {
 	}
 
 	private function get_export_people() {
-		return get_posts(
+		$pages = get_posts(
 			array(
 				'post_type'      => 'page',
 				'post_status'    => 'publish',
@@ -426,6 +426,19 @@ class GEDCOM {
 				'order'          => 'ASC',
 			)
 		);
+
+		return array_values( array_filter( $pages, array( $this, 'has_person_data' ) ) );
+	}
+
+	private function has_person_data( $person ) {
+		foreach ( array( 'sex', 'born_as', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'mother', 'children', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
+			$value = $this->get_field_value( $field, $person->ID );
+			if ( ! empty( $value ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private function person_xref( $person, &$used ) {
