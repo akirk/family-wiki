@@ -36,7 +36,7 @@ jobs:
             const pull_number = context.issue.number;
             const headRef = process.env.HEAD_REF;
             const currentBody = context.payload.pull_request.body || '';
-            const playgroundUrl = `https://akirk.github.io/playground-step-library/?redir=1&step[0]=installPlugin&url[0]=github.com/${owner}/${repo}/tree/${headRef}`;
+            const playgroundUrl = `https://akirk.github.io/playground-step-library/?redir=1&step[0]=installPlugin&url[0]=advanced-custom-fields&step[1]=installPlugin&url[1]=github.com/${owner}/${repo}/tree/${headRef}`;
             const playgroundSection = [
               markerStart,
               '## Test this PR in WordPress Playground',
@@ -45,7 +45,7 @@ jobs:
               '',
               `[Launch WordPress Playground](${playgroundUrl})`,
               '',
-              'This will install and activate the plugin with the changes from this PR.',
+              'This will install and activate ACF and the plugin with the changes from this PR.',
               markerEnd,
             ].join('\n');
 
