@@ -378,12 +378,21 @@ class Calendar {
 						'key'     => 'death_date',
 						'compare' => 'EXISTS',
 					),
+					array(
+						'key'     => 'marriages',
+						'compare' => 'EXISTS',
+					),
+					array(
+						'key'     => 'marriage_date',
+						'compare' => 'EXISTS',
+					),
 				),
 			);
 
 			$p = get_posts( $args );
 			$this->all_dates = array();
-			$now = new \DateTime( 'now' );
+			$now              = new \DateTime( 'now' );
+			$seen_marriages   = array();
 			foreach ( $p as $page ) {
 				$dates = array();
 				try {
@@ -400,10 +409,6 @@ class Calendar {
 				}
 
 				foreach ( $dates as $type => $date ) {
-					$month_day = $date->format( 'm-d' );
-					if ( ! isset( $this->all_dates[ $month_day ] ) ) {
-						$this->all_dates[ $month_day ] = array();
-					}
 					$arr = array(
 						'date'   => $date,
 						'type'   => $type,
@@ -463,7 +468,11 @@ class Calendar {
 						$arr['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $age, 'family-wiki' ), $age ) . ')';
 					}
 
-					$this->all_dates[ $month_day ][] = $arr;
+					$this->add_date_event( $arr );
+				}
+
+				foreach ( $this->get_marriage_anniversary_events( $page, $now, $seen_marriages ) as $event ) {
+					$this->add_date_event( $event );
 				}
 			}
 			ksort( $this->all_dates );
@@ -474,7 +483,173 @@ class Calendar {
 	}
 
 	private static function get_dates_cache_key() {
-		return 'family_wiki_calendar_dates_' . get_current_blog_id() . '_' . get_locale();
+		return 'family_wiki_calendar_dates_v4_' . get_current_blog_id() . '_' . get_locale();
+	}
+
+	private function add_date_event( $event ) {
+		$month_day = $event['date']->format( 'm-d' );
+		if ( ! isset( $this->all_dates[ $month_day ] ) ) {
+			$this->all_dates[ $month_day ] = array();
+		}
+
+		$this->all_dates[ $month_day ][] = $event;
+	}
+
+	private function get_marriage_anniversary_events( $page, \DateTime $now, &$seen_marriages ) {
+		$marriages = get_field( 'marriages', $page->ID );
+		if ( empty( $marriages ) || ! is_array( $marriages ) ) {
+			$marriages = array();
+		}
+
+		$marriages = array_merge( $this->legacy_marriage_rows( $page->ID ), $marriages );
+		if ( empty( $marriages ) ) {
+			return array();
+		}
+
+		$events = array();
+		foreach ( $marriages as $marriage ) {
+			if (
+				empty( $marriage['marriage_date'] )
+				|| $this->person_is_deceased( $page->ID )
+				|| $this->marriage_spouse_is_deceased( $marriage )
+				|| ( ! empty( $marriage['ended_reason'] ) && 'divorced' === $marriage['ended_reason'] )
+			) {
+				continue;
+			}
+
+			try {
+				$date = new \DateTime( $this->date_for_datetime( $marriage['marriage_date'] ) );
+			} catch ( \Exception $e ) {
+				continue;
+			}
+
+			$key = $this->marriage_key( $page->ID, $marriage, $date );
+			if ( isset( $seen_marriages[ $key ] ) ) {
+				continue;
+			}
+			$seen_marriages[ $key ] = true;
+
+			$couple = $this->couple_links( $page, $marriage );
+			$years  = (int) $now->format( 'Y' ) - (int) $date->format( 'Y' );
+			$event  = array(
+				'date'   => $date,
+				'type'   => 'married',
+				'ID'     => $page->ID,
+				'text'   => sprintf(
+					// translators: %1$s is a couple, %2$s is a date.
+					__( '%1$s married on %2$s', 'family-wiki' ),
+					$couple,
+					date_i18n( get_option( 'date_format' ), $date->format( 'U' ) )
+				),
+				'person' => $couple,
+				'dead'   => false,
+				'age'    => '',
+			);
+
+			if ( $years ) {
+				// translators: %s is a number of years.
+				$event['text'] .= ' (' . sprintf( _n( '%d years ago', '%d years ago', $years, 'family-wiki' ), $years ) . ')';
+			}
+
+			$events[] = $event;
+		}
+
+		return $events;
+	}
+
+	private function legacy_marriage_rows( $post_id ) {
+		$marriage_date = get_field( 'marriage_date', $post_id );
+		if ( empty( $marriage_date ) ) {
+			return array();
+		}
+
+		$spouses = get_field( 'spouse', $post_id );
+		if ( empty( $spouses ) ) {
+			$spouses = array();
+		} elseif ( ! is_array( $spouses ) ) {
+			$spouses = array( $spouses );
+		}
+
+		$rows = array();
+		foreach ( $spouses as $spouse ) {
+			if ( $spouse instanceof \WP_Post ) {
+				$spouse = $spouse->ID;
+			}
+
+			$spouse = absint( $spouse );
+			if ( ! $spouse ) {
+				continue;
+			}
+
+			$rows[] = array(
+				'spouse'        => $spouse,
+				'spouse_name'   => '',
+				'marriage_date' => $marriage_date,
+			);
+		}
+
+		if ( empty( $rows ) && get_field( 'spouse_name', $post_id ) ) {
+			$rows[] = array(
+				'spouse'        => 0,
+				'spouse_name'   => get_field( 'spouse_name', $post_id ),
+				'marriage_date' => $marriage_date,
+			);
+		}
+
+		return $rows;
+	}
+
+	private function marriage_spouse_is_deceased( $marriage ) {
+		if ( empty( $marriage['spouse'] ) ) {
+			return false;
+		}
+
+		return $this->person_is_deceased( $marriage['spouse'] );
+	}
+
+	private function person_is_deceased( $post_id ) {
+		return (bool) get_field( 'death_date', $post_id ) || ! get_field( 'alive', $post_id );
+	}
+
+	private function date_for_datetime( $date ) {
+		if ( preg_match( '/^\d{8}$/', $date ) ) {
+			return substr( $date, 0, 4 ) . '-' . substr( $date, 4, 2 ) . '-' . substr( $date, 6, 2 );
+		}
+
+		return $date;
+	}
+
+	private function marriage_key( $post_id, $marriage, \DateTime $date ) {
+		if ( ! empty( $marriage['spouse'] ) ) {
+			$ids = array( (int) $post_id, (int) $marriage['spouse'] );
+			sort( $ids );
+
+			return implode( '-', $ids ) . '-' . $date->format( 'Y-m-d' );
+		}
+
+		$spouse_name = isset( $marriage['spouse_name'] ) ? $marriage['spouse_name'] : '';
+
+		return (int) $post_id . '-' . strtolower( trim( $spouse_name ) ) . '-' . $date->format( 'Y-m-d' );
+	}
+
+	private function couple_links( $page, $marriage ) {
+		$person = '<a href="/' . $page->post_name . '">' . $page->post_title . '</a>';
+
+		if ( ! empty( $marriage['spouse'] ) ) {
+			$spouse  = '<a href="' . esc_url( get_permalink( $marriage['spouse'] ) ) . '">';
+			$spouse .= esc_html( get_the_title( $marriage['spouse'] ) ) . '</a>';
+		} elseif ( ! empty( $marriage['spouse_name'] ) ) {
+			$spouse = esc_html( $marriage['spouse_name'] );
+		} else {
+			return $person;
+		}
+
+		return sprintf(
+			// translators: %1$s and %2$s are spouse names.
+			__( '%1$s and %2$s', 'family-wiki' ),
+			$person,
+			$spouse
+		);
 	}
 
 	public function render_family_calendar() {
@@ -601,7 +776,7 @@ class Calendar {
 
 		$return .= '<ul class="family-wiki-calendar-month__events">';
 		foreach ( $events as $event ) {
-			$return .= '<li>' . wp_kses_post( $this->compact_event_text( $event ) ) . '</li>';
+			$return .= '<li title="' . esc_attr( wp_strip_all_tags( $event['text'] ) ) . '">' . wp_kses_post( $this->compact_event_text( $event ) ) . '</li>';
 		}
 		$return .= '</ul>';
 		$return .= '</td>';
@@ -610,13 +785,19 @@ class Calendar {
 	}
 
 	private function compact_event_text( $event ) {
-		$marker = 'born' === $event['type'] ? '*' : '&dagger;';
+		if ( 'married' === $event['type'] ) {
+			$marker = '&hearts;';
+		} elseif ( 'born' === $event['type'] ) {
+			$marker = '*';
+		} else {
+			$marker = '&dagger;';
+		}
 
 		return sprintf(
 			'%1$s %2$s%3$s',
 			$event['person'],
 			$marker,
-			esc_html( $event['date']->format( 'Y' ) )
+			'<abbr class="family-wiki-calendar-month__event-year" title="' . esc_attr( wp_strip_all_tags( $event['text'] ) ) . '">' . esc_html( $event['date']->format( 'Y' ) ) . '</abbr>'
 		);
 	}
 
@@ -633,7 +814,7 @@ class Calendar {
 
 		foreach ( $dates as $date => $people ) {
 			foreach ( $people as $person ) {
-				if ( $person['dead'] ) {
+				if ( 'born' !== $person['type'] || $person['dead'] ) {
 					continue;
 				}
 
