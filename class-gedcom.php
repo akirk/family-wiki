@@ -323,9 +323,9 @@ class GEDCOM {
 	public function export_string() {
 		$people = $this->get_export_people();
 		$ids    = array();
-		$used   = array();
+		$i      = 1;
 		foreach ( $people as $person ) {
-			$ids[ $person->ID ] = $this->person_xref( $person, $used );
+			$ids[ $person->ID ] = 'I' . $i++;
 		}
 
 		$families = $this->get_export_families( $people, $ids );
@@ -441,70 +441,11 @@ class GEDCOM {
 		return false;
 	}
 
-	private function person_xref( $person, &$used ) {
-		$xref = 'I' . $this->gedcom_slug_id( get_page_uri( $person->ID ) );
-		if ( empty( $used[ $xref ] ) ) {
-			$used[ $xref ] = true;
-			return $xref;
-		}
-
-		$xref = 'I' . $this->gedcom_slug_id( get_page_uri( $person->ID ) . '-' . $person->ID );
-		$used[ $xref ] = true;
-
-		return $xref;
-	}
-
-	private function person_reference_numbers( $post_id, $xref ) {
-		$references = array( $xref );
-		$local_slug = trim( strtolower( get_page_uri( $post_id ) ), '/' );
-
-		foreach ( Cross_Wiki::get_sites() as $site ) {
-			$site_id = empty( $site['site_id'] ) ? 0 : absint( $site['site_id'] );
-			if ( ! $site_id || empty( $site['slugs'] ) || ! is_array( $site['slugs'] ) || empty( $site['slugs'][ $local_slug ] ) ) {
-				continue;
-			}
-
-			$remote_slug = trim( strtolower( $site['slugs'][ $local_slug ] ), '/' );
-			if ( $this->remote_page_exists( $site_id, $remote_slug ) ) {
-				$references[] = 'I' . $this->gedcom_slug_id( $remote_slug );
-			}
-		}
-
-		$references = array_unique( array_filter( $references ) );
-		sort( $references, SORT_STRING );
-
-		return $references;
-	}
-
-	private function gedcom_slug_id( $slug ) {
-		$slug = trim( strtolower( $slug ), '/' );
-		$slug = preg_replace( '/[^a-z0-9]+/', '_', $slug );
-		$slug = trim( $slug, '_' );
-
-		return $slug ? strtoupper( $slug ) : 'PAGE';
-	}
-
-	private function remote_page_exists( $site_id, $slug ) {
-		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() || ! $site_id || ! $slug ) {
-			return false;
-		}
-
-		switch_to_blog( $site_id );
-		$page = get_page_by_path( $slug, OBJECT, 'page' );
-		$exists = $page && 'publish' === $page->post_status;
-		restore_current_blog();
-
-		return $exists;
-	}
-
 	private function export_individual( $person, $xref, $families ) {
 		$lines = array(
 			'0 @' . $xref . '@ INDI',
 			'1 NAME ' . $this->format_gedcom_name( get_the_title( $person ) ),
 		);
-		foreach ( $this->person_reference_numbers( $person->ID, $xref ) as $reference ) {
-			$lines[] = '1 REFN ' . $reference;
-		}
 
 		$sex = $this->get_field_value( 'sex', $person->ID );
 		if ( $sex ) {
