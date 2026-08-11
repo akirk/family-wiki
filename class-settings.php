@@ -110,11 +110,11 @@ class Settings {
 			return;
 		}
 
-		$sites        = Cross_Wiki::get_sites();
+		$sites         = Cross_Wiki::get_sites();
 		$current_pages = $this->get_page_choices();
-		$infobox      = self::get_infobox_settings();
+		$infobox       = self::get_infobox_settings();
 		$virtual_pages = self::get_virtual_pages_settings();
-		$is_multisite = function_exists( 'is_multisite' ) && is_multisite();
+		$is_multisite  = function_exists( 'is_multisite' ) && is_multisite();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Family Wiki Settings', 'family-wiki' ); ?></h1>
@@ -349,24 +349,26 @@ class Settings {
 
 		$return = array();
 		foreach ( $sites as $site ) {
-			if ( empty( $site['url'] ) ) {
+			$site_id = empty( $site['site_id'] ) ? 0 : absint( $site['site_id'] );
+			if ( ! $site_id && ! empty( $site['url'] ) ) {
+				$site_id = $this->get_blog_id_for_url( $site['url'] );
+			}
+
+			if ( ! $site_id || ! $this->current_user_can_reference_site( $site_id ) || get_current_blog_id() === $site_id ) {
 				continue;
 			}
 
-			$url = trim( $site['url'] );
-			if ( ! preg_match( '#^https?://#i', $url ) ) {
-				$url = 'https://' . $url;
-			}
-
-			$url = untrailingslashit( esc_url_raw( $url ) );
+			$url = untrailingslashit( esc_url_raw( get_home_url( $site_id ) ) );
 			if ( empty( $url ) || untrailingslashit( home_url() ) === $url ) {
 				continue;
 			}
 
+			$details = get_blog_details( $site_id );
 			$return[] = array(
-				'url'   => $url,
-				'label' => empty( $site['label'] ) ? preg_replace( '/^https?:\/\//', '', $url ) : sanitize_text_field( $site['label'] ),
-				'slugs' => $this->sanitize_slug_mappings( $site ),
+				'site_id' => $site_id,
+				'url'     => $url,
+				'label'   => empty( $site['label'] ) ? $this->get_site_name( $site_id, $details ) : sanitize_text_field( $site['label'] ),
+				'slugs'   => $this->sanitize_slug_mappings( $site ),
 			);
 		}
 
@@ -418,8 +420,10 @@ class Settings {
 	}
 
 	private function render_site_card( $site, $index ) {
-		$remote_pages = empty( $site['url'] ) ? array() : $this->get_page_choices( $site['url'] );
-		$remote_list  = 'family-wiki-remote-pages-' . $index;
+		$site_id       = empty( $site['site_id'] ) ? $this->get_blog_id_for_url( isset( $site['url'] ) ? $site['url'] : '' ) : absint( $site['site_id'] );
+		$remote_pages  = empty( $site_id ) ? array() : $this->get_page_choices( $site_id );
+		$remote_list   = 'family-wiki-remote-pages-' . $index;
+		$network_sites = $this->get_member_site_choices();
 		?>
 		<section class="family-wiki-settings__site" data-family-wiki-site="<?php echo esc_attr( $index ); ?>">
 			<div class="family-wiki-settings__site-header">
@@ -429,8 +433,13 @@ class Settings {
 
 			<div class="family-wiki-settings__fields">
 				<p class="family-wiki-settings__field">
-					<label><?php esc_html_e( 'Site URL', 'family-wiki' ); ?></label>
-					<input class="regular-text" type="url" name="<?php echo esc_attr( Cross_Wiki::OPTION . '[' . $index . '][url]' ); ?>" value="<?php echo esc_attr( $site['url'] ); ?>" placeholder="https://example.com" />
+					<label><?php esc_html_e( 'Network site', 'family-wiki' ); ?></label>
+					<select class="regular-text" name="<?php echo esc_attr( Cross_Wiki::OPTION . '[' . $index . '][site_id]' ); ?>">
+						<option value=""><?php esc_html_e( 'Select a wiki site', 'family-wiki' ); ?></option>
+						<?php foreach ( $network_sites as $network_site ) : ?>
+							<option value="<?php echo esc_attr( $network_site['site_id'] ); ?>" <?php selected( $site_id, $network_site['site_id'] ); ?>><?php echo esc_html( $network_site['label'] ); ?></option>
+						<?php endforeach; ?>
+					</select>
 				</p>
 				<p class="family-wiki-settings__field">
 					<label><?php esc_html_e( 'Label', 'family-wiki' ); ?></label>
@@ -443,7 +452,7 @@ class Settings {
 			</datalist>
 
 			<h4><?php esc_html_e( 'Page matches', 'family-wiki' ); ?></h4>
-			<p class="description"><?php esc_html_e( 'Add a page match when automatic matching cannot find the same page because the two wikis use different URL slugs. Save after adding a new site URL to load page suggestions from that wiki.', 'family-wiki' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Add a page match when automatic matching cannot find the same page because the two wikis use different URL slugs. Save after selecting a wiki to load page suggestions from that site.', 'family-wiki' ); ?></p>
 
 			<div data-family-wiki-mappings>
 				<?php
@@ -486,15 +495,15 @@ class Settings {
 		}
 	}
 
-	private function get_page_choices( $site_url = null ) {
+	private function get_page_choices( $site_id = null ) {
 		$restore = false;
-		if ( $site_url ) {
-			$blog_id = $this->get_blog_id_for_url( $site_url );
-			if ( ! $blog_id ) {
+		if ( $site_id ) {
+			$site_id = absint( $site_id );
+			if ( ! $site_id ) {
 				return array();
 			}
 
-			switch_to_blog( $blog_id );
+			switch_to_blog( $site_id );
 			$restore = true;
 		}
 
@@ -521,6 +530,10 @@ class Settings {
 	}
 
 	private function get_blog_id_for_url( $site_url ) {
+		if ( empty( $site_url ) ) {
+			return 0;
+		}
+
 		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
 			return 0;
 		}
@@ -533,6 +546,62 @@ class Settings {
 		}
 
 		return 0;
+	}
+
+	private function get_member_site_choices() {
+		if ( ! function_exists( 'is_multisite' ) || ! is_multisite() ) {
+			return array();
+		}
+
+		$user_sites = get_blogs_of_user( get_current_user_id() );
+		if ( empty( $user_sites ) || ! is_array( $user_sites ) ) {
+			return array();
+		}
+
+		$choices = array();
+		foreach ( $user_sites as $user_site ) {
+			$site_id = empty( $user_site->userblog_id ) ? 0 : absint( $user_site->userblog_id );
+			if ( ! $site_id || get_current_blog_id() === $site_id ) {
+				continue;
+			}
+
+			$details = get_blog_details( $site_id );
+			if ( ! $details || ! empty( $details->deleted ) || ! empty( $details->spam ) || ! empty( $details->archived ) ) {
+				continue;
+			}
+
+			$choices[] = array(
+				'site_id' => $site_id,
+				'label'   => $this->get_site_name( $site_id, $details ),
+			);
+		}
+
+		usort(
+			$choices,
+			function ( $a, $b ) {
+				return strcasecmp( $a['label'], $b['label'] );
+			}
+		);
+
+		return $choices;
+	}
+
+	private function current_user_can_reference_site( $site_id ) {
+		foreach ( $this->get_member_site_choices() as $site ) {
+			if ( absint( $site['site_id'] ) === absint( $site_id ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private function get_site_name( $site_id, $details = null ) {
+		if ( ! $details ) {
+			$details = get_blog_details( $site_id );
+		}
+
+		return $details && ! empty( $details->blogname ) ? $details->blogname : preg_replace( '/^https?:\/\//', '', get_home_url( $site_id ) );
 	}
 
 	private function parse_slug_mappings( $text ) {
