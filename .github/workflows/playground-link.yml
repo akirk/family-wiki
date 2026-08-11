@@ -35,65 +35,23 @@ jobs:
             const { owner, repo } = context.repo;
             const pull_number = context.issue.number;
             const headRef = process.env.HEAD_REF;
-
-            let hasBlueprint = false;
-            try {
-              await github.rest.repos.getContent({
-                owner,
-                repo,
-                path: 'blueprint.json',
-                ref: headRef,
-              });
-              hasBlueprint = true;
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
-              }
-            }
-
             const currentBody = context.payload.pull_request.body || '';
-            let body = currentBody;
+            const playgroundUrl = `https://akirk.github.io/playground-step-library/?redir=1&step[0]=installPlugin&url[0]=github.com/${owner}/${repo}/tree/${headRef}`;
+            const playgroundSection = [
+              markerStart,
+              '## Test this PR in WordPress Playground',
+              '',
+              'You can test this pull request directly in WordPress Playground:',
+              '',
+              `[Launch WordPress Playground](${playgroundUrl})`,
+              '',
+              'This will install and activate the plugin with the changes from this PR.',
+              markerEnd,
+            ].join('\n');
 
-            if (hasBlueprint) {
-              const response = await github.rest.repos.getContent({
-                owner,
-                repo,
-                path: 'blueprint.json',
-                ref: headRef,
-              });
-              const blueprint = JSON.parse(Buffer.from(response.data.content, response.data.encoding).toString('utf8'));
-              for (const step of blueprint.steps || []) {
-                if (
-                  step.step === 'installPlugin' &&
-                  step.pluginData &&
-                  step.pluginData.resource === 'git:directory' &&
-                  step.pluginData.url === `https://github.com/${owner}/${repo}`
-                ) {
-                  step.pluginData.ref = headRef;
-                  step.pluginData.refType = 'branch';
-                }
-              }
-              const encodedBlueprint = encodeURIComponent(JSON.stringify(blueprint));
-              const playgroundUrl = `https://playground.wordpress.net/?blueprint=${encodedBlueprint}`;
-              const playgroundSection = [
-                markerStart,
-                '## WordPress Playground',
-                '',
-                'Test this PR in WordPress Playground:',
-                '',
-                playgroundUrl,
-                markerEnd,
-              ].join('\n');
-
-              body = markerPattern.test(currentBody)
-                ? currentBody.replace(markerPattern, playgroundSection)
-                : [currentBody.trimEnd(), playgroundSection].filter(Boolean).join('\n\n');
-            } else if (markerPattern.test(currentBody)) {
-              body = currentBody
-                .replace(markerPattern, '')
-                .replace(/\n{3,}/g, '\n\n')
-                .trim();
-            }
+            const body = markerPattern.test(currentBody)
+              ? currentBody.replace(markerPattern, playgroundSection)
+              : [currentBody.trimEnd(), playgroundSection].filter(Boolean).join('\n\n');
 
             if (body !== currentBody) {
               await github.rest.pulls.update({
