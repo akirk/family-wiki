@@ -163,7 +163,7 @@ class GEDCOM {
 		<section class="family-wiki-gedcom-review">
 			<h2><?php esc_html_e( 'Review GEDCOM import', 'family-wiki' ); ?></h2>
 			<p><?php echo esc_html( sprintf( __( 'Found %1$d people and %2$d family records. Choose entries below, or use a person row to select that person and all known descendants.', 'family-wiki' ), $total, $family_count ) ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
 				<input type="hidden" name="family_wiki_gedcom_step" value="selected" />
 				<input type="hidden" name="family_wiki_review" value="<?php echo esc_attr( $token ); ?>" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_import_selected' ); ?>
