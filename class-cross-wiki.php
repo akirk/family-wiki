@@ -28,6 +28,11 @@ class Cross_Wiki {
 				$site['url'] = $key;
 			}
 
+			$site['site_id'] = empty( $site['site_id'] ) ? 0 : absint( $site['site_id'] );
+			if ( empty( $site['url'] ) && $site['site_id'] ) {
+				$site['url'] = get_home_url( $site['site_id'] );
+			}
+
 			if ( empty( $site['url'] ) ) {
 				continue;
 			}
@@ -38,7 +43,8 @@ class Cross_Wiki {
 			}
 
 			if ( empty( $site['label'] ) ) {
-				$site['label'] = preg_replace( '/^https?:\/\//', '', $site['url'] );
+				$details       = $site['site_id'] ? get_blog_details( $site['site_id'] ) : false;
+				$site['label'] = $details && ! empty( $details->blogname ) ? $details->blogname : preg_replace( '/^https?:\/\//', '', $site['url'] );
 			}
 
 			if ( empty( $site['slugs'] ) || ! is_array( $site['slugs'] ) ) {
@@ -57,10 +63,10 @@ class Cross_Wiki {
 
 		foreach ( self::get_sites() as $site ) {
 			$remote_slug = self::remote_slug_for( $slug, $site );
-			$page        = self::get_remote_page_data( $site['url'], $remote_slug );
+			$page        = self::get_remote_page_data( $site, $remote_slug );
 
 			if ( ! $page && $remote_slug !== $slug ) {
-				$page = self::get_remote_page_data( $site['url'], $slug );
+				$page = self::get_remote_page_data( $site, $slug );
 			}
 
 			if ( $page ) {
@@ -93,15 +99,19 @@ class Cross_Wiki {
 		return $slug;
 	}
 
-	private static function get_remote_page_data( $site_url, $slug ) {
+	private static function get_remote_page_data( $site, $slug ) {
 		static $pages = array();
 
-		$cache_key = untrailingslashit( $site_url ) . '|' . trim( strtolower( $slug ), '/' );
+		$blog_id = empty( $site['site_id'] ) ? 0 : absint( $site['site_id'] );
+		if ( ! $blog_id && ! empty( $site['url'] ) ) {
+			$blog_id = self::get_blog_id_for_url( $site['url'] );
+		}
+
+		$cache_key = $blog_id . '|' . trim( strtolower( $slug ), '/' );
 		if ( array_key_exists( $cache_key, $pages ) ) {
 			return $pages[ $cache_key ];
 		}
 
-		$blog_id = self::get_blog_id_for_url( $site_url );
 		if ( ! $blog_id ) {
 			$pages[ $cache_key ] = false;
 			return false;
