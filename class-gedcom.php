@@ -6,6 +6,8 @@ class GEDCOM {
 	const XREF_META = '_family_wiki_gedcom_xref';
 	const IMPORT_TRANSIENT_PREFIX = 'family_wiki_gedcom_import_';
 
+	private $nav_menu_auto_add_priority = false;
+
 	private $field_keys = array(
 		'alive'                    => 'field_65aa3e2cb6f44',
 		'sex'                      => 'field_65aa445779733',
@@ -374,6 +376,8 @@ class GEDCOM {
 		$updated = 0;
 		$id_map  = array();
 
+		$this->suspend_nav_menu_auto_add();
+
 		foreach ( $records['INDI'] as $xref => $record ) {
 			$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
 			$post_id = $this->find_person_post( $xref, $title );
@@ -389,12 +393,14 @@ class GEDCOM {
 				unset( $data['post_content'] );
 				$result = wp_update_post( wp_slash( $data ), true );
 				if ( is_wp_error( $result ) ) {
+					$this->restore_nav_menu_auto_add();
 					return $result;
 				}
 				$updated++;
 			} else {
 				$result = wp_insert_post( wp_slash( $data ), true );
 				if ( is_wp_error( $result ) ) {
+					$this->restore_nav_menu_auto_add();
 					return $result;
 				}
 				$post_id = $result;
@@ -406,6 +412,8 @@ class GEDCOM {
 			$this->import_individual_fields( $post_id, $record );
 		}
 
+		$this->restore_nav_menu_auto_add();
+
 		$this->import_family_links( isset( $records['FAM'] ) ? $records['FAM'] : array(), $id_map );
 		Calendar::flush_dates_cache();
 		Front_Page::flush_cache();
@@ -414,6 +422,21 @@ class GEDCOM {
 			'created' => $created,
 			'updated' => $updated,
 		);
+	}
+
+	private function suspend_nav_menu_auto_add() {
+		$this->nav_menu_auto_add_priority = has_action( 'transition_post_status', '_wp_auto_add_pages_to_menu' );
+
+		if ( false !== $this->nav_menu_auto_add_priority ) {
+			remove_action( 'transition_post_status', '_wp_auto_add_pages_to_menu', $this->nav_menu_auto_add_priority );
+		}
+	}
+
+	private function restore_nav_menu_auto_add() {
+		if ( false !== $this->nav_menu_auto_add_priority ) {
+			add_action( 'transition_post_status', '_wp_auto_add_pages_to_menu', $this->nav_menu_auto_add_priority, 3 );
+			$this->nav_menu_auto_add_priority = false;
+		}
 	}
 
 	private function get_export_people() {

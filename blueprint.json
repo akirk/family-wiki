@@ -9,8 +9,17 @@
 			"Family"
 		]
 	},
-	"landingPage": "/",
 	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "wordpress.org/plugins",
+				"slug": "advanced-custom-fields"
+			},
+			"options": {
+				"activate": true
+			}
+		},
 		{
 			"step": "installPlugin",
 			"pluginData": {
