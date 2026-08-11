@@ -246,7 +246,7 @@ class GEDCOM {
 		}
 		check_admin_referer( 'family_wiki_gedcom_export' );
 
-		$filename = sanitize_file_name( wp_parse_url( home_url(), PHP_URL_HOST ) . '-family-wiki.ged' );
+		$filename = sanitize_file_name( wp_parse_url( home_url(), PHP_URL_HOST ) . '-family-wiki-' . current_time( 'Ymd-His' ) . '.ged' );
 
 		nocache_headers();
 		header( 'Content-Type: text/plain; charset=UTF-8' );
