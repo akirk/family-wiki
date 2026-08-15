@@ -1,0 +1,36 @@
+.family-wiki-tree__list,
+.family-wiki-tree__list ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.family-wiki-tree__list ul {
+	border-left: 1px solid rgba(127, 127, 127, 0.3);
+	margin-left: 0.4em;
+	padding-left: 1.1em;
+}
+
+.family-wiki-tree__list li {
+	line-height: 1.6;
+	margin: 0.15em 0;
+}
+
+.family-wiki-tree__years {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.family-wiki-tree__seen,
+.family-wiki-tree__more {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 0.9em;
+}
+
+.family-wiki-tree__notice {
+	background: rgba(127, 127, 127, 0.08);
+	border: 1px dashed rgba(127, 127, 127, 0.4);
+	padding: 1em;
+	text-align: center;
+}

@@ -11,6 +11,7 @@ class Main {
 		new Shortcodes();
 		new Private_Site();
 		new Settings();
+		new Tree_Block();
 
 		load_plugin_textdomain( 'family-wiki' );
 
@@ -155,6 +156,7 @@ class Main {
 		delete_transient( $cache_key );
 		Calendar::flush_dates_cache();
 		Front_Page::flush_cache();
+		Tree_Block::flush_cache();
 	}
 
 	public static function activate_plugin( $network_activate = null ) {
