@@ -5,6 +5,7 @@ class Settings {
 	const PAGE = 'family-wiki';
 	const INFOBOX_OPTION = 'family_wiki_infobox_settings';
 	const VIRTUAL_PAGES_OPTION = 'family_wiki_virtual_pages';
+	const PAGE_LISTS_OPTION = 'family_wiki_page_lists';
 
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
@@ -48,6 +49,46 @@ class Settings {
 				'sanitize_callback' => array( $this, 'sanitize_virtual_pages_settings' ),
 				'default'           => self::get_default_virtual_pages_settings(),
 			)
+		);
+
+		register_setting(
+			self::PAGE,
+			self::PAGE_LISTS_OPTION,
+			array(
+				'sanitize_callback' => array( $this, 'sanitize_page_lists_settings' ),
+				'default'           => self::get_default_page_lists_settings(),
+			)
+		);
+	}
+
+	public static function get_page_lists_settings() {
+		$settings = get_option( self::PAGE_LISTS_OPTION, array() );
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array_merge( self::get_default_page_lists_settings(), $settings );
+	}
+
+	public static function get_default_page_lists_settings() {
+		return array(
+			'hide_people' => true,
+		);
+	}
+
+	public static function hide_people_from_page_lists() {
+		$settings = self::get_page_lists_settings();
+
+		return ! empty( $settings['hide_people'] );
+	}
+
+	public function sanitize_page_lists_settings( $settings ) {
+		if ( ! is_array( $settings ) ) {
+			$settings = array();
+		}
+
+		return array(
+			'hide_people' => ! empty( $settings['hide_people'] ),
 		);
 	}
 
@@ -114,6 +155,7 @@ class Settings {
 		$current_pages = $this->get_page_choices();
 		$infobox       = self::get_infobox_settings();
 		$virtual_pages = self::get_virtual_pages_settings();
+		$page_lists    = self::get_page_lists_settings();
 		$is_multisite  = function_exists( 'is_multisite' ) && is_multisite();
 		?>
 		<div class="wrap">
@@ -236,6 +278,17 @@ class Settings {
 						<label>
 							<input type="checkbox" name="<?php echo esc_attr( self::VIRTUAL_PAGES_OPTION ); ?>[birthdays]" value="1" <?php checked( $virtual_pages['birthdays'] ); ?> />
 							<?php esc_html_e( 'Enable the birthdays virtual page', 'family-wiki' ); ?>
+						</label>
+					</div>
+				</section>
+
+				<section class="family-wiki-settings__section">
+					<h2><?php esc_html_e( 'Navigation', 'family-wiki' ); ?></h2>
+					<p><?php esc_html_e( 'A theme with no menu falls back to listing every published page, which on a family wiki means every person. This leaves those pages out of that list; pages such as the calendar are unaffected.', 'family-wiki' ); ?></p>
+					<div class="family-wiki-settings__choices">
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::PAGE_LISTS_OPTION ); ?>[hide_people]" value="1" <?php checked( $page_lists['hide_people'] ); ?> />
+							<?php esc_html_e( 'Keep people out of automatic page lists', 'family-wiki' ); ?>
 						</label>
 					</div>
 				</section>

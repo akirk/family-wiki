@@ -8,6 +8,7 @@ class Main {
 		new Front_Page();
 		new GEDCOM();
 		new Infobox();
+		new Page_Lists();
 		new Shortcodes();
 		new Private_Site();
 		new Settings();
@@ -155,6 +156,7 @@ class Main {
 		delete_transient( $cache_key );
 		Calendar::flush_dates_cache();
 		Front_Page::flush_cache();
+		Page_Lists::flush_cache();
 	}
 
 	public static function activate_plugin( $network_activate = null ) {
