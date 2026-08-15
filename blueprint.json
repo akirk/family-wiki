@@ -32,6 +32,14 @@
 				"activate": true,
 				"targetFolderName": "family-wiki"
 			}
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\n// Start from an empty site. The default post and pages are not wiki content, and\n// every page shows up in the navigation.\nforeach ( array( 'post', 'page', 'attachment', 'revision', 'nav_menu_item', 'wp_navigation' ) as $post_type ) {\n\tforeach ( get_posts( array( 'posts_per_page' => -1, 'post_type' => $post_type, 'post_status' => 'any' ) ) as $post ) {\n\t\twp_delete_post( $post->ID, true );\n\t}\n}\n\n// Replace the header with one that has no navigation in it. A block theme with no\n// menu falls back to a Page List block, which lists every published page: on a\n// family wiki that is the whole family, one entry per person.\n$header = '<!-- wp:group {\"align\":\"full\",\"layout\":{\"type\":\"constrained\"}} -->'\n\t. '<div class=\"wp-block-group alignfull\"><!-- wp:site-title /--></div>'\n\t. '<!-- /wp:group -->';\n\n$existing = get_posts(\n\tarray(\n\t\t'post_type'   => 'wp_template_part',\n\t\t'name'        => 'header',\n\t\t'post_status' => 'any',\n\t\t'numberposts' => 1,\n\t)\n);\n\n$args = array(\n\t'post_type'    => 'wp_template_part',\n\t'post_name'    => 'header',\n\t'post_title'   => 'Header',\n\t'post_status'  => 'publish',\n\t'post_content' => $header,\n);\n\nif ( $existing ) {\n\t$args['ID'] = $existing[0]->ID;\n\t$part_id    = wp_update_post( $args );\n} else {\n\t$part_id = wp_insert_post( $args );\n}\n\nwp_set_object_terms( $part_id, get_stylesheet(), 'wp_theme' );\nwp_set_object_terms( $part_id, 'header', 'wp_template_part_area' );\n",
+			"progress": {
+				"caption": "Clearing the default content and simplifying the header"
+			}
 		}
-	]
+	],
+	"landingPage": "/"
 }
