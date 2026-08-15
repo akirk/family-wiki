@@ -30,6 +30,10 @@ The plugin has switched to using Advanced Custom Fields for wiki page metadata. 
 
 For each wiki page, you can enter data like birth or death date, citizenships, and mother/father/children relationships. Dates and family relationships are used for the calendar page and for automatically generating a short bio using the shortcode `[name_with_bio]`. You'd put this as the first thing in a wiki page.
 
+### GEDCOM import and export
+
+Administrators can import GEDCOM files from WordPress's standard *Tools* -> *Import* screen and export GEDCOM files from *Tools* -> *Family Wiki*. GEDCOM uploads open a review step where you can choose individual entries or select descendant subtrees before importing. The importer creates or updates person pages from selected `INDI` records, links families from `FAM` records when the related people were selected, and stores each GEDCOM xref on the page so later imports update the same person. The exporter writes published wiki pages as GEDCOM `INDI` and `FAM` records, including names, sex, birth and death facts, parent/child relationships, spouses, and marriage details.
+
 ### Gutenberg Blocks
 
 The *Family Calendar* block will show all dates from the wiki.

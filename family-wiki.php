@@ -21,6 +21,7 @@ require __DIR__ . '/class-calendar.php';
 require __DIR__ . '/class-acf-field-marriages.php';
 require __DIR__ . '/class-cross-wiki.php';
 require __DIR__ . '/class-front-page.php';
+require __DIR__ . '/class-gedcom.php';
 require __DIR__ . '/class-infobox.php';
 require __DIR__ . '/class-private-site.php';
 require __DIR__ . '/class-settings.php';

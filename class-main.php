@@ -6,6 +6,7 @@ class Main {
 		new ACF_Field_Marriages_Loader();
 		new Calendar();
 		new Front_Page();
+		new GEDCOM();
 		new Infobox();
 		new Shortcodes();
 		new Private_Site();
