@@ -142,7 +142,7 @@ class GEDCOM {
 	}
 
 	private function render_import_review( $token ) {
-		$contents = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$contents = $this->get_import_file( $token );
 		if ( false === $contents ) {
 			?>
 			<div class="notice notice-error"><p><?php echo esc_html( $this->error_message( 'review_expired' ) ); ?></p></div>
@@ -297,7 +297,7 @@ class GEDCOM {
 		// only generate lowercase tokens: on a case sensitive database a mixed
 		// case token would no longer find its own transient.
 		$token = strtolower( wp_generate_password( 32, false, false ) );
-		if ( ! set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $contents, HOUR_IN_SECONDS ) ) {
+		if ( ! $this->store_import_file( $token, $contents ) ) {
 			// Say so here, rather than letting the review screen report the file as expired.
 			wp_safe_redirect( add_query_arg( 'family_wiki_error', 'store_failed', $redirect ) );
 			exit;
@@ -305,6 +305,58 @@ class GEDCOM {
 
 		wp_safe_redirect( add_query_arg( 'family_wiki_review', $token, $redirect ) );
 		exit;
+	}
+
+	/**
+	 * Park the uploaded file between the upload and the selection request.
+	 *
+	 * The file itself stays on disk and only its location goes into the
+	 * transient: a GEDCOM is easily hundreds of kilobytes, which is more than
+	 * belongs in an option row, and more than some databases will accept there.
+	 */
+	private function store_import_file( $token, $contents ) {
+		if ( ! function_exists( 'wp_tempnam' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+
+		$path = wp_tempnam( 'family-wiki-gedcom-' . $token );
+		if ( ! $path ) {
+			return false;
+		}
+
+		if ( ! file_put_contents( $path, $contents ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			wp_delete_file( $path );
+			return false;
+		}
+
+		if ( ! set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $path, HOUR_IN_SECONDS ) ) {
+			wp_delete_file( $path );
+			return false;
+		}
+
+		return true;
+	}
+
+	private function get_import_file( $token ) {
+		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+
+		// Only ever read back a file this class parked in the temp directory.
+		if ( ! is_string( $path ) || 0 !== strpos( $path, get_temp_dir() ) || ! is_readable( $path ) ) {
+			return false;
+		}
+
+		$contents = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+		return ( false === $contents || '' === $contents ) ? false : $contents;
+	}
+
+	private function delete_import_file( $token ) {
+		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		delete_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+
+		if ( is_string( $path ) && 0 === strpos( $path, get_temp_dir() ) && file_exists( $path ) ) {
+			wp_delete_file( $path );
+		}
 	}
 
 	public function import_selected() {
@@ -315,7 +367,7 @@ class GEDCOM {
 
 		$redirect = admin_url( 'admin.php?import=family-wiki-gedcom' );
 		$token    = isset( $_POST['family_wiki_review'] ) ? sanitize_key( wp_unslash( $_POST['family_wiki_review'] ) ) : '';
-		$contents = $token ? get_transient( self::IMPORT_TRANSIENT_PREFIX . $token ) : false;
+		$contents = $token ? $this->get_import_file( $token ) : false;
 		if ( false === $contents ) {
 			wp_safe_redirect( add_query_arg( 'family_wiki_error', 'review_expired', $redirect ) );
 			exit;
@@ -328,7 +380,7 @@ class GEDCOM {
 			exit;
 		}
 
-		delete_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$this->delete_import_file( $token );
 		wp_safe_redirect(
 			add_query_arg(
 				array(
@@ -1099,7 +1151,7 @@ class GEDCOM {
 				size_format( wp_max_upload_size() )
 			),
 			'upload_failed'  => __( 'The GEDCOM file could not be uploaded.', 'family-wiki' ),
-			'store_failed'   => __( 'The GEDCOM file could not be stored for review. It may be too large for this database.', 'family-wiki' ),
+			'store_failed'   => __( 'The GEDCOM file could not be stored for review.', 'family-wiki' ),
 			'empty_file'     => __( 'The uploaded GEDCOM file was empty.', 'family-wiki' ),
 			'no_individuals' => __( 'The GEDCOM file does not contain individual records.', 'family-wiki' ),
 			'no_selection'   => __( 'Please select at least one GEDCOM person to import.', 'family-wiki' ),
