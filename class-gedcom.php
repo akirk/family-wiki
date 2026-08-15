@@ -185,13 +185,62 @@ class GEDCOM {
 		?>
 		<section class="family-wiki-gedcom-review">
 			<h2><?php esc_html_e( 'Review GEDCOM import', 'family-wiki' ); ?></h2>
-			<p><?php echo esc_html( sprintf( __( 'Found %1$d people and %2$d family records. Choose entries below, or use a person row to select that person and all known descendants.', 'family-wiki' ), $total, $family_count ) ); ?></p>
+			<?php
+			$connected = 0;
+			$matched   = 0;
+			foreach ( $people as $person ) {
+				if ( $person['wiki_hits'] ) {
+					++$connected;
+				}
+				if ( $person['match_id'] ) {
+					++$matched;
+				}
+			}
+			?>
+			<p>
+				<?php
+				echo esc_html(
+					sprintf(
+						// translators: %1$d is a number of people, %2$d a number of family records, %3$d a number of people.
+						__( 'Found %1$d people and %2$d family records. %3$d of them would land on a page that already exists.', 'family-wiki' ),
+						$total,
+						$family_count,
+						$matched
+					)
+				);
+				?>
+			</p>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
 				<input type="hidden" name="family_wiki_gedcom_step" value="selected" />
 				<input type="hidden" name="family_wiki_review" value="<?php echo esc_attr( $token ); ?>" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_import_selected' ); ?>
+				<p class="family-wiki-gedcom-review__views">
+					<button type="button" class="button button-primary" data-family-wiki-gedcom-view="connected">
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %d is a number of people.
+								__( 'Connects to your wiki (%d)', 'family-wiki' ),
+								$connected
+							)
+						);
+						?>
+					</button>
+					<button type="button" class="button" data-family-wiki-gedcom-view="all">
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %d is a number of people.
+								__( 'All people (%d)', 'family-wiki' ),
+								$total
+							)
+						);
+						?>
+					</button>
+					<input type="search" class="regular-text" data-family-wiki-gedcom-filter placeholder="<?php esc_attr_e( 'Filter by name', 'family-wiki' ); ?>" />
+				</p>
 				<p>
-					<button type="button" class="button" data-family-wiki-gedcom-select-all><?php esc_html_e( 'Select all', 'family-wiki' ); ?></button>
+					<button type="button" class="button" data-family-wiki-gedcom-select-all><?php esc_html_e( 'Select everyone shown', 'family-wiki' ); ?></button>
 					<button type="button" class="button" data-family-wiki-gedcom-clear><?php esc_html_e( 'Clear selection', 'family-wiki' ); ?></button>
 				</p>
 				<table class="widefat striped">
@@ -199,25 +248,59 @@ class GEDCOM {
 						<tr>
 							<th scope="col" class="check-column"><span class="screen-reader-text"><?php esc_html_e( 'Import', 'family-wiki' ); ?></span></th>
 							<th scope="col"><?php esc_html_e( 'Person', 'family-wiki' ); ?></th>
+							<th scope="col"><a href="#" data-family-wiki-gedcom-sort="wiki"><?php esc_html_e( 'On your wiki', 'family-wiki' ); ?></a></th>
+							<th scope="col"><a href="#" data-family-wiki-gedcom-sort="subtree"><?php esc_html_e( 'Subtree', 'family-wiki' ); ?></a></th>
 							<th scope="col"><?php esc_html_e( 'Birth', 'family-wiki' ); ?></th>
 							<th scope="col"><?php esc_html_e( 'Death', 'family-wiki' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'GEDCOM ID', 'family-wiki' ); ?></th>
-							<th scope="col"><?php esc_html_e( 'Subtree', 'family-wiki' ); ?></th>
+							<th scope="col"><span class="screen-reader-text"><?php esc_html_e( 'Select subtree', 'family-wiki' ); ?></span></th>
 						</tr>
 					</thead>
 					<tbody>
 						<?php foreach ( $people as $person ) : ?>
-							<tr>
+							<tr
+								data-family-wiki-gedcom-row
+								data-name="<?php echo esc_attr( strtolower( $person['name'] ) ); ?>"
+								data-wiki="<?php echo esc_attr( $person['wiki_hits'] ); ?>"
+								data-subtree="<?php echo esc_attr( $person['count'] ); ?>"
+								<?php echo $person['wiki_hits'] ? 'data-connected="1"' : ''; ?>
+							>
 								<th scope="row" class="check-column">
-									<input type="checkbox" name="family_wiki_people[]" value="<?php echo esc_attr( $person['xref'] ); ?>" data-family-wiki-gedcom-person="<?php echo esc_attr( $person['xref'] ); ?>" checked />
+									<input type="checkbox" name="family_wiki_people[]" value="<?php echo esc_attr( $person['xref'] ); ?>" data-family-wiki-gedcom-person="<?php echo esc_attr( $person['xref'] ); ?>" />
 								</th>
-								<td><strong><?php echo esc_html( $person['name'] ); ?></strong></td>
+								<td>
+									<strong><?php echo esc_html( $person['name'] ); ?></strong>
+									<?php if ( $person['match_id'] ) : ?>
+										<br />
+										<span class="description">
+											<?php
+											echo esc_html(
+												sprintf(
+													// translators: %s is a page title.
+													__( 'updates “%s”', 'family-wiki' ),
+													get_the_title( $person['match_id'] )
+												)
+											);
+											?>
+										</span>
+									<?php endif; ?>
+								</td>
+								<td><?php echo $person['wiki_hits'] ? esc_html( $person['wiki_hits'] ) : '<span aria-hidden="true">-</span>'; ?></td>
+								<td><?php echo $person['count'] ? esc_html( $person['count'] ) : '<span aria-hidden="true">-</span>'; ?></td>
 								<td><?php echo esc_html( $person['birth'] ); ?></td>
 								<td><?php echo esc_html( $person['death'] ); ?></td>
-								<td><code><?php echo esc_html( $person['xref'] ); ?></code></td>
 								<td>
 									<?php if ( ! empty( $person['descendants'] ) ) : ?>
-										<button type="button" class="button button-small" data-family-wiki-gedcom-descendants="<?php echo esc_attr( implode( ',', array_merge( array( $person['xref'] ), $person['descendants'] ) ) ); ?>"><?php esc_html_e( 'Select subtree', 'family-wiki' ); ?></button>
+										<button type="button" class="button button-small" data-family-wiki-gedcom-descendants="<?php echo esc_attr( implode( ',', array_merge( array( $person['xref'] ), $person['descendants'] ) ) ); ?>">
+											<?php
+											echo esc_html(
+												sprintf(
+													// translators: %d is a number of people in a descendant subtree.
+													__( 'Select subtree (%d)', 'family-wiki' ),
+													$person['count'] + 1
+												)
+											);
+											?>
+										</button>
 									<?php else : ?>
 										<span aria-hidden="true">-</span>
 									<?php endif; ?>
@@ -226,6 +309,20 @@ class GEDCOM {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<p>
+					<strong data-family-wiki-gedcom-count>
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %1$d is a number of selected people, %2$d the total.
+								__( '%1$d of %2$d selected', 'family-wiki' ),
+								0,
+								$total
+							)
+						);
+						?>
+					</strong>
+				</p>
 				<?php submit_button( __( 'Import selected people', 'family-wiki' ) ); ?>
 			</form>
 			<script>
@@ -234,29 +331,125 @@ class GEDCOM {
 					if (!review) {
 						return;
 					}
-					function boxes() {
-						return review.querySelectorAll('[data-family-wiki-gedcom-person]');
+
+					var body = review.querySelector('tbody');
+					var counter = review.querySelector('[data-family-wiki-gedcom-count]');
+					var countTemplate = counter ? counter.textContent.trim() : '';
+					var rows = Array.prototype.slice.call(review.querySelectorAll('[data-family-wiki-gedcom-row]'));
+					var view = 'connected';
+					var needle = '';
+					var sortKey = '';
+					var sortDescending = true;
+
+					function boxOf(row) {
+						return row.querySelector('[data-family-wiki-gedcom-person]');
 					}
+
+					function visible(row) {
+						return row.style.display !== 'none';
+					}
+
+					function apply() {
+						rows.forEach(function (row) {
+							var inView = view === 'all' || row.hasAttribute('data-connected');
+							var matches = !needle || row.getAttribute('data-name').indexOf(needle) !== -1;
+							row.style.display = inView && matches ? '' : 'none';
+						});
+					}
+
+					function refreshCount() {
+						if (!counter) {
+							return;
+						}
+						var selected = rows.filter(function (row) {
+							var box = boxOf(row);
+							return box && box.checked;
+						}).length;
+						// Replace the leading number in the rendered, translated string.
+						counter.textContent = countTemplate.replace(/\d+/, String(selected));
+					}
+
+					function sort(key) {
+						if (sortKey === key) {
+							sortDescending = !sortDescending;
+						} else {
+							sortKey = key;
+							sortDescending = true;
+						}
+						var attribute = key === 'wiki' ? 'data-wiki' : 'data-subtree';
+						rows.sort(function (a, b) {
+							var difference = parseInt(a.getAttribute(attribute), 10) - parseInt(b.getAttribute(attribute), 10);
+							return sortDescending ? -difference : difference;
+						});
+						rows.forEach(function (row) {
+							body.appendChild(row);
+						});
+					}
+
 					review.addEventListener('click', function (event) {
+						var viewButton = event.target.closest('[data-family-wiki-gedcom-view]');
+						if (viewButton) {
+							view = viewButton.getAttribute('data-family-wiki-gedcom-view');
+							review.querySelectorAll('[data-family-wiki-gedcom-view]').forEach(function (button) {
+								button.classList.toggle('button-primary', button === viewButton);
+							});
+							apply();
+							return;
+						}
+
+						var sortLink = event.target.closest('[data-family-wiki-gedcom-sort]');
+						if (sortLink) {
+							event.preventDefault();
+							sort(sortLink.getAttribute('data-family-wiki-gedcom-sort'));
+							return;
+						}
+
 						var selectAll = event.target.closest('[data-family-wiki-gedcom-select-all]');
 						var clear = event.target.closest('[data-family-wiki-gedcom-clear]');
-						var descendants = event.target.closest('[data-family-wiki-gedcom-descendants]');
 						if (selectAll || clear) {
-							Array.prototype.forEach.call(boxes(), function (box) {
-								box.checked = !!selectAll;
+							rows.forEach(function (row) {
+								var box = boxOf(row);
+								if (!box) {
+									return;
+								}
+								// "Select everyone shown" respects the current view and filter.
+								if (clear) {
+									box.checked = false;
+								} else if (visible(row)) {
+									box.checked = true;
+								}
 							});
+							refreshCount();
 							return;
 						}
-						if (!descendants) {
+
+						var descendants = event.target.closest('[data-family-wiki-gedcom-descendants]');
+						if (descendants) {
+							descendants.getAttribute('data-family-wiki-gedcom-descendants').split(',').forEach(function (xref) {
+								var box = review.querySelector('[data-family-wiki-gedcom-person="' + xref + '"]');
+								if (box) {
+									box.checked = true;
+								}
+							});
+							refreshCount();
 							return;
 						}
-						descendants.getAttribute('data-family-wiki-gedcom-descendants').split(',').forEach(function (xref) {
-							var box = review.querySelector('[data-family-wiki-gedcom-person="' + xref + '"]');
-							if (box) {
-								box.checked = true;
-							}
-						});
+
+						if (event.target.closest('[data-family-wiki-gedcom-person]')) {
+							refreshCount();
+						}
 					});
+
+					review.addEventListener('input', function (event) {
+						if (!event.target.closest('[data-family-wiki-gedcom-filter]')) {
+							return;
+						}
+						needle = event.target.value.trim().toLowerCase();
+						apply();
+					});
+
+					apply();
+					refreshCount();
 				}());
 			</script>
 		</section>
@@ -691,17 +884,48 @@ class GEDCOM {
 
 	private function review_people( $records ) {
 		$descendants = $this->descendants_by_person( empty( $records['FAM'] ) ? array() : $records['FAM'] );
-		$people      = array();
+		$existing    = $this->existing_page_index();
+		$names       = array();
+		$matches     = array();
 
+		// Which entries would land on a page that already exists.
 		foreach ( $records['INDI'] as $xref => $record ) {
-			$birth = $this->event_values( $record, 'BIRT' );
-			$death = $this->event_values( $record, 'DEAT' );
+			$name           = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
+			$names[ $xref ] = $name;
+			$key            = strtolower( trim( $name ) );
+
+			if ( isset( $existing['xref'][ $xref ] ) ) {
+				$matches[ $xref ] = $existing['xref'][ $xref ];
+			} elseif ( $key && isset( $existing['title'][ $key ] ) ) {
+				$matches[ $xref ] = $existing['title'][ $key ];
+			}
+		}
+
+		$people = array();
+		foreach ( $records['INDI'] as $xref => $record ) {
+			$birth   = $this->event_values( $record, 'BIRT' );
+			$death   = $this->event_values( $record, 'DEAT' );
+			$subtree = isset( $descendants[ $xref ] ) ? $descendants[ $xref ] : array();
+
+			// How much of this person's subtree is already on the wiki. This is
+			// what tells a branch worth importing from one that is only distantly
+			// related, which a plain descendant count does not.
+			$hits = isset( $matches[ $xref ] ) ? 1 : 0;
+			foreach ( $subtree as $descendant ) {
+				if ( isset( $matches[ $descendant ] ) ) {
+					++$hits;
+				}
+			}
+
 			$people[] = array(
 				'xref'        => $xref,
-				'name'        => $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) ),
+				'name'        => $names[ $xref ],
 				'birth'       => $this->review_event_label( $birth ),
 				'death'       => $this->review_event_label( $death ),
-				'descendants' => isset( $descendants[ $xref ] ) ? $descendants[ $xref ] : array(),
+				'descendants' => $subtree,
+				'count'       => count( $subtree ),
+				'wiki_hits'   => $hits,
+				'match_id'    => isset( $matches[ $xref ] ) ? $matches[ $xref ] : 0,
 			);
 		}
 
@@ -710,7 +934,51 @@ class GEDCOM {
 		return $people;
 	}
 
+	/**
+	 * Pages that a GEDCOM entry could land on, looked up the same way the
+	 * import does: by a previously stored xref first, then by title.
+	 */
+	private function existing_page_index() {
+		$index = array(
+			'xref'  => array(),
+			'title' => array(),
+		);
+
+		$pages = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_status'    => array( 'publish', 'draft', 'private' ),
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+			)
+		);
+
+		foreach ( $pages as $page_id ) {
+			$title = strtolower( trim( get_the_title( $page_id ) ) );
+			if ( $title && ! isset( $index['title'][ $title ] ) ) {
+				$index['title'][ $title ] = $page_id;
+			}
+
+			$xref = get_post_meta( $page_id, self::XREF_META, true );
+			if ( $xref ) {
+				$index['xref'][ $xref ] = $page_id;
+			}
+		}
+
+		return $index;
+	}
+
 	private function sort_review_people( $a, $b ) {
+		// Entries that reach the existing wiki first, then the tighter subtree:
+		// a small branch that is mostly already here beats a huge distant one.
+		if ( $a['wiki_hits'] !== $b['wiki_hits'] ) {
+			return $b['wiki_hits'] - $a['wiki_hits'];
+		}
+
+		if ( $a['wiki_hits'] && $a['count'] !== $b['count'] ) {
+			return $a['count'] - $b['count'];
+		}
+
 		return strcasecmp( $a['name'], $b['name'] );
 	}
 
@@ -758,7 +1026,11 @@ class GEDCOM {
 	private function review_event_label( $event ) {
 		$parts = array();
 		if ( ! empty( $event['date'] ) ) {
-			$parts[] = $event['approximate'] ? sprintf( __( 'about %s', 'family-wiki' ), $event['date'] ) : $event['date'];
+			$parts[] = $event['approximate'] ? sprintf(
+				// translators: %s is a date.
+				__( 'about %s', 'family-wiki' ),
+				$event['date']
+			) : $event['date'];
 		}
 		if ( ! empty( $event['place'] ) ) {
 			$parts[] = $event['place'];
