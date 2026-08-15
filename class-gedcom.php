@@ -297,7 +297,11 @@ class GEDCOM {
 		// only generate lowercase tokens: on a case sensitive database a mixed
 		// case token would no longer find its own transient.
 		$token = strtolower( wp_generate_password( 32, false, false ) );
-		set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $contents, HOUR_IN_SECONDS );
+		if ( ! set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $contents, HOUR_IN_SECONDS ) ) {
+			// Say so here, rather than letting the review screen report the file as expired.
+			wp_safe_redirect( add_query_arg( 'family_wiki_error', 'store_failed', $redirect ) );
+			exit;
+		}
 
 		wp_safe_redirect( add_query_arg( 'family_wiki_review', $token, $redirect ) );
 		exit;
@@ -1095,6 +1099,7 @@ class GEDCOM {
 				size_format( wp_max_upload_size() )
 			),
 			'upload_failed'  => __( 'The GEDCOM file could not be uploaded.', 'family-wiki' ),
+			'store_failed'   => __( 'The GEDCOM file could not be stored for review. It may be too large for this database.', 'family-wiki' ),
 			'empty_file'     => __( 'The uploaded GEDCOM file was empty.', 'family-wiki' ),
 			'no_individuals' => __( 'The GEDCOM file does not contain individual records.', 'family-wiki' ),
 			'no_selection'   => __( 'Please select at least one GEDCOM person to import.', 'family-wiki' ),
