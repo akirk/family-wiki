@@ -264,6 +264,18 @@ class GEDCOM {
 		check_admin_referer( 'family_wiki_gedcom_import' );
 
 		$redirect = admin_url( 'admin.php?import=family-wiki-gedcom' );
+
+		// Report why the upload did not arrive, rather than asking for a file that was chosen.
+		$upload_error = isset( $_FILES['gedcom']['error'] ) ? (int) $_FILES['gedcom']['error'] : UPLOAD_ERR_NO_FILE;
+		if ( UPLOAD_ERR_OK !== $upload_error ) {
+			$error = in_array( $upload_error, array( UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE ), true ) ? 'file_too_large' : 'upload_failed';
+			if ( UPLOAD_ERR_NO_FILE === $upload_error ) {
+				$error = 'missing_file';
+			}
+			wp_safe_redirect( add_query_arg( 'family_wiki_error', $error, $redirect ) );
+			exit;
+		}
+
 		if ( empty( $_FILES['gedcom']['tmp_name'] ) || ! is_uploaded_file( $_FILES['gedcom']['tmp_name'] ) ) {
 			wp_safe_redirect( add_query_arg( 'family_wiki_error', 'missing_file', $redirect ) );
 			exit;
@@ -281,7 +293,10 @@ class GEDCOM {
 			exit;
 		}
 
-		$token = wp_generate_password( 20, false, false );
+		// The token travels back through sanitize_key(), which lowercases it, so
+		// only generate lowercase tokens: on a case sensitive database a mixed
+		// case token would no longer find its own transient.
+		$token = strtolower( wp_generate_password( 32, false, false ) );
 		set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $contents, HOUR_IN_SECONDS );
 
 		wp_safe_redirect( add_query_arg( 'family_wiki_review', $token, $redirect ) );
@@ -1074,6 +1089,12 @@ class GEDCOM {
 	private function error_message( $error ) {
 		$messages = array(
 			'missing_file'   => __( 'Please choose a GEDCOM file to import.', 'family-wiki' ),
+			'file_too_large' => sprintf(
+				// translators: %s is a file size, for example 2 MB.
+				__( 'The GEDCOM file is larger than the maximum upload size of %s.', 'family-wiki' ),
+				size_format( wp_max_upload_size() )
+			),
+			'upload_failed'  => __( 'The GEDCOM file could not be uploaded.', 'family-wiki' ),
 			'empty_file'     => __( 'The uploaded GEDCOM file was empty.', 'family-wiki' ),
 			'no_individuals' => __( 'The GEDCOM file does not contain individual records.', 'family-wiki' ),
 			'no_selection'   => __( 'Please select at least one GEDCOM person to import.', 'family-wiki' ),
