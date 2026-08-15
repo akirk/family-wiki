@@ -65,9 +65,36 @@ class GEDCOM {
 			</form>
 			<hr />
 			<h2><?php esc_html_e( 'Import', 'family-wiki' ); ?></h2>
-			<p><?php esc_html_e( 'GEDCOM import is available from the standard WordPress import screen.', 'family-wiki' ); ?></p>
-			<p><a class="button" href="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom' ) ); ?>"><?php esc_html_e( 'Open Importer', 'family-wiki' ); ?></a></p>
+			<?php $this->render_upload_form(); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * The upload form, shown both here and on the standard import screen.
+	 */
+	private function render_upload_form() {
+		?>
+		<p><?php esc_html_e( 'Upload a GEDCOM file, review the people in it, and choose which entries or descendant subtrees to import. Existing pages are matched by prior GEDCOM xref first, then by page title.', 'family-wiki' ); ?></p>
+		<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
+			<?php wp_nonce_field( 'family_wiki_gedcom_import' ); ?>
+			<input type="hidden" name="family_wiki_gedcom_step" value="upload" />
+			<p>
+				<input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required />
+				<span class="description">
+					<?php
+					echo esc_html(
+						sprintf(
+							// translators: %s is a file size, for example 2 MB.
+							__( 'Maximum size: %s', 'family-wiki' ),
+							size_format( wp_max_upload_size() )
+						)
+					);
+					?>
+				</span>
+			</p>
+			<?php submit_button( __( 'Upload and review GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
+		</form>
 		<?php
 	}
 
@@ -129,13 +156,7 @@ class GEDCOM {
 			<?php if ( $review ) : ?>
 				<?php $this->render_import_review( $review ); ?>
 			<?php else : ?>
-				<p><?php esc_html_e( 'Upload a GEDCOM file, review the people in it, and choose which entries or descendant subtrees to import. Existing pages are matched by prior GEDCOM xref first, then by page title.', 'family-wiki' ); ?></p>
-				<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
-					<?php wp_nonce_field( 'family_wiki_gedcom_import' ); ?>
-					<input type="hidden" name="family_wiki_gedcom_step" value="upload" />
-					<p><input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required /></p>
-					<?php submit_button( __( 'Upload and review GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
-				</form>
+				<?php $this->render_upload_form(); ?>
 			<?php endif; ?>
 		</div>
 		<?php
