@@ -660,12 +660,14 @@ class GEDCOM {
 		$created = 0;
 		$updated = 0;
 		$id_map  = array();
+		$index   = $this->existing_page_index();
+		$claimed = array();
 
 		$this->suspend_nav_menu_auto_add();
 
 		foreach ( $records['INDI'] as $xref => $record ) {
 			$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
-			$post_id = $this->find_person_post( $xref, $title );
+			$post_id = $this->find_person_post( $xref, $title, $index, $claimed, $this->gedcom_birth_year( $record ) );
 			$data    = array(
 				'post_type'    => 'page',
 				'post_status'  => 'publish',
@@ -692,7 +694,8 @@ class GEDCOM {
 				$created++;
 			}
 
-			$id_map[ $xref ] = $post_id;
+			$id_map[ $xref ]   = $post_id;
+			$claimed[ $post_id ] = true;
 			update_post_meta( $post_id, self::XREF_META, $xref );
 			$this->import_individual_fields( $post_id, $record );
 		}
@@ -888,16 +891,19 @@ class GEDCOM {
 		$names       = array();
 		$matches     = array();
 
-		// Which entries would land on a page that already exists.
+		// Which entries would land on a page that already exists. Resolved with
+		// the function the import uses, in the order the import runs, so the
+		// screen promises exactly what will happen: where two people share a
+		// name, only the first is shown as updating a page.
+		$claimed = array();
 		foreach ( $records['INDI'] as $xref => $record ) {
 			$name           = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
 			$names[ $xref ] = $name;
-			$key            = strtolower( trim( $name ) );
 
-			if ( isset( $existing['xref'][ $xref ] ) ) {
-				$matches[ $xref ] = $existing['xref'][ $xref ];
-			} elseif ( $key && isset( $existing['title'][ $key ] ) ) {
-				$matches[ $xref ] = $existing['title'][ $key ];
+			$post_id = $this->find_person_post( $xref, $name, $existing, $claimed, $this->gedcom_birth_year( $record ) );
+			if ( $post_id ) {
+				$matches[ $xref ]  = $post_id;
+				$claimed[ $post_id ] = true;
 			}
 		}
 
@@ -955,8 +961,10 @@ class GEDCOM {
 
 		foreach ( $pages as $page_id ) {
 			$title = strtolower( trim( get_the_title( $page_id ) ) );
-			if ( $title && ! isset( $index['title'][ $title ] ) ) {
-				$index['title'][ $title ] = $page_id;
+			// Every page with this title, not just the first: several people in a
+			// GEDCOM commonly share a name, and each needs its own page.
+			if ( $title ) {
+				$index['title'][ $title ][] = $page_id;
 			}
 
 			$xref = get_post_meta( $page_id, self::XREF_META, true );
@@ -984,6 +992,8 @@ class GEDCOM {
 
 	private function descendants_by_person( $families ) {
 		$children_by_parent = array();
+		$partners_by_person = array();
+
 		foreach ( $families as $family ) {
 			$parents = array_filter(
 				array(
@@ -996,12 +1006,35 @@ class GEDCOM {
 				foreach ( $children as $child ) {
 					$children_by_parent[ $parent ][ $child ] = $child;
 				}
+				foreach ( $parents as $other ) {
+					if ( $other !== $parent ) {
+						$partners_by_person[ $parent ][ $other ] = $other;
+					}
+				}
 			}
 		}
 
 		$descendants = array();
 		foreach ( array_keys( $children_by_parent ) as $xref ) {
-			$descendants[ $xref ] = array_values( $this->collect_descendants( $xref, $children_by_parent ) );
+			$line = $this->collect_descendants( $xref, $children_by_parent );
+
+			// Take the people they married along. A descendant line without the
+			// spouses is half a family tree: every couple would show one partner
+			// and a blank where the other belongs. Their ancestors are left out,
+			// so this brings in the spouse and not their whole family as well.
+			foreach ( array_merge( array( $xref ), array_keys( $line ) ) as $person ) {
+				if ( empty( $partners_by_person[ $person ] ) ) {
+					continue;
+				}
+
+				foreach ( $partners_by_person[ $person ] as $partner ) {
+					if ( $partner !== $xref ) {
+						$line[ $partner ] = $partner;
+					}
+				}
+			}
+
+			$descendants[ $xref ] = array_values( $line );
 		}
 
 		return $descendants;
@@ -1301,26 +1334,62 @@ class GEDCOM {
 		);
 	}
 
-	private function find_person_post( $xref, $title ) {
-		$posts = get_posts(
-			array(
-				'post_type'      => 'page',
-				'post_status'    => array( 'publish', 'draft', 'private' ),
-				'posts_per_page' => 1,
-				'fields'         => 'ids',
-				'meta_key'       => self::XREF_META,
-				'meta_value'     => $xref,
-			)
-		);
-		if ( ! empty( $posts ) ) {
-			return (int) $posts[0];
+	/**
+	 * The page a GEDCOM entry belongs on, or 0 to create one.
+	 *
+	 * A stored xref is definitive. Falling back to the title is a guess, so it
+	 * only accepts a page that no other entry has a stronger claim to: one that
+	 * carries a different xref belongs to a different person, and one already
+	 * taken during this import would otherwise be overwritten by every namesake
+	 * that follows.
+	 *
+	 * Where a birth year is known on both sides it has to agree, so that the
+	 * page for one Alexander Kirk is not overwritten by another one who merely
+	 * shares the name.
+	 *
+	 * @param string $xref       The GEDCOM xref.
+	 * @param string $title      The person's name.
+	 * @param array  $index      Existing pages, from existing_page_index().
+	 * @param array  $claimed    Page IDs already taken in this run, keyed by ID.
+	 * @param string $birth_year The person's birth year, if known.
+	 */
+	private function find_person_post( $xref, $title, $index, $claimed = array(), $birth_year = '' ) {
+		if ( isset( $index['xref'][ $xref ] ) ) {
+			return (int) $index['xref'][ $xref ];
 		}
-		if ( ! $title ) {
+
+		$key = strtolower( trim( (string) $title ) );
+		if ( '' === $key || empty( $index['title'][ $key ] ) ) {
 			return 0;
 		}
 
-		$page = get_page_by_title( $title, OBJECT, 'page' );
-		return $page ? (int) $page->ID : 0;
+		foreach ( $index['title'][ $key ] as $page_id ) {
+			if ( isset( $claimed[ $page_id ] ) ) {
+				continue;
+			}
+
+			$stored = get_post_meta( $page_id, self::XREF_META, true );
+			if ( $stored && $stored !== $xref ) {
+				continue;
+			}
+
+			if ( $birth_year ) {
+				$page_year = substr( preg_replace( '/\D/', '', (string) get_post_meta( $page_id, 'birth_date', true ) ), 0, 4 );
+				if ( $page_year && $page_year !== $birth_year ) {
+					continue;
+				}
+			}
+
+			return (int) $page_id;
+		}
+
+		return 0;
+	}
+
+	private function gedcom_birth_year( $record ) {
+		$birth = $this->event_values( $record, 'BIRT' );
+
+		return empty( $birth['date'] ) ? '' : substr( preg_replace( '/\D/', '', $birth['date'] ), 0, 4 );
 	}
 
 	private function get_field_value( $field, $post_id ) {
