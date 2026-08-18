@@ -52,26 +52,33 @@ class Content_Export {
 	public function render_import_section() {
 		$updated = isset( $_GET['family_wiki_content_updated'] ) ? absint( $_GET['family_wiki_content_updated'] ) : null;
 		$skipped = isset( $_GET['family_wiki_content_skipped'] ) ? absint( $_GET['family_wiki_content_skipped'] ) : 0;
+		$images  = isset( $_GET['family_wiki_content_images'] ) ? absint( $_GET['family_wiki_content_images'] ) : 0;
 		$error   = isset( $_GET['family_wiki_content_error'] ) ? sanitize_key( wp_unslash( $_GET['family_wiki_content_error'] ) ) : '';
 		?>
 		<?php if ( null !== $updated ) : ?>
 			<div class="notice notice-success">
 				<p>
 					<?php
-					echo esc_html(
-						$skipped
-							? sprintf(
-								// translators: %1$d is a number of updated pages, %2$d a number of skipped entries.
-								__( 'Content file applied. Updated %1$d pages; %2$d entries did not match a page and were skipped.', 'family-wiki' ),
-								$updated,
-								$skipped
-							)
-							: sprintf(
-								// translators: %d is a number of updated pages.
-								__( 'Content file applied. Updated %d pages.', 'family-wiki' ),
-								$updated
-							)
-					);
+					$message = $skipped
+						? sprintf(
+							// translators: %1$d is a number of updated pages, %2$d a number of skipped entries.
+							__( 'Content file applied. Updated %1$d pages; %2$d entries did not match a page and were skipped.', 'family-wiki' ),
+							$updated,
+							$skipped
+						)
+						: sprintf(
+							// translators: %d is a number of updated pages.
+							__( 'Content file applied. Updated %d pages.', 'family-wiki' ),
+							$updated
+						);
+					if ( $images ) {
+						$message .= ' ' . sprintf(
+							// translators: %d is a number of downloaded images.
+							__( 'Downloaded %d images into the media library.', 'family-wiki' ),
+							$images
+						);
+					}
+					echo esc_html( $message );
 					?>
 				</p>
 			</div>
@@ -96,6 +103,12 @@ class Content_Export {
 					);
 					?>
 				</span>
+			</p>
+			<p>
+				<label>
+					<input type="checkbox" name="download_images" value="1" />
+					<?php esc_html_e( 'Also download images into the media library and use them as the page photo', 'family-wiki' ); ?>
+				</label>
 			</p>
 			<?php submit_button( __( 'Upload content', 'family-wiki' ), 'primary', 'submit', false ); ?>
 		</form>
@@ -131,6 +144,9 @@ class Content_Export {
 			$lines[] = '<item>';
 			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
 			$lines[] = '<content:encoded>' . $this->cdata( $person->post_content ) . '</content:encoded>';
+			if ( has_post_thumbnail( $person ) ) {
+				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
+			}
 			$lines[] = '<wp:postmeta>';
 			$lines[] = '<wp:meta_key>' . $this->cdata( self::META_KEY ) . '</wp:meta_key>';
 			$lines[] = '<wp:meta_value>' . $this->cdata( $ids[ $person->ID ] ) . '</wp:meta_value>';
@@ -181,7 +197,9 @@ class Content_Export {
 			exit;
 		}
 
-		$result = $this->apply_content( $contents );
+		$download_images = ! empty( $_POST['download_images'] );
+
+		$result = $this->apply_content( $contents, $download_images );
 		if ( is_wp_error( $result ) ) {
 			wp_safe_redirect( add_query_arg( 'family_wiki_content_error', $result->get_error_code(), $redirect ) );
 			exit;
@@ -192,6 +210,7 @@ class Content_Export {
 				array(
 					'family_wiki_content_updated' => $result['updated'],
 					'family_wiki_content_skipped' => $result['skipped'],
+					'family_wiki_content_images'  => $result['images'],
 				),
 				$redirect
 			)
@@ -201,9 +220,18 @@ class Content_Export {
 
 	/**
 	 * Apply an uploaded content file to the pages it matches. Never creates
-	 * a page and never touches anything but post_content.
+	 * a page and never touches anything but post_content — and, when asked,
+	 * a page's photo.
+	 *
+	 * @param string $contents        The uploaded content file.
+	 * @param bool   $download_images Whether to fetch each matched page's
+	 *                                image into the media library and set
+	 *                                it as the page's photo. Off by default:
+	 *                                this is the one part of the file that
+	 *                                makes an outbound request, to whatever
+	 *                                URL the file names.
 	 */
-	public function apply_content( $contents ) {
+	public function apply_content( $contents, $download_images = false ) {
 		$previous_setting = libxml_use_internal_errors( true );
 		$xml               = simplexml_load_string( $contents, 'SimpleXMLElement', LIBXML_NONET );
 		libxml_clear_errors();
@@ -216,12 +244,14 @@ class Content_Export {
 		$index   = $this->gedcom->existing_page_index();
 		$updated = 0;
 		$skipped = 0;
+		$images  = 0;
 
 		foreach ( $xml->channel->item as $item ) {
 			$wp_fields  = $item->children( 'http://wordpress.org/export/1.2/' );
 			$content_ns = $item->children( 'http://purl.org/rss/1.0/modules/content/' );
 			$title      = trim( (string) $item->title );
 			$content    = isset( $content_ns->encoded ) ? (string) $content_ns->encoded : '';
+			$image_url  = isset( $wp_fields->attachment_url ) ? trim( (string) $wp_fields->attachment_url ) : '';
 
 			$post_id = $this->match_post( $wp_fields, $title, $index );
 			if ( ! $post_id ) {
@@ -238,12 +268,42 @@ class Content_Export {
 				)
 			);
 			++$updated;
+
+			if ( $download_images && $image_url && $this->sideload_image( $image_url, $post_id ) ) {
+				++$images;
+			}
 		}
 
 		return array(
 			'updated' => $updated,
 			'skipped' => $skipped,
+			'images'  => $images,
 		);
+	}
+
+	/**
+	 * Fetch a page's image into the media library and set it as the page's
+	 * photo. Only ever called when the upload form's checkbox asked for it.
+	 */
+	private function sideload_image( $url, $post_id ) {
+		if ( ! wp_http_validate_url( $url ) ) {
+			return false;
+		}
+
+		if ( ! function_exists( 'media_sideload_image' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+		}
+
+		$attachment_id = media_sideload_image( $url, $post_id, null, 'id' );
+		if ( is_wp_error( $attachment_id ) ) {
+			return false;
+		}
+
+		set_post_thumbnail( $post_id, $attachment_id );
+
+		return true;
 	}
 
 	/**
