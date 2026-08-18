@@ -58,14 +58,41 @@ class GEDCOM {
 			<h1><?php esc_html_e( 'Family Wiki', 'family-wiki' ); ?></h1>
 			<h2><?php esc_html_e( 'Export', 'family-wiki' ); ?></h2>
 			<p><?php esc_html_e( 'Download published wiki pages as a GEDCOM file.', 'family-wiki' ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="family_wiki_gedcom_export" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_export' ); ?>
 				<?php submit_button( __( 'Download GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
+				<span class="family-wiki-download-check" aria-hidden="true" hidden>&#10003;</span>
 			</form>
+			<?php do_action( 'family_wiki_gedcom_page_after_export' ); ?>
 			<hr />
 			<h2><?php esc_html_e( 'Import', 'family-wiki' ); ?></h2>
 			<?php $this->render_upload_form(); ?>
+			<?php do_action( 'family_wiki_gedcom_page_after_import' ); ?>
+			<style>
+				.family-wiki-download-form {
+					align-items: center;
+					display: inline-flex;
+				}
+
+				.family-wiki-download-check {
+					color: #008a20;
+					font-weight: 600;
+					margin-left: 0.5em;
+				}
+			</style>
+			<script>
+				(function () {
+					document.querySelectorAll( '.family-wiki-download-form' ).forEach( function ( form ) {
+						form.addEventListener( 'submit', function () {
+							var check = form.querySelector( '.family-wiki-download-check' );
+							if ( check ) {
+								check.hidden = false;
+							}
+						} );
+					} );
+				}());
+			</script>
 		</div>
 		<?php
 	}
@@ -148,7 +175,20 @@ class GEDCOM {
 		<div class="wrap">
 			<h2><?php esc_html_e( 'Import Family Wiki', 'family-wiki' ); ?></h2>
 			<?php if ( null !== $imported && null !== $updated ) : ?>
-				<div class="notice notice-success"><p><?php echo esc_html( sprintf( __( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ), $imported, $updated ) ); ?></p></div>
+				<div class="notice notice-success">
+					<p>
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %1$d is a number of created pages, %2$d a number of updated pages.
+								__( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ),
+								$imported,
+								$updated
+							)
+						);
+						?>
+					</p>
+				</div>
 			<?php endif; ?>
 			<?php if ( $error ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $this->error_message( $error ) ); ?></p></div>
@@ -179,9 +219,11 @@ class GEDCOM {
 			return;
 		}
 
-		$people      = $this->review_people( $records );
-		$total       = count( $people );
-		$family_count = empty( $records['FAM'] ) ? 0 : count( $records['FAM'] );
+		$families     = empty( $records['FAM'] ) ? array() : $records['FAM'];
+		$people       = $this->review_people( $records );
+		$total        = count( $people );
+		$family_count = count( $families );
+		$tree_data    = $this->review_tree_data( $families, $people );
 		?>
 		<section class="family-wiki-gedcom-review">
 			<h2><?php esc_html_e( 'Review GEDCOM import', 'family-wiki' ); ?></h2>
@@ -309,6 +351,27 @@ class GEDCOM {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<div
+					class="family-wiki-gedcom-tree"
+					data-family-wiki-gedcom-drop-label="<?php esc_attr_e( 'Drop', 'family-wiki' ); ?>"
+					data-family-wiki-gedcom-branch-label="<?php esc_attr_e( 'Drop branch', 'family-wiki' ); ?>"
+					data-family-wiki-gedcom-toggle-label="<?php esc_attr_e( 'Show or hide this branch', 'family-wiki' ); ?>"
+				>
+					<h3><?php esc_html_e( 'Selected people', 'family-wiki' ); ?></h3>
+					<p class="description" data-family-wiki-gedcom-tree-empty><?php esc_html_e( 'Tick people above and the branches you picked are drawn here, so you can drop the ones you did not mean to take.', 'family-wiki' ); ?></p>
+					<ul class="family-wiki-gedcom-tree__list" data-family-wiki-gedcom-tree-list></ul>
+					<p class="description" data-family-wiki-gedcom-tree-more hidden>
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %d is a number of people left out of a drawing of the selection.
+								__( '%d more selected people are not drawn here.', 'family-wiki' ),
+								0
+							)
+						);
+						?>
+					</p>
+				</div>
 				<p>
 					<strong data-family-wiki-gedcom-count>
 						<?php
@@ -325,6 +388,57 @@ class GEDCOM {
 				</p>
 				<?php submit_button( __( 'Import selected people', 'family-wiki' ) ); ?>
 			</form>
+			<style>
+				.family-wiki-gedcom-tree__list,
+				.family-wiki-gedcom-tree__list ul {
+					list-style: none;
+					margin: 0;
+					padding: 0;
+				}
+
+				.family-wiki-gedcom-tree__list ul {
+					border-left: 1px solid rgba(127, 127, 127, 0.3);
+					margin-left: 0.4em;
+					padding-left: 1.1em;
+				}
+
+				.family-wiki-gedcom-tree__list li {
+					line-height: 1.6;
+					margin: 0.15em 0;
+				}
+
+				.family-wiki-gedcom-tree__line--branch [data-family-wiki-gedcom-node] {
+					cursor: pointer;
+				}
+
+				.family-wiki-gedcom-tree__years {
+					color: rgba(127, 127, 127, 0.9);
+					white-space: nowrap;
+				}
+
+				/*
+				 * Two classes deep, because .wp-core-ui .button-link zeroes the
+				 * margin and pins the text left, and would win against one.
+				 */
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__mark {
+					display: inline-block;
+					text-align: center;
+					width: 1.4em;
+				}
+
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__toggle {
+					color: inherit;
+					font-size: 1.1em;
+					line-height: 1;
+					text-decoration: none;
+					vertical-align: baseline;
+				}
+
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__drop {
+					margin-left: 0.8em;
+				}
+			</style>
+			<script type="application/json" id="family-wiki-gedcom-tree-data"><?php echo wp_json_encode( $tree_data, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
 			<script>
 				(function () {
 					var review = document.querySelector('.family-wiki-gedcom-review');
@@ -340,6 +454,42 @@ class GEDCOM {
 					var needle = '';
 					var sortKey = '';
 					var sortDescending = true;
+
+					var tree = JSON.parse(document.getElementById('family-wiki-gedcom-tree-data').textContent);
+					var treeList = review.querySelector('[data-family-wiki-gedcom-tree-list]');
+					var treeEmpty = review.querySelector('[data-family-wiki-gedcom-tree-empty]');
+					var treeMore = review.querySelector('[data-family-wiki-gedcom-tree-more]');
+					var moreTemplate = treeMore.textContent.trim();
+					var treeBox = review.querySelector('.family-wiki-gedcom-tree');
+					var dropLabel = treeBox.getAttribute('data-family-wiki-gedcom-drop-label');
+					var branchLabel = treeBox.getAttribute('data-family-wiki-gedcom-branch-label');
+					var toggleLabel = treeBox.getAttribute('data-family-wiki-gedcom-toggle-label');
+					// Everything starts folded, so picking a branch reads as the few
+					// lines it hangs from rather than a wall of names. Kept outside
+					// the drawing, which starts over on every tick, so a branch
+					// opened up stays open while the selection changes.
+					var opened = Object.create(null);
+					// Far past what anyone reads. Drawing every node of a whole-file
+					// selection would only make ticking a box slow.
+					var TREE_LIMIT = 400;
+
+					// Xrefs come out of the file, so they are never spliced into a
+					// selector: every lookup goes through these maps instead.
+					var boxes = Object.create(null);
+					rows.forEach(function (row) {
+						var box = boxOf(row);
+						if (box) {
+							boxes[box.value] = box;
+						}
+					});
+
+					var parentsOf = Object.create(null);
+					Object.keys(tree).forEach(function (xref) {
+						(tree[xref].children || []).forEach(function (child) {
+							parentsOf[child] = parentsOf[child] || [];
+							parentsOf[child].push(xref);
+						});
+					});
 
 					function boxOf(row) {
 						return row.querySelector('[data-family-wiki-gedcom-person]');
@@ -367,6 +517,237 @@ class GEDCOM {
 						}).length;
 						// Replace the leading number in the rendered, translated string.
 						counter.textContent = countTemplate.replace(/\d+/, String(selected));
+					}
+
+					function refresh() {
+						refreshCount();
+						renderTree();
+					}
+
+					function person(xref) {
+						return tree[xref] || { name: xref };
+					}
+
+					function yearRange(entry) {
+						if (entry.birth && entry.death) {
+							return entry.birth + '–' + entry.death;
+						}
+						if (entry.birth) {
+							return '*' + entry.birth;
+						}
+						if (entry.death) {
+							return '†' + entry.death;
+						}
+
+						return '';
+					}
+
+					function nameOf(xref) {
+						var entry = person(xref);
+						var node = document.createElement('span');
+						node.setAttribute('data-family-wiki-gedcom-node', xref);
+						node.appendChild(document.createTextNode(entry.name));
+
+						var years = yearRange(entry);
+						if (years) {
+							var dates = document.createElement('span');
+							dates.className = 'family-wiki-gedcom-tree__years';
+							dates.textContent = ' (' + years + ')';
+							node.appendChild(dates);
+						}
+
+						return node;
+					}
+
+					function byBirth(a, b) {
+						// Undated people sort last rather than first, where a missing
+						// year would read as the oldest child of every household.
+						var left = person(a).birth || '9999';
+						var right = person(b).birth || '9999';
+						if (left === right) {
+							return person(a).name.localeCompare(person(b).name);
+						}
+
+						return left < right ? -1 : 1;
+					}
+
+					function householdChildren(xref, partners) {
+						var seen = Object.create(null);
+						var children = [];
+						[xref].concat(partners).forEach(function (parent) {
+							(person(parent).children || []).forEach(function (child) {
+								if (!seen[child]) {
+									seen[child] = true;
+									children.push(child);
+								}
+							});
+						});
+
+						return children;
+					}
+
+					/**
+					 * Who a line's drop button takes away: the branch hanging under
+					 * it, and only once nothing hangs there the couple on the line
+					 * itself. Taking the line along with its branch would carry off
+					 * people who married in, and with them whichever of their own
+					 * brothers and sisters were drawn beneath them.
+					 */
+					function dropTargets(item) {
+						var branch = item.querySelector('ul');
+
+						return (branch || item.querySelector('.family-wiki-gedcom-tree__line'))
+							.querySelectorAll('[data-family-wiki-gedcom-node]');
+					}
+
+					function toggleFor(xref, list) {
+						var toggle = document.createElement('button');
+						toggle.type = 'button';
+						toggle.className = 'button-link family-wiki-gedcom-tree__mark family-wiki-gedcom-tree__toggle';
+						toggle.setAttribute('data-family-wiki-gedcom-toggle', xref);
+						toggle.setAttribute('aria-label', toggleLabel);
+						setOpen(toggle, list, !!opened[xref]);
+
+						return toggle;
+					}
+
+					function fold(toggle) {
+						var xref = toggle.getAttribute('data-family-wiki-gedcom-toggle');
+						opened[xref] = !opened[xref];
+						setOpen(toggle, toggle.closest('li').querySelector('ul'), opened[xref]);
+					}
+
+					function setOpen(toggle, list, open) {
+						// The people below stay in the page while folded away: the
+						// count on the drop button, and what it drops, are the branch
+						// itself and not the part of it that happens to be in view.
+						list.hidden = !open;
+						toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+						toggle.textContent = open ? '▼' : '►';
+					}
+
+					function renderPerson(xref, state) {
+						if (state.drawn[xref] || state.left < 1) {
+							return null;
+						}
+						state.drawn[xref] = true;
+						state.left -= 1;
+
+						var item = document.createElement('li');
+						var line = document.createElement('div');
+						line.className = 'family-wiki-gedcom-tree__line';
+						line.appendChild(nameOf(xref));
+
+						// The people they married, on the same line: a couple splits
+						// their children between them, so drawing them apart would
+						// show every household twice with half a family each.
+						var partners = (person(xref).partners || []).filter(function (partner) {
+							return state.selected[partner] && !state.drawn[partner];
+						});
+						partners.forEach(function (partner) {
+							state.drawn[partner] = true;
+							state.left -= 1;
+							line.appendChild(document.createTextNode(' & '));
+							line.appendChild(nameOf(partner));
+						});
+
+						item.appendChild(line);
+
+						var children = householdChildren(xref, partners).filter(function (child) {
+							return state.selected[child] && !state.drawn[child];
+						}).sort(byBirth);
+
+						if (children.length) {
+							var list = document.createElement('ul');
+							children.forEach(function (child) {
+								var childItem = renderPerson(child, state);
+								if (childItem) {
+									list.appendChild(childItem);
+								}
+							});
+							if (list.childNodes.length) {
+								item.appendChild(list);
+								line.insertBefore(toggleFor(xref, list), line.firstChild);
+							}
+						}
+
+						// A line with nobody under it still gives up the width, so the
+						// names down a generation stay under one another.
+						if (!item.querySelector('ul')) {
+							var spacer = document.createElement('span');
+							spacer.className = 'family-wiki-gedcom-tree__mark';
+							spacer.setAttribute('aria-hidden', 'true');
+							line.insertBefore(spacer, line.firstChild);
+						}
+
+						// Only now is it known whether anyone hangs off this line, which
+						// is what the button offers to take away.
+						var branch = item.querySelector('ul');
+						if (branch) {
+							line.classList.add('family-wiki-gedcom-tree__line--branch');
+						}
+
+						var drop = document.createElement('button');
+						drop.type = 'button';
+						drop.className = 'button-link family-wiki-gedcom-tree__drop';
+						drop.setAttribute('data-family-wiki-gedcom-drop', '');
+						drop.textContent = (branch ? branchLabel : dropLabel)
+							+ ' (' + dropTargets(item).length + ')';
+						line.appendChild(drop);
+
+						return item;
+					}
+
+					function renderTree() {
+						var state = {
+							selected: Object.create(null),
+							drawn: Object.create(null),
+							left: TREE_LIMIT
+						};
+						var total = 0;
+						rows.forEach(function (row) {
+							var box = boxOf(row);
+							if (box && box.checked) {
+								state.selected[box.value] = true;
+								total += 1;
+							}
+						});
+
+						treeList.textContent = '';
+						treeEmpty.hidden = total > 0;
+						treeMore.hidden = true;
+						if (!total) {
+							return;
+						}
+
+						// Start from everyone whose parents are staying behind. Those
+						// are the tops of the branches that were picked, which is not
+						// where the file itself starts.
+						Object.keys(state.selected).filter(function (xref) {
+							return (parentsOf[xref] || []).every(function (parent) {
+								return !state.selected[parent];
+							});
+						}).sort(byBirth).forEach(function (xref) {
+							var item = renderPerson(xref, state);
+							if (item) {
+								treeList.appendChild(item);
+							}
+						});
+
+						// Whatever the branches did not reach still has to show up, or
+						// people would be imported that the tree never accounted for.
+						Object.keys(state.selected).forEach(function (xref) {
+							var item = renderPerson(xref, state);
+							if (item) {
+								treeList.appendChild(item);
+							}
+						});
+
+						var missing = total - Object.keys(state.drawn).length;
+						treeMore.hidden = missing < 1;
+						if (missing > 0) {
+							treeMore.textContent = moreTemplate.replace(/\d+/, String(missing));
+						}
 					}
 
 					function sort(key) {
@@ -419,24 +800,55 @@ class GEDCOM {
 									box.checked = true;
 								}
 							});
-							refreshCount();
+							refresh();
 							return;
 						}
 
 						var descendants = event.target.closest('[data-family-wiki-gedcom-descendants]');
 						if (descendants) {
 							descendants.getAttribute('data-family-wiki-gedcom-descendants').split(',').forEach(function (xref) {
-								var box = review.querySelector('[data-family-wiki-gedcom-person="' + xref + '"]');
-								if (box) {
-									box.checked = true;
+								if (boxes[xref]) {
+									boxes[xref].checked = true;
 								}
 							});
-							refreshCount();
+							refresh();
+							return;
+						}
+
+						// Folding changes nothing about the selection, so it moves the
+						// one branch rather than drawing the whole tree again.
+						var toggle = event.target.closest('[data-family-wiki-gedcom-toggle]');
+						if (toggle) {
+							fold(toggle);
+							return;
+						}
+
+						// The names are a far bigger target than the arrow beside
+						// them, and fold the same branch. On a line with nobody
+						// underneath there is nothing to fold, so they do nothing.
+						var named = event.target.closest('[data-family-wiki-gedcom-node]');
+						if (named) {
+							var owner = named.closest('li').querySelector('[data-family-wiki-gedcom-toggle]');
+							if (owner) {
+								fold(owner);
+							}
+							return;
+						}
+
+						var drop = event.target.closest('[data-family-wiki-gedcom-drop]');
+						if (drop) {
+							dropTargets(drop.closest('li')).forEach(function (node) {
+								var xref = node.getAttribute('data-family-wiki-gedcom-node');
+								if (boxes[xref]) {
+									boxes[xref].checked = false;
+								}
+							});
+							refresh();
 							return;
 						}
 
 						if (event.target.closest('[data-family-wiki-gedcom-person]')) {
-							refreshCount();
+							refresh();
 						}
 					});
 
@@ -449,7 +861,7 @@ class GEDCOM {
 					});
 
 					apply();
-					refreshCount();
+					refresh();
 				}());
 			</script>
 		</section>
@@ -609,11 +1021,7 @@ class GEDCOM {
 
 	public function export_string() {
 		$people = $this->get_export_people();
-		$ids    = array();
-		$i      = 1;
-		foreach ( $people as $person ) {
-			$ids[ $person->ID ] = 'I' . $i++;
-		}
+		$ids    = $this->export_xref_map( $people );
 
 		$families = $this->get_export_families( $people, $ids );
 		$lines    = array(
@@ -683,7 +1091,7 @@ class GEDCOM {
 					$this->restore_nav_menu_auto_add();
 					return $result;
 				}
-				$updated++;
+				++$updated;
 			} else {
 				$result = wp_insert_post( wp_slash( $data ), true );
 				if ( is_wp_error( $result ) ) {
@@ -691,7 +1099,7 @@ class GEDCOM {
 					return $result;
 				}
 				$post_id = $result;
-				$created++;
+				++$created;
 			}
 
 			$id_map[ $xref ]   = $post_id;
@@ -727,7 +1135,22 @@ class GEDCOM {
 		}
 	}
 
-	private function get_export_people() {
+	/**
+	 * Assign each exported person an xref, in the order they will appear in
+	 * the GEDCOM. Public so a paired export (Content_Export) can assign the
+	 * same person the same xref within the same request.
+	 */
+	public function export_xref_map( $people ) {
+		$ids = array();
+		$i   = 1;
+		foreach ( $people as $person ) {
+			$ids[ $person->ID ] = 'I' . $i++;
+		}
+
+		return $ids;
+	}
+
+	public function get_export_people() {
 		$pages = get_posts(
 			array(
 				'post_type'      => 'page',
@@ -928,6 +1351,8 @@ class GEDCOM {
 				'name'        => $names[ $xref ],
 				'birth'       => $this->review_event_label( $birth ),
 				'death'       => $this->review_event_label( $death ),
+				'birth_year'  => $this->gedcom_year( $birth ),
+				'death_year'  => $this->gedcom_year( $death ),
 				'descendants' => $subtree,
 				'count'       => count( $subtree ),
 				'wiki_hits'   => $hits,
@@ -941,10 +1366,44 @@ class GEDCOM {
 	}
 
 	/**
-	 * Pages that a GEDCOM entry could land on, looked up the same way the
-	 * import does: by a previously stored xref first, then by title.
+	 * The shape of the file, small enough to hand to the browser: the tree of
+	 * selected people is drawn there and redrawn on every tick, so it needs the
+	 * links between people without another round trip. Names and years only —
+	 * the table above it already carries the detail.
 	 */
-	private function existing_page_index() {
+	private function review_tree_data( $families, $people ) {
+		list( $children_by_parent, $partners_by_person ) = $this->family_links( $families );
+
+		$data = array();
+		foreach ( $people as $person ) {
+			$xref  = $person['xref'];
+			$entry = array( 'name' => $person['name'] );
+
+			if ( $person['birth_year'] ) {
+				$entry['birth'] = $person['birth_year'];
+			}
+			if ( $person['death_year'] ) {
+				$entry['death'] = $person['death_year'];
+			}
+			if ( ! empty( $children_by_parent[ $xref ] ) ) {
+				$entry['children'] = array_values( $children_by_parent[ $xref ] );
+			}
+			if ( ! empty( $partners_by_person[ $xref ] ) ) {
+				$entry['partners'] = array_values( $partners_by_person[ $xref ] );
+			}
+
+			$data[ $xref ] = $entry;
+		}
+
+		return $data;
+	}
+
+	/**
+	 * Pages that a GEDCOM entry could land on, looked up the same way the
+	 * import does: by a previously stored xref first, then by title. Public
+	 * so Content_Export can match a content file onto the same pages.
+	 */
+	public function existing_page_index() {
 		$index = array(
 			'xref'  => array(),
 			'title' => array(),
@@ -990,7 +1449,10 @@ class GEDCOM {
 		return strcasecmp( $a['name'], $b['name'] );
 	}
 
-	private function descendants_by_person( $families ) {
+	/**
+	 * Who each person's children and partners are, read off the family records.
+	 */
+	private function family_links( $families ) {
 		$children_by_parent = array();
 		$partners_by_person = array();
 
@@ -1013,6 +1475,12 @@ class GEDCOM {
 				}
 			}
 		}
+
+		return array( $children_by_parent, $partners_by_person );
+	}
+
+	private function descendants_by_person( $families ) {
+		list( $children_by_parent, $partners_by_person ) = $this->family_links( $families );
 
 		$descendants = array();
 		foreach ( array_keys( $children_by_parent ) as $xref ) {
@@ -1387,9 +1855,11 @@ class GEDCOM {
 	}
 
 	private function gedcom_birth_year( $record ) {
-		$birth = $this->event_values( $record, 'BIRT' );
+		return $this->gedcom_year( $this->event_values( $record, 'BIRT' ) );
+	}
 
-		return empty( $birth['date'] ) ? '' : substr( preg_replace( '/\D/', '', $birth['date'] ), 0, 4 );
+	private function gedcom_year( $event ) {
+		return empty( $event['date'] ) ? '' : substr( preg_replace( '/\D/', '', $event['date'] ), 0, 4 );
 	}
 
 	private function get_field_value( $field, $post_id ) {
