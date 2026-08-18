@@ -24,6 +24,13 @@ class GEDCOM {
 	 */
 	const CONTENT_META_KEY = '_gedcom_xref';
 
+	/**
+	 * The meta key a link between two exported people travels under: its
+	 * value is the relative path the link was rewritten to, and the xref
+	 * of the person it points to, joined with "|".
+	 */
+	const CONTENT_LINK_META_KEY = '_gedcom_link';
+
 	private $nav_menu_auto_add_priority = false;
 
 	/**
@@ -272,6 +279,14 @@ class GEDCOM {
 	private function finish_run( $run, $state ) {
 		Calendar::flush_dates_cache();
 		Front_Page::flush_cache();
+
+		// Every person this run touched now has a page, so a content file's
+		// links to them can be resolved — while it is still parked, before
+		// it is cleaned up below.
+		if ( ! empty( $state['content'] ) ) {
+			$this->resolve_content_links( $state['token'], $state['id_map'] );
+		}
+
 		// Cleans up the content file too, if there was one: it shares this
 		// same token's one transient and temp files with the GEDCOM file.
 		$this->delete_import_file( $state['token'] );
@@ -1525,7 +1540,8 @@ class GEDCOM {
 				'family_wiki_imported' => $result['created'],
 				'family_wiki_updated'  => $result['updated'],
 			),
-			$token
+			$token,
+			$result['ids']
 		);
 
 		$this->delete_import_file( $token );
@@ -1612,6 +1628,7 @@ class GEDCOM {
 		return array(
 			'created' => $created,
 			'updated' => $updated,
+			'ids'     => $id_map,
 		);
 	}
 
@@ -2697,8 +2714,12 @@ class GEDCOM {
 	 * along with, so it goes in as one whole-file pass instead, matched by
 	 * xref or title the same way import_string() matches GEDCOM entries.
 	 * Called while the file is still parked, before delete_import_file().
+	 *
+	 * @param array  $args    Extra query args to redirect with.
+	 * @param string $token   The review token this import used.
+	 * @param array  $id_map  Xref => post ID, from this same import_string() call.
 	 */
-	private function add_content_to_import_extra_args( $args, $token ) {
+	private function add_content_to_import_extra_args( $args, $token, $id_map ) {
 		$contents = $this->get_content_file( $token );
 		if ( false === $contents ) {
 			return $args;
@@ -2708,6 +2729,8 @@ class GEDCOM {
 		if ( is_wp_error( $result ) ) {
 			return $args;
 		}
+
+		$this->resolve_content_links( $token, $id_map );
 
 		return array_merge(
 			$args,
@@ -2744,9 +2767,13 @@ class GEDCOM {
 		);
 
 		foreach ( $people as $person ) {
+			$links   = array();
+			$content = $this->relativize_images( $person->post_content );
+			$content = $this->relativize_links( $content, $ids, $links );
+
 			$lines[] = '<item>';
 			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
-			$lines[] = '<content:encoded>' . $this->cdata( $this->relativize_images( $person->post_content ) ) . '</content:encoded>';
+			$lines[] = '<content:encoded>' . $this->cdata( $content ) . '</content:encoded>';
 			if ( has_post_thumbnail( $person ) ) {
 				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
 			}
@@ -2757,6 +2784,12 @@ class GEDCOM {
 			$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_META_KEY ) . '</wp:meta_key>';
 			$lines[] = '<wp:meta_value>' . $this->cdata( $ids[ $person->ID ] ) . '</wp:meta_value>';
 			$lines[] = '</wp:postmeta>';
+			foreach ( $links as $path => $target_xref ) {
+				$lines[] = '<wp:postmeta>';
+				$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_LINK_META_KEY ) . '</wp:meta_key>';
+				$lines[] = '<wp:meta_value>' . $this->cdata( $path . '|' . $target_xref ) . '</wp:meta_value>';
+				$lines[] = '</wp:postmeta>';
+			}
 			$lines[] = '</item>';
 		}
 
@@ -2809,6 +2842,108 @@ class GEDCOM {
 			},
 			$content
 		);
+	}
+
+	/**
+	 * Strips this site's own domain from same-site links in a page's text,
+	 * the same reason relativize_images() does it for photos. Where a link
+	 * points to another page in this same export, its path and the xref it
+	 * points to are collected into $links by reference, so the importer can
+	 * put back a working link once it knows where that page landed there —
+	 * a page's own URL structure is not something a content file can know
+	 * in advance, especially crossing between two different plugins.
+	 */
+	private function relativize_links( $content, $ids, &$links ) {
+		$home = home_url();
+
+		return preg_replace_callback(
+			'/(<a\s[^>]*href=["\'])' . preg_quote( $home, '/' ) . '([^"\']*)(["\'])/i',
+			function ( $matches ) use ( $home, $ids, &$links ) {
+				$path    = $matches[2];
+				$post_id = url_to_postid( $home . $path );
+				if ( $post_id && isset( $ids[ $post_id ] ) ) {
+					$links[ $path ] = $ids[ $post_id ];
+				}
+
+				return $matches[1] . $path . $matches[3];
+			},
+			$content
+		);
+	}
+
+	/**
+	 * The links a content item's text had to other exported people, as
+	 * path => the xref that link pointed to.
+	 */
+	private function content_links_for_item( $item ) {
+		$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+		$links     = array();
+
+		foreach ( $wp_fields->postmeta as $meta ) {
+			$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+			if ( self::CONTENT_LINK_META_KEY !== (string) $meta_fields->meta_key ) {
+				continue;
+			}
+
+			$parts = explode( '|', (string) $meta_fields->meta_value, 2 );
+			if ( 2 === count( $parts ) && '' !== $parts[0] ) {
+				$links[ $parts[0] ] = $parts[1];
+			}
+		}
+
+		return $links;
+	}
+
+	/**
+	 * Puts working links back into the text of everyone this run touched
+	 * who had one, now that every person in $id_map has a page here. Called
+	 * while the content file is still parked — it reads the same file
+	 * apply_content_to_person()/apply_content() already read from.
+	 */
+	private function resolve_content_links( $token, $id_map ) {
+		$index = $this->content_index( $token );
+		if ( ! $index ) {
+			return;
+		}
+
+		foreach ( $id_map as $xref => $post_id ) {
+			if ( ! isset( $index['by_xref'][ $xref ] ) ) {
+				continue;
+			}
+
+			$links = $this->content_links_for_item( $index['by_xref'][ $xref ] );
+			if ( ! $links ) {
+				continue;
+			}
+
+			$replacements = array();
+			foreach ( $links as $path => $target_xref ) {
+				if ( isset( $id_map[ $target_xref ] ) ) {
+					$replacements[ $path ] = get_permalink( $id_map[ $target_xref ] );
+				}
+			}
+
+			if ( ! $replacements ) {
+				continue;
+			}
+
+			$post = get_post( $post_id );
+			if ( ! $post ) {
+				continue;
+			}
+
+			$new_content = str_replace( array_keys( $replacements ), array_values( $replacements ), $post->post_content );
+			if ( $new_content !== $post->post_content ) {
+				wp_update_post(
+					wp_slash(
+						array(
+							'ID'           => $post_id,
+							'post_content' => $new_content,
+						)
+					)
+				);
+			}
+		}
 	}
 
 	/**
