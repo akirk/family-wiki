@@ -5,6 +5,15 @@ class GEDCOM {
 	const MENU_SLUG = 'family-wiki-gedcom';
 	const XREF_META = '_family_wiki_gedcom_xref';
 	const IMPORT_TRANSIENT_PREFIX = 'family_wiki_gedcom_import_';
+	const RUN_TRANSIENT_PREFIX = 'family_wiki_gedcom_run_';
+
+	/**
+	 * How much of the file one request takes on. Small enough that no single
+	 * request is at risk of the timeout a whole family would run into, large
+	 * enough that the file is not re-read hundreds of times on the way through.
+	 */
+	const BATCH_PEOPLE = 25;
+	const BATCH_FAMILIES = 50;
 
 	private $nav_menu_auto_add_priority = false;
 
@@ -36,6 +45,241 @@ class GEDCOM {
 		add_action( 'admin_init', array( $this, 'register_importer' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 81 );
 		add_action( 'admin_post_family_wiki_gedcom_export', array( $this, 'export_download' ) );
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
+	}
+
+	public static function can_import() {
+		return current_user_can( 'import' );
+	}
+
+	/**
+	 * The import, a batch per request.
+	 *
+	 * A family of any size takes longer than one page load should, and a form
+	 * post that sits there for a minute is indistinguishable from one that has
+	 * died. These walk the same file in pieces and say how far they have got. The
+	 * form post below still works on its own, for whoever has no JavaScript.
+	 */
+	public function register_rest_routes() {
+		register_rest_route(
+			'family-wiki/v1',
+			'/import',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_import_start' ),
+			)
+		);
+
+		register_rest_route(
+			'family-wiki/v1',
+			'/import/(?P<run>[a-z0-9]{32})',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_import_step' ),
+			)
+		);
+	}
+
+	/**
+	 * Work out what this import will do, and remember it under a run id.
+	 */
+	public function rest_import_start( $request ) {
+		$token    = sanitize_key( (string) $request->get_param( 'token' ) );
+		$contents = $token ? $this->get_import_file( $token ) : false;
+		if ( false === $contents ) {
+			return new \WP_Error( 'family_wiki_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
+		}
+
+		$records = $this->parse_records( $contents );
+		if ( empty( $records['INDI'] ) ) {
+			return new \WP_Error( 'family_wiki_no_individuals', $this->error_message( 'no_individuals' ), array( 'status' => 400 ) );
+		}
+
+		$xrefs    = array_keys( $records['INDI'] );
+		$selected = $request->get_param( 'selected' );
+
+		// Null is everyone, which is what a request that names nobody asks for.
+		if ( is_array( $selected ) ) {
+			$wanted = array_fill_keys( array_map( 'sanitize_text_field', $selected ), true );
+			$xrefs  = array_values(
+				array_filter(
+					$xrefs,
+					function ( $xref ) use ( $wanted ) {
+						return isset( $wanted[ $xref ] );
+					}
+				)
+			);
+
+			if ( empty( $xrefs ) ) {
+				return new \WP_Error( 'family_wiki_no_selection', $this->error_message( 'no_selection' ), array( 'status' => 400 ) );
+			}
+		}
+
+		$run   = strtolower( wp_generate_password( 32, false, false ) );
+		$state = array(
+			'token'    => $token,
+			'xrefs'    => $xrefs,
+			'families' => empty( $records['FAM'] ) ? array() : array_keys( $records['FAM'] ),
+			'stage'    => 'people',
+			'cursor'   => 0,
+			// Built once, as the form post builds it once, so that a page written
+			// by this import is not matched against by a later entry.
+			'index'    => $this->existing_page_index(),
+			'id_map'   => array(),
+			'claimed'  => array(),
+			'created'  => 0,
+			'updated'  => 0,
+		);
+
+		if ( ! set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'family_wiki_run_failed', $this->error_message( 'store_failed' ), array( 'status' => 500 ) );
+		}
+
+		return array(
+			'run'      => $run,
+			'people'   => count( $state['xrefs'] ),
+			'families' => count( $state['families'] ),
+		);
+	}
+
+	/**
+	 * Carry one run a batch further.
+	 */
+	public function rest_import_step( $request ) {
+		$run   = sanitize_key( (string) $request->get_param( 'run' ) );
+		$state = get_transient( self::RUN_TRANSIENT_PREFIX . $run );
+		if ( ! is_array( $state ) ) {
+			return new \WP_Error( 'family_wiki_run_expired', __( 'The import stopped before it finished. Please upload the file again.', 'family-wiki' ), array( 'status' => 400 ) );
+		}
+
+		$contents = $this->get_import_file( $state['token'] );
+		if ( false === $contents ) {
+			return new \WP_Error( 'family_wiki_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
+		}
+
+		$records = $this->parse_records( $contents );
+
+		$this->suspend_nav_menu_auto_add();
+		if ( 'families' === $state['stage'] ) {
+			$state = $this->import_families_batch( $state, $records );
+		} else {
+			$state = $this->import_people_batch( $state, $records );
+		}
+		$this->restore_nav_menu_auto_add();
+
+		if ( is_wp_error( $state ) ) {
+			// The run and the file are kept, so that it can be sent again.
+			return $state;
+		}
+
+		if ( 'done' === $state['stage'] ) {
+			return $this->finish_run( $run, $state );
+		}
+
+		set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS );
+
+		return $this->run_progress( $state );
+	}
+
+	private function import_people_batch( $state, $records ) {
+		$total = count( $state['xrefs'] );
+		$end   = min( $total, $state['cursor'] + self::BATCH_PEOPLE );
+
+		for ( ; $state['cursor'] < $end; $state['cursor']++ ) {
+			$xref = $state['xrefs'][ $state['cursor'] ];
+			if ( ! isset( $records['INDI'][ $xref ] ) ) {
+				continue;
+			}
+
+			$person = $this->import_person( $xref, $records['INDI'][ $xref ], $state['index'], $state['claimed'] );
+			if ( is_wp_error( $person ) ) {
+				return $person;
+			}
+
+			$state['id_map'][ $xref ] = $person['id'];
+
+			if ( $person['existed'] ) {
+				++$state['updated'];
+			} else {
+				++$state['created'];
+			}
+		}
+
+		if ( $state['cursor'] >= $total ) {
+			$state['stage']  = $state['families'] ? 'families' : 'done';
+			$state['cursor'] = 0;
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Families are linked once everybody is in, and can be taken a slice at a
+	 * time: each slice merges into what the last one wrote rather than replacing
+	 * it, so the result is the same as doing them all at once.
+	 */
+	private function import_families_batch( $state, $records ) {
+		$all   = isset( $records['FAM'] ) ? $records['FAM'] : array();
+		$total = count( $state['families'] );
+		$end   = min( $total, $state['cursor'] + self::BATCH_FAMILIES );
+		$slice = array();
+
+		for ( ; $state['cursor'] < $end; $state['cursor']++ ) {
+			$xref = $state['families'][ $state['cursor'] ];
+			if ( isset( $all[ $xref ] ) ) {
+				$slice[ $xref ] = $all[ $xref ];
+			}
+		}
+
+		$this->import_family_links( $slice, $state['id_map'] );
+
+		if ( $state['cursor'] >= $total ) {
+			$state['stage'] = 'done';
+		}
+
+		return $state;
+	}
+
+	private function finish_run( $run, $state ) {
+		Calendar::flush_dates_cache();
+		Front_Page::flush_cache();
+		$this->delete_import_file( $state['token'] );
+		delete_transient( self::RUN_TRANSIENT_PREFIX . $run );
+
+		$message = sprintf(
+			// translators: %1$d is a number of pages created, %2$d a number updated.
+			__( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ),
+			$state['created'],
+			$state['updated']
+		);
+
+		return array(
+			'done'     => true,
+			'stage'    => 'done',
+			'created'  => $state['created'],
+			'updated'  => $state['updated'],
+			'message'  => $message,
+			'redirect' => add_query_arg(
+				array(
+					'family_wiki_imported' => $state['created'],
+					'family_wiki_updated'  => $state['updated'],
+				),
+				admin_url( 'admin.php?import=family-wiki-gedcom' )
+			),
+		);
+	}
+
+	private function run_progress( $state ) {
+		return array(
+			'done'     => false,
+			'stage'    => $state['stage'],
+			'position' => (int) $state['cursor'],
+			'total'    => 'families' === $state['stage'] ? count( $state['families'] ) : count( $state['xrefs'] ),
+			'created'  => $state['created'],
+			'updated'  => $state['updated'],
+		);
 	}
 
 	public function admin_menu() {
@@ -252,7 +496,7 @@ class GEDCOM {
 				);
 				?>
 			</p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>" data-family-wiki-gedcom-form>
 				<input type="hidden" name="family_wiki_gedcom_step" value="selected" />
 				<input type="hidden" name="family_wiki_review" value="<?php echo esc_attr( $token ); ?>" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_import_selected' ); ?>
@@ -386,8 +630,33 @@ class GEDCOM {
 						?>
 					</strong>
 				</p>
+				<div class="family-wiki-gedcom-progress" data-family-wiki-gedcom-progress hidden>
+					<progress data-family-wiki-gedcom-progress-bar max="100" value="0"></progress>
+					<p role="status" data-family-wiki-gedcom-progress-text></p>
+				</div>
 				<?php submit_button( __( 'Import selected people', 'family-wiki' ) ); ?>
 			</form>
+			<script type="application/json" id="family-wiki-gedcom-import-data">
+				<?php
+				echo wp_json_encode(
+					array(
+						'endpoint' => rest_url( 'family-wiki/v1/import' ),
+						'nonce'    => wp_create_nonce( 'wp_rest' ),
+						'token'    => $token,
+						'l10n'     => array(
+							'starting' => __( 'Reading the file…', 'family-wiki' ),
+							// translators: %1$s is a number of people done, %2$s the total.
+							'people'   => __( 'Importing people: %1$s of %2$s', 'family-wiki' ),
+							// translators: %1$s is a number of family records done, %2$s the total.
+							'families' => __( 'Linking families: %1$s of %2$s', 'family-wiki' ),
+							// translators: %s is an error message.
+							'failed'   => __( 'The import stopped: %s', 'family-wiki' ),
+						),
+					),
+					JSON_HEX_TAG | JSON_HEX_AMP
+				);
+				?>
+			</script>
 			<style>
 				.family-wiki-gedcom-tree__list,
 				.family-wiki-gedcom-tree__list ul {
@@ -436,6 +705,14 @@ class GEDCOM {
 
 				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__drop {
 					margin-left: 0.8em;
+				}
+
+				.family-wiki-gedcom-progress progress {
+					width: 100%;
+				}
+
+				.family-wiki-gedcom-progress--failed progress {
+					accent-color: #d63638;
 				}
 			</style>
 			<script type="application/json" id="family-wiki-gedcom-tree-data"><?php echo wp_json_encode( $tree_data, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
@@ -864,6 +1141,123 @@ class GEDCOM {
 					refresh();
 				}());
 			</script>
+			<script>
+				/*
+				 * Importing, a batch at a time.
+				 *
+				 * A whole family is more work than one request should carry, and a
+				 * form post that sits there for a minute looks the same as one that
+				 * has died. The same file is walked in pieces instead, and each piece
+				 * says how far it has got. Without fetch the form posts itself, which
+				 * still works.
+				 */
+				(function () {
+					var review = document.querySelector('.family-wiki-gedcom-review');
+					if (!review) {
+						return;
+					}
+
+					var form = review.querySelector('[data-family-wiki-gedcom-form]');
+					var progress = review.querySelector('[data-family-wiki-gedcom-progress]');
+					var bar = progress ? progress.querySelector('[data-family-wiki-gedcom-progress-bar]') : null;
+					var text = progress ? progress.querySelector('[data-family-wiki-gedcom-progress-text]') : null;
+					var dataEl = document.getElementById('family-wiki-gedcom-import-data');
+					var settings = dataEl ? JSON.parse(dataEl.textContent) : {};
+					var l10n = settings.l10n || {};
+
+					if (!form || !progress || !settings.endpoint || !window.fetch) {
+						return;
+					}
+
+					form.addEventListener('submit', function (event) {
+						var selected = Array.prototype.slice
+							.call(form.querySelectorAll('[data-family-wiki-gedcom-person]:checked'))
+							.map(function (box) {
+								return box.value;
+							});
+
+						// Nothing ticked is a mistake the server already words well, and
+						// letting the form post keeps that wording in one place.
+						if (!selected.length) {
+							return;
+						}
+
+						event.preventDefault();
+						start(selected);
+					});
+
+					function send(url, payload) {
+						return fetch(url, {
+							method: 'POST',
+							credentials: 'same-origin',
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': settings.nonce },
+							body: JSON.stringify(payload || {})
+						}).then(function (response) {
+							return response.json().then(function (data) {
+								if (!response.ok) {
+									throw new Error(data && data.message ? data.message : response.statusText);
+								}
+
+								return data;
+							});
+						});
+					}
+
+					function start(selected) {
+						progress.hidden = false;
+						progress.classList.remove('family-wiki-gedcom-progress--failed');
+						working(true);
+						say(l10n.starting, 0);
+
+						send(settings.endpoint, { token: settings.token, selected: selected })
+							.then(function (started) {
+								return step(started.run);
+							})
+							.catch(failed);
+					}
+
+					function step(run) {
+						return send(settings.endpoint + '/' + run).then(function (state) {
+							if (state.done) {
+								say(state.message, 100);
+								window.location = state.redirect;
+								return;
+							}
+
+							say(
+								(state.stage === 'families' ? l10n.families : l10n.people)
+									.replace('%1$s', state.position)
+									.replace('%2$s', state.total),
+								state.total ? Math.round((state.position / state.total) * 100) : 0
+							);
+
+							return step(run);
+						});
+					}
+
+					function say(message, percent) {
+						text.textContent = message;
+						bar.value = percent;
+					}
+
+					function failed(error) {
+						say(l10n.failed.replace('%s', error.message), 0);
+						progress.classList.add('family-wiki-gedcom-progress--failed');
+						working(false);
+					}
+
+					/**
+					 * While a run is going, the buttons that would start a second one are
+					 * out of reach: the file is walked by cursor, and two walks would
+					 * import it twice.
+					 */
+					function working(busy) {
+						Array.prototype.slice.call(form.querySelectorAll('button, input')).forEach(function (control) {
+							control.disabled = busy;
+						});
+					}
+				}());
+			</script>
 		</section>
 		<?php
 	}
@@ -1074,38 +1468,18 @@ class GEDCOM {
 		$this->suspend_nav_menu_auto_add();
 
 		foreach ( $records['INDI'] as $xref => $record ) {
-			$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
-			$post_id = $this->find_person_post( $xref, $title, $index, $claimed, $this->gedcom_birth_year( $record ) );
-			$data    = array(
-				'post_type'    => 'page',
-				'post_status'  => 'publish',
-				'post_title'   => $title ? $title : $xref,
-				'post_content' => '',
-			);
-
-			if ( $post_id ) {
-				$data['ID'] = $post_id;
-				unset( $data['post_content'] );
-				$result = wp_update_post( wp_slash( $data ), true );
-				if ( is_wp_error( $result ) ) {
-					$this->restore_nav_menu_auto_add();
-					return $result;
-				}
-				++$updated;
-			} else {
-				$result = wp_insert_post( wp_slash( $data ), true );
-				if ( is_wp_error( $result ) ) {
-					$this->restore_nav_menu_auto_add();
-					return $result;
-				}
-				$post_id = $result;
-				++$created;
+			$person = $this->import_person( $xref, $record, $index, $claimed );
+			if ( is_wp_error( $person ) ) {
+				$this->restore_nav_menu_auto_add();
+				return $person;
 			}
 
-			$id_map[ $xref ]   = $post_id;
-			$claimed[ $post_id ] = true;
-			update_post_meta( $post_id, self::XREF_META, $xref );
-			$this->import_individual_fields( $post_id, $record );
+			$id_map[ $xref ] = $person['id'];
+			if ( $person['existed'] ) {
+				++$updated;
+			} else {
+				++$created;
+			}
 		}
 
 		$this->restore_nav_menu_auto_add();
@@ -1117,6 +1491,50 @@ class GEDCOM {
 		return array(
 			'created' => $created,
 			'updated' => $updated,
+		);
+	}
+
+	/**
+	 * Create or update the one page a GEDCOM individual record becomes.
+	 * Split out from import_string() so a batched import can call it a
+	 * person at a time.
+	 *
+	 * @return array|\WP_Error array( 'id' => int, 'existed' => bool ).
+	 */
+	private function import_person( $xref, $record, $index, &$claimed ) {
+		$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
+		$post_id = $this->find_person_post( $xref, $title, $index, $claimed, $this->gedcom_birth_year( $record ) );
+		$existed = (bool) $post_id;
+		$data    = array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => $title ? $title : $xref,
+			'post_content' => '',
+		);
+
+		if ( $existed ) {
+			$data['ID'] = $post_id;
+			unset( $data['post_content'] );
+			$result = wp_update_post( wp_slash( $data ), true );
+		} else {
+			$result = wp_insert_post( wp_slash( $data ), true );
+		}
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( ! $existed ) {
+			$post_id = $result;
+		}
+
+		$claimed[ $post_id ] = true;
+		update_post_meta( $post_id, self::XREF_META, $xref );
+		$this->import_individual_fields( $post_id, $record );
+
+		return array(
+			'id'      => (int) $post_id,
+			'existed' => $existed,
 		);
 	}
 
