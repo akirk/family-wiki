@@ -59,12 +59,18 @@ class Content_Export {
 				<p>
 					<?php
 					echo esc_html(
-						sprintf(
-							// translators: %1$d is a number of updated pages, %2$d a number of skipped entries.
-							__( 'Content file applied. Updated %1$d pages; %2$d entries did not match a page and were skipped.', 'family-wiki' ),
-							$updated,
-							$skipped
-						)
+						$skipped
+							? sprintf(
+								// translators: %1$d is a number of updated pages, %2$d a number of skipped entries.
+								__( 'Content file applied. Updated %1$d pages; %2$d entries did not match a page and were skipped.', 'family-wiki' ),
+								$updated,
+								$skipped
+							)
+							: sprintf(
+								// translators: %d is a number of updated pages.
+								__( 'Content file applied. Updated %d pages.', 'family-wiki' ),
+								$updated
+							)
 					);
 					?>
 				</p>
