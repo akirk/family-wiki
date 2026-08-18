@@ -143,9 +143,12 @@ class Content_Export {
 		foreach ( $people as $person ) {
 			$lines[] = '<item>';
 			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
-			$lines[] = '<content:encoded>' . $this->cdata( $person->post_content ) . '</content:encoded>';
+			$lines[] = '<content:encoded>' . $this->cdata( $this->relativize_images( $person->post_content ) ) . '</content:encoded>';
 			if ( has_post_thumbnail( $person ) ) {
 				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
+			}
+			foreach ( $this->content_image_urls( $person->post_content ) as $url ) {
+				$lines[] = '<wp:content_image_url>' . $this->cdata( $url ) . '</wp:content_image_url>';
 			}
 			$lines[] = '<wp:postmeta>';
 			$lines[] = '<wp:meta_key>' . $this->cdata( self::META_KEY ) . '</wp:meta_key>';
@@ -166,6 +169,43 @@ class Content_Export {
 	 */
 	private function cdata( $value ) {
 		return '<![CDATA[' . str_replace( ']]>', ']]]]><![CDATA[>', (string) $value ) . ']]>';
+	}
+
+	/**
+	 * This site's own image URLs referenced in a page's text, so the
+	 * importer has something to fetch — listed separately, in full, because
+	 * the text itself keeps only the path (see relativize_images()).
+	 */
+	private function content_image_urls( $content ) {
+		if ( ! preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\']/i', $content, $matches ) ) {
+			return array();
+		}
+
+		$home = home_url();
+		$urls = array();
+		foreach ( array_unique( $matches[1] ) as $url ) {
+			if ( 0 === strpos( $url, $home ) ) {
+				$urls[] = $url;
+			}
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Strips this site's own domain from same-site image references in a
+	 * page's text, so the file does not silently hotlink a private wiki's
+	 * photos into wherever it ends up — the path is only good for anything
+	 * once the importer has actually downloaded the image.
+	 */
+	private function relativize_images( $content ) {
+		return preg_replace_callback(
+			'/(<img[^>]+src=["\'])' . preg_quote( home_url(), '/' ) . '([^"\']*)(["\'])/i',
+			function ( $matches ) {
+				return $matches[1] . $matches[2] . $matches[3];
+			},
+			$content
+		);
 	}
 
 	public function import_upload() {
@@ -259,6 +299,28 @@ class Content_Export {
 				continue;
 			}
 
+			if ( $download_images ) {
+				if ( $image_url ) {
+					$attachment_id = $this->sideload_image( $image_url, $post_id );
+					if ( $attachment_id ) {
+						set_post_thumbnail( $post_id, $attachment_id );
+						++$images;
+					}
+				}
+
+				foreach ( $wp_fields->content_image_url as $node ) {
+					$url = trim( (string) $node );
+					if ( ! $url ) {
+						continue;
+					}
+					$attachment_id = $this->sideload_image( $url, $post_id );
+					if ( $attachment_id ) {
+						$content = $this->replace_image_reference( $content, $url, wp_get_attachment_url( $attachment_id ) );
+						++$images;
+					}
+				}
+			}
+
 			wp_update_post(
 				wp_slash(
 					array(
@@ -268,10 +330,6 @@ class Content_Export {
 				)
 			);
 			++$updated;
-
-			if ( $download_images && $image_url && $this->sideload_image( $image_url, $post_id ) ) {
-				++$images;
-			}
 		}
 
 		return array(
@@ -282,12 +340,14 @@ class Content_Export {
 	}
 
 	/**
-	 * Fetch a page's image into the media library and set it as the page's
-	 * photo. Only ever called when the upload form's checkbox asked for it.
+	 * Fetch an image into the media library, attached to the given page.
+	 * Only ever called when the upload form's checkbox asked for it.
+	 *
+	 * @return int The new attachment's ID, or 0 on failure.
 	 */
 	private function sideload_image( $url, $post_id ) {
 		if ( ! wp_http_validate_url( $url ) ) {
-			return false;
+			return 0;
 		}
 
 		if ( ! function_exists( 'media_sideload_image' ) ) {
@@ -297,13 +357,27 @@ class Content_Export {
 		}
 
 		$attachment_id = media_sideload_image( $url, $post_id, null, 'id' );
-		if ( is_wp_error( $attachment_id ) ) {
-			return false;
+
+		return is_wp_error( $attachment_id ) ? 0 : $attachment_id;
+	}
+
+	/**
+	 * The text keeps only the path an image lived at on the exporting site
+	 * (see Content_Export::relativize_images()), not its domain — this puts
+	 * back wherever the image now lives here, once it has been downloaded.
+	 */
+	private function replace_image_reference( $content, $original_url, $new_url ) {
+		$path = wp_parse_url( $original_url, PHP_URL_PATH );
+		if ( ! $path ) {
+			return $content;
 		}
 
-		set_post_thumbnail( $post_id, $attachment_id );
+		$query = wp_parse_url( $original_url, PHP_URL_QUERY );
+		if ( $query ) {
+			$path .= '?' . $query;
+		}
 
-		return true;
+		return str_replace( $path, $new_url, $content );
 	}
 
 	/**
