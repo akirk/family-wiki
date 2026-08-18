@@ -15,7 +15,24 @@ class GEDCOM {
 	const BATCH_PEOPLE = 25;
 	const BATCH_FAMILIES = 50;
 
+	const CONTENT_EXPORT_ACTION = 'family_wiki_content_export';
+
+	/**
+	 * The meta key the content file uses to match a person, independent of
+	 * XREF_META above: its value is whatever xref the paired GEDCOM export
+	 * assigned that person in the same request.
+	 */
+	const CONTENT_META_KEY = '_gedcom_xref';
+
 	private $nav_menu_auto_add_priority = false;
+
+	/**
+	 * Per token: a companion content file's items keyed by xref, and
+	 * whether it asked to download images — parsed once per request no
+	 * matter how many people in a batch ask for it. False for a token with
+	 * no companion file.
+	 */
+	private $content_index_cache = array();
 
 	private $field_keys = array(
 		'alive'                    => 'field_65aa3e2cb6f44',
@@ -45,6 +62,7 @@ class GEDCOM {
 		add_action( 'admin_init', array( $this, 'register_importer' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 81 );
 		add_action( 'admin_post_family_wiki_gedcom_export', array( $this, 'export_download' ) );
+		add_action( 'admin_post_' . self::CONTENT_EXPORT_ACTION, array( $this, 'export_content_download' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 	}
 
@@ -133,6 +151,10 @@ class GEDCOM {
 			'updated'  => 0,
 		);
 
+		// Lets a companion content file uploaded alongside this one join the
+		// run, so each person's text lands right after the person themselves.
+		$state = $this->add_content_to_run_state( $state, $token );
+
 		if ( ! set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'family_wiki_run_failed', $this->error_message( 'store_failed' ), array( 'status' => 500 ) );
 		}
@@ -205,6 +227,11 @@ class GEDCOM {
 			} else {
 				++$state['created'];
 			}
+
+			// A companion content file, if the run has one, applies this
+			// person's text right after the person themselves — the progress
+			// bar is one person at a time either way.
+			$state = $this->apply_content_to_person( $state, $xref, $person['id'] );
 		}
 
 		if ( $state['cursor'] >= $total ) {
@@ -245,6 +272,8 @@ class GEDCOM {
 	private function finish_run( $run, $state ) {
 		Calendar::flush_dates_cache();
 		Front_Page::flush_cache();
+		// Cleans up the content file too, if there was one: it shares this
+		// same token's one transient and temp files with the GEDCOM file.
 		$this->delete_import_file( $state['token'] );
 		delete_transient( self::RUN_TRANSIENT_PREFIX . $run );
 
@@ -255,19 +284,24 @@ class GEDCOM {
 			$state['updated']
 		);
 
+		// A companion content file, if the run had one, adds its own summary
+		// sentence and its own counts to the redirect.
+		$message    = $this->add_content_to_finish_message( $message, $state );
+		$query_args = $this->add_content_to_finish_query_args(
+			array(
+				'family_wiki_imported' => $state['created'],
+				'family_wiki_updated'  => $state['updated'],
+			),
+			$state
+		);
+
 		return array(
 			'done'     => true,
 			'stage'    => 'done',
 			'created'  => $state['created'],
 			'updated'  => $state['updated'],
 			'message'  => $message,
-			'redirect' => add_query_arg(
-				array(
-					'family_wiki_imported' => $state['created'],
-					'family_wiki_updated'  => $state['updated'],
-				),
-				admin_url( 'admin.php?import=family-wiki-gedcom' )
-			),
+			'redirect' => add_query_arg( $query_args, admin_url( 'admin.php?import=family-wiki-gedcom' ) ),
 		);
 	}
 
@@ -308,11 +342,10 @@ class GEDCOM {
 				<?php submit_button( __( 'Download GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
 				<span class="family-wiki-download-check" aria-hidden="true" hidden>&#10003;</span>
 			</form>
-			<?php do_action( 'family_wiki_gedcom_page_after_export' ); ?>
+			<?php $this->render_content_export_button(); ?>
 			<hr />
 			<h2><?php esc_html_e( 'Import', 'family-wiki' ); ?></h2>
 			<?php $this->render_upload_form(); ?>
-			<?php do_action( 'family_wiki_gedcom_page_after_import' ); ?>
 			<style>
 				.family-wiki-download-form {
 					align-items: center;
@@ -351,7 +384,10 @@ class GEDCOM {
 			<?php wp_nonce_field( 'family_wiki_gedcom_import' ); ?>
 			<input type="hidden" name="family_wiki_gedcom_step" value="upload" />
 			<p>
-				<input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required />
+				<label>
+					<?php esc_html_e( 'GEDCOM file', 'family-wiki' ); ?><br />
+					<input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required />
+				</label>
 				<span class="description">
 					<?php
 					echo esc_html(
@@ -364,6 +400,7 @@ class GEDCOM {
 					?>
 				</span>
 			</p>
+			<?php $this->render_content_field(); ?>
 			<?php submit_button( __( 'Upload and review GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
 		</form>
 		<?php
@@ -1323,6 +1360,10 @@ class GEDCOM {
 			exit;
 		}
 
+		// Lets a companion content file uploaded in the same form park itself
+		// under this same token, so it can join the import once it starts.
+		$this->park_content_file( $token );
+
 		wp_safe_redirect( add_query_arg( 'family_wiki_review', $token, $redirect ) );
 		exit;
 	}
@@ -1330,16 +1371,54 @@ class GEDCOM {
 	/**
 	 * Park the uploaded file between the upload and the selection request.
 	 *
-	 * The file itself stays on disk and only its location goes into the
-	 * transient: a GEDCOM is easily hundreds of kilobytes, which is more than
-	 * belongs in an option row, and more than some databases will accept there.
+	 * The files themselves stay on disk and only their location goes into
+	 * the transient: a GEDCOM is easily hundreds of kilobytes, which is more
+	 * than belongs in an option row, and more than some databases will
+	 * accept there. One transient covers both the GEDCOM file and its
+	 * companion content file, since they always arrive and leave together.
 	 */
 	private function store_import_file( $token, $contents ) {
+		$path = $this->write_temp_file( 'family-wiki-gedcom-' . $token, $contents );
+
+		return $path && $this->save_import_state( $token, array( 'gedcom' => $path ) );
+	}
+
+	/**
+	 * Park a companion content file uploaded alongside a GEDCOM file, under
+	 * the same token. Silently does nothing when no content file came
+	 * along, or it failed: it is optional, and should never be the reason a
+	 * GEDCOM import fails.
+	 */
+	private function park_content_file( $token ) {
+		if ( empty( $_FILES['content']['tmp_name'] ) || UPLOAD_ERR_OK !== (int) $_FILES['content']['error'] || ! is_uploaded_file( $_FILES['content']['tmp_name'] ) ) {
+			return;
+		}
+
+		$contents = file_get_contents( $_FILES['content']['tmp_name'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( false === $contents || '' === trim( $contents ) || is_wp_error( $this->parse_content_xml( $contents ) ) ) {
+			return;
+		}
+
+		$path = $this->write_temp_file( 'family-wiki-content-' . $token, $contents );
+		if ( ! $path ) {
+			return;
+		}
+
+		$this->save_import_state(
+			$token,
+			array(
+				'content'         => $path,
+				'download_images' => ! empty( $_POST['download_images'] ),
+			)
+		);
+	}
+
+	private function write_temp_file( $prefix, $contents ) {
 		if ( ! function_exists( 'wp_tempnam' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 		}
 
-		$path = wp_tempnam( 'family-wiki-gedcom-' . $token );
+		$path = wp_tempnam( $prefix );
 		if ( ! $path ) {
 			return false;
 		}
@@ -1349,17 +1428,52 @@ class GEDCOM {
 			return false;
 		}
 
-		if ( ! set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $path, HOUR_IN_SECONDS ) ) {
-			wp_delete_file( $path );
-			return false;
+		return $path;
+	}
+
+	/**
+	 * Merge into whatever's already parked under this token, so the GEDCOM
+	 * file and a companion content file share one transient even though
+	 * they arrive as two separate temp files, possibly in two requests.
+	 */
+	private function save_import_state( $token, $changes ) {
+		$state = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		if ( ! is_array( $state ) ) {
+			$state = array(
+				'gedcom'          => '',
+				'content'         => '',
+				'download_images' => false,
+			);
 		}
 
-		return true;
+		return set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, array_merge( $state, $changes ), HOUR_IN_SECONDS );
+	}
+
+	private function import_state( $token ) {
+		$state = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+
+		return is_array( $state ) ? $state : array();
 	}
 
 	private function get_import_file( $token ) {
-		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$state = $this->import_state( $token );
 
+		return empty( $state['gedcom'] ) ? false : $this->read_temp_file( $state['gedcom'] );
+	}
+
+	private function get_content_file( $token ) {
+		$state = $this->import_state( $token );
+
+		return empty( $state['content'] ) ? false : $this->read_temp_file( $state['content'] );
+	}
+
+	private function content_download_images_requested( $token ) {
+		$state = $this->import_state( $token );
+
+		return ! empty( $state['download_images'] );
+	}
+
+	private function read_temp_file( $path ) {
 		// Only ever read back a file this class parked in the temp directory.
 		if ( ! is_string( $path ) || 0 !== strpos( $path, get_temp_dir() ) || ! is_readable( $path ) ) {
 			return false;
@@ -1371,11 +1485,13 @@ class GEDCOM {
 	}
 
 	private function delete_import_file( $token ) {
-		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$state = $this->import_state( $token );
 		delete_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
 
-		if ( is_string( $path ) && 0 === strpos( $path, get_temp_dir() ) && file_exists( $path ) ) {
-			wp_delete_file( $path );
+		foreach ( array( 'gedcom', 'content' ) as $key ) {
+			if ( ! empty( $state[ $key ] ) && 0 === strpos( $state[ $key ], get_temp_dir() ) && file_exists( $state[ $key ] ) ) {
+				wp_delete_file( $state[ $key ] );
+			}
 		}
 	}
 
@@ -1400,16 +1516,21 @@ class GEDCOM {
 			exit;
 		}
 
-		$this->delete_import_file( $token );
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'family_wiki_imported' => $result['created'],
-					'family_wiki_updated'  => $result['updated'],
-				),
-				$redirect
-			)
+		// Lets a companion content file uploaded alongside this one apply
+		// itself now, while it is still parked: the no-JS path has no
+		// per-person step for it to ride along with, so it goes in as one
+		// whole-file pass, once, before the files are cleaned up.
+		$query_args = $this->add_content_to_import_extra_args(
+			array(
+				'family_wiki_imported' => $result['created'],
+				'family_wiki_updated'  => $result['updated'],
+			),
+			$token
 		);
+
+		$this->delete_import_file( $token );
+
+		wp_safe_redirect( add_query_arg( $query_args, $redirect ) );
 		exit;
 	}
 
@@ -1555,10 +1676,10 @@ class GEDCOM {
 
 	/**
 	 * Assign each exported person an xref, in the order they will appear in
-	 * the GEDCOM. Public so a paired export (Content_Export) can assign the
-	 * same person the same xref within the same request.
+	 * the GEDCOM. Shared with export_content_string(), so a person gets the
+	 * same xref in both files.
 	 */
-	public function export_xref_map( $people ) {
+	private function export_xref_map( $people ) {
 		$ids = array();
 		$i   = 1;
 		foreach ( $people as $person ) {
@@ -1818,10 +1939,9 @@ class GEDCOM {
 
 	/**
 	 * Pages that a GEDCOM entry could land on, looked up the same way the
-	 * import does: by a previously stored xref first, then by title. Public
-	 * so Content_Export can match a content file onto the same pages.
+	 * import does: by a previously stored xref first, then by title.
 	 */
-	public function existing_page_index() {
+	private function existing_page_index() {
 		$index = array(
 			'xref'  => array(),
 			'title' => array(),
@@ -2409,5 +2529,486 @@ class GEDCOM {
 		);
 
 		return isset( $messages[ $error ] ) ? $messages[ $error ] : __( 'The GEDCOM import failed.', 'family-wiki' );
+	}
+
+	/*
+	 * ------------------------------------------------------------------
+	 * The content file: the text written on a page, which GEDCOM has no
+	 * room for. It always rides along with a GEDCOM file, uploaded in the
+	 * same form and applied to each person right after the person
+	 * themselves, matched by the same xref. It only ever updates a page
+	 * that already exists; it never creates one.
+	 * ------------------------------------------------------------------
+	 */
+
+	/**
+	 * Grouped with the GEDCOM download button, not a section of its own.
+	 */
+	private function render_content_export_button() {
+		?>
+		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for.', 'family-wiki' ); ?></p>
+		<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::CONTENT_EXPORT_ACTION ); ?>" />
+			<?php wp_nonce_field( self::CONTENT_EXPORT_ACTION ); ?>
+			<?php submit_button( __( 'Download Content', 'family-wiki' ), 'primary', 'submit', false ); ?>
+			<span class="family-wiki-download-check" aria-hidden="true" hidden>&#10003;</span>
+		</form>
+		<?php
+	}
+
+	/**
+	 * The optional content field inside the GEDCOM upload form, for
+	 * importing both together in one step.
+	 */
+	private function render_content_field() {
+		?>
+		<p>
+			<label>
+				<?php esc_html_e( 'Content file (optional)', 'family-wiki' ); ?><br />
+				<input type="file" name="content" accept=".xml,text/xml" />
+			</label>
+		</p>
+		<p>
+			<label>
+				<input type="checkbox" name="download_images" value="1" />
+				<?php esc_html_e( 'Also download images into the media library and use them as the page photo', 'family-wiki' ); ?>
+			</label>
+		</p>
+		<?php
+	}
+
+	/**
+	 * A content file's items keyed by its people's xref, and whether it
+	 * asked to download images — parsed once per request no matter how many
+	 * people ask for it during a batch.
+	 *
+	 * @return array|false array( 'by_xref' => [...], 'download_images' => bool ), or false for a token with no content file.
+	 */
+	private function content_index( $token ) {
+		if ( array_key_exists( $token, $this->content_index_cache ) ) {
+			return $this->content_index_cache[ $token ];
+		}
+
+		$contents = $this->get_content_file( $token );
+		$xml      = false === $contents ? false : $this->parse_content_xml( $contents );
+
+		if ( false === $contents || is_wp_error( $xml ) ) {
+			$this->content_index_cache[ $token ] = false;
+			return false;
+		}
+
+		$by_xref = array();
+		foreach ( $xml->channel->item as $item ) {
+			$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+			foreach ( $wp_fields->postmeta as $meta ) {
+				$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+				if ( self::CONTENT_META_KEY === (string) $meta_fields->meta_key ) {
+					$by_xref[ (string) $meta_fields->meta_value ] = $item;
+					break;
+				}
+			}
+		}
+
+		$this->content_index_cache[ $token ] = array(
+			'by_xref'         => $by_xref,
+			'download_images' => $this->content_download_images_requested( $token ),
+		);
+
+		return $this->content_index_cache[ $token ];
+	}
+
+	/**
+	 * If this run's token has a content file, give the run somewhere to
+	 * keep its counts as people are imported.
+	 */
+	private function add_content_to_run_state( $state, $token ) {
+		if ( ! $this->content_index( $token ) ) {
+			return $state;
+		}
+
+		$state['content'] = array(
+			'updated' => 0,
+			'images'  => 0,
+		);
+
+		return $state;
+	}
+
+	/**
+	 * Applies one person's text right after the person themselves, using
+	 * the post that was just resolved directly — there is nothing left to
+	 * match, since this is the exact page that xref just became.
+	 */
+	private function apply_content_to_person( $state, $xref, $post_id ) {
+		if ( empty( $state['content'] ) || empty( $state['token'] ) ) {
+			return $state;
+		}
+
+		$index = $this->content_index( $state['token'] );
+		if ( ! $index || ! isset( $index['by_xref'][ $xref ] ) ) {
+			return $state;
+		}
+
+		$result = $this->apply_content_item_to_post( $index['by_xref'][ $xref ], $post_id, $index['download_images'] );
+		++$state['content']['updated'];
+		$state['content']['images'] += $result['images'];
+
+		return $state;
+	}
+
+	private function add_content_to_finish_message( $message, $state ) {
+		if ( empty( $state['content'] ) ) {
+			return $message;
+		}
+
+		$message .= ' ' . sprintf(
+			// translators: %d is a number of pages whose text was applied.
+			__( 'Applied text from the content file to %d of them.', 'family-wiki' ),
+			$state['content']['updated']
+		);
+
+		if ( $state['content']['images'] ) {
+			$message .= ' ' . sprintf(
+				// translators: %d is a number of downloaded images.
+				__( 'Downloaded %d images into the media library.', 'family-wiki' ),
+				$state['content']['images']
+			);
+		}
+
+		return $message;
+	}
+
+	private function add_content_to_finish_query_args( $args, $state ) {
+		if ( empty( $state['content'] ) ) {
+			return $args;
+		}
+
+		return array_merge(
+			$args,
+			array(
+				'family_wiki_content_updated' => $state['content']['updated'],
+				'family_wiki_content_images'  => $state['content']['images'],
+			)
+		);
+	}
+
+	/**
+	 * The no-JS path has no per-person step for a content file to ride
+	 * along with, so it goes in as one whole-file pass instead, matched by
+	 * xref or title the same way import_string() matches GEDCOM entries.
+	 * Called while the file is still parked, before delete_import_file().
+	 */
+	private function add_content_to_import_extra_args( $args, $token ) {
+		$contents = $this->get_content_file( $token );
+		if ( false === $contents ) {
+			return $args;
+		}
+
+		$result = $this->apply_content( $contents, $this->content_download_images_requested( $token ) );
+		if ( is_wp_error( $result ) ) {
+			return $args;
+		}
+
+		return array_merge(
+			$args,
+			array(
+				'family_wiki_content_updated' => $result['updated'],
+				'family_wiki_content_images'  => $result['images'],
+			)
+		);
+	}
+
+	public function export_content_download() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to export content.', 'family-wiki' ) );
+		}
+		check_admin_referer( self::CONTENT_EXPORT_ACTION );
+
+		$filename = sanitize_file_name( wp_parse_url( home_url(), PHP_URL_HOST ) . '-family-wiki-content-' . current_time( 'Ymd-His' ) . '.xml' );
+
+		nocache_headers();
+		header( 'Content-Type: text/xml; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		echo $this->export_content_string();
+		exit;
+	}
+
+	private function export_content_string() {
+		$people = $this->get_export_people();
+		$ids    = $this->export_xref_map( $people );
+
+		$lines = array(
+			'<?xml version="1.0" encoding="UTF-8" ?>',
+			'<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wp="http://wordpress.org/export/1.2/">',
+			'<channel>',
+		);
+
+		foreach ( $people as $person ) {
+			$lines[] = '<item>';
+			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
+			$lines[] = '<content:encoded>' . $this->cdata( $this->relativize_images( $person->post_content ) ) . '</content:encoded>';
+			if ( has_post_thumbnail( $person ) ) {
+				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
+			}
+			foreach ( $this->content_image_urls( $person->post_content ) as $url ) {
+				$lines[] = '<wp:content_image_url>' . $this->cdata( $url ) . '</wp:content_image_url>';
+			}
+			$lines[] = '<wp:postmeta>';
+			$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_META_KEY ) . '</wp:meta_key>';
+			$lines[] = '<wp:meta_value>' . $this->cdata( $ids[ $person->ID ] ) . '</wp:meta_value>';
+			$lines[] = '</wp:postmeta>';
+			$lines[] = '</item>';
+		}
+
+		$lines[] = '</channel>';
+		$lines[] = '</rss>';
+
+		return implode( "\n", $lines ) . "\n";
+	}
+
+	/**
+	 * The same CDATA-splitting WordPress core's own WXR export uses, so a
+	 * page whose text happens to contain "]]>" can't break the file.
+	 */
+	private function cdata( $value ) {
+		return '<![CDATA[' . str_replace( ']]>', ']]]]><![CDATA[>', (string) $value ) . ']]>';
+	}
+
+	/**
+	 * This site's own image URLs referenced in a page's text, so the
+	 * importer has something to fetch — listed separately, in full, because
+	 * the text itself keeps only the path (see relativize_images()).
+	 */
+	private function content_image_urls( $content ) {
+		if ( ! preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\']/i', $content, $matches ) ) {
+			return array();
+		}
+
+		$home = home_url();
+		$urls = array();
+		foreach ( array_unique( $matches[1] ) as $url ) {
+			if ( 0 === strpos( $url, $home ) ) {
+				$urls[] = $url;
+			}
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Strips this site's own domain from same-site image references in a
+	 * page's text, so the file does not silently hotlink a private wiki's
+	 * photos into wherever it ends up — the path is only good for anything
+	 * once the importer has actually downloaded the image.
+	 */
+	private function relativize_images( $content ) {
+		return preg_replace_callback(
+			'/(<img[^>]+src=["\'])' . preg_quote( home_url(), '/' ) . '([^"\']*)(["\'])/i',
+			function ( $matches ) {
+				return $matches[1] . $matches[2] . $matches[3];
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Apply a content file to the pages it matches. Never creates a page
+	 * and never touches anything but post_content — and, when asked, a
+	 * page's photo. Used for the no-JS whole-file path only; a batched
+	 * GEDCOM import applies each item as its own person is resolved.
+	 *
+	 * @param string $contents        The content file.
+	 * @param bool   $download_images Whether to fetch each matched page's
+	 *                                image into the media library and set
+	 *                                it as the page's photo. Off by default:
+	 *                                this is the one part of the file that
+	 *                                makes an outbound request, to whatever
+	 *                                URL the file names.
+	 */
+	private function apply_content( $contents, $download_images = false ) {
+		$xml = $this->parse_content_xml( $contents );
+		if ( is_wp_error( $xml ) ) {
+			return $xml;
+		}
+
+		$index   = $this->existing_page_index();
+		$updated = 0;
+		$skipped = 0;
+		$images  = 0;
+
+		foreach ( $xml->channel->item as $item ) {
+			$result = $this->apply_content_item( $item, $index, $download_images );
+			if ( $result['matched'] ) {
+				++$updated;
+			} else {
+				++$skipped;
+			}
+			$images += $result['images'];
+		}
+
+		return array(
+			'updated' => $updated,
+			'skipped' => $skipped,
+			'images'  => $images,
+		);
+	}
+
+	/**
+	 * Parse a content file, the same way for the whole-file path and the
+	 * per-person one.
+	 *
+	 * @return \SimpleXMLElement|\WP_Error
+	 */
+	private function parse_content_xml( $contents ) {
+		$previous_setting = libxml_use_internal_errors( true );
+		$xml               = simplexml_load_string( $contents, 'SimpleXMLElement', LIBXML_NONET );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous_setting );
+
+		if ( false === $xml || ! isset( $xml->channel ) ) {
+			return new \WP_Error( 'invalid_file', __( 'This does not look like a Family Wiki content file.', 'family-wiki' ), array( 'status' => 400 ) );
+		}
+
+		return $xml;
+	}
+
+	/**
+	 * Apply one <item> to the page it matches.
+	 *
+	 * @return array array( 'matched' => bool, 'images' => int ).
+	 */
+	private function apply_content_item( $item, $index, $download_images ) {
+		$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+		$title     = trim( (string) $item->title );
+
+		$post_id = $this->match_content_post( $wp_fields, $title, $index );
+		if ( ! $post_id ) {
+			return array(
+				'matched' => false,
+				'images'  => 0,
+			);
+		}
+
+		return array_merge(
+			array( 'matched' => true ),
+			$this->apply_content_item_to_post( $item, $post_id, $download_images )
+		);
+	}
+
+	/**
+	 * Apply one <item> to a page already known to be its match — the person
+	 * a GEDCOM import just resolved, when a content file rides along with
+	 * it. Split out from apply_content_item() since there is nothing left
+	 * to match there.
+	 *
+	 * @return array array( 'images' => int ).
+	 */
+	private function apply_content_item_to_post( $item, $post_id, $download_images ) {
+		$wp_fields  = $item->children( 'http://wordpress.org/export/1.2/' );
+		$content_ns = $item->children( 'http://purl.org/rss/1.0/modules/content/' );
+		$content    = isset( $content_ns->encoded ) ? (string) $content_ns->encoded : '';
+		$image_url  = isset( $wp_fields->attachment_url ) ? trim( (string) $wp_fields->attachment_url ) : '';
+		$images     = 0;
+
+		if ( $download_images ) {
+			if ( $image_url ) {
+				$attachment_id = $this->sideload_image( $image_url, $post_id );
+				if ( $attachment_id ) {
+					set_post_thumbnail( $post_id, $attachment_id );
+					++$images;
+				}
+			}
+
+			foreach ( $wp_fields->content_image_url as $node ) {
+				$url = trim( (string) $node );
+				if ( ! $url ) {
+					continue;
+				}
+				$attachment_id = $this->sideload_image( $url, $post_id );
+				if ( $attachment_id ) {
+					$content = $this->replace_image_reference( $content, $url, wp_get_attachment_url( $attachment_id ) );
+					++$images;
+				}
+			}
+		}
+
+		wp_update_post(
+			wp_slash(
+				array(
+					'ID'           => $post_id,
+					'post_content' => $content,
+				)
+			)
+		);
+
+		return array( 'images' => $images );
+	}
+
+	/**
+	 * Fetch an image into the media library, attached to the given page.
+	 * Only ever called when the upload form's checkbox asked for it.
+	 *
+	 * @return int The new attachment's ID, or 0 on failure.
+	 */
+	private function sideload_image( $url, $post_id ) {
+		if ( ! wp_http_validate_url( $url ) ) {
+			return 0;
+		}
+
+		if ( ! function_exists( 'media_sideload_image' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+		}
+
+		$attachment_id = media_sideload_image( $url, $post_id, null, 'id' );
+
+		return is_wp_error( $attachment_id ) ? 0 : $attachment_id;
+	}
+
+	/**
+	 * The text keeps only the path an image lived at on the exporting site
+	 * (see relativize_images()), not its domain — this puts back wherever
+	 * the image now lives here, once it has been downloaded.
+	 */
+	private function replace_image_reference( $content, $original_url, $new_url ) {
+		$path = wp_parse_url( $original_url, PHP_URL_PATH );
+		if ( ! $path ) {
+			return $content;
+		}
+
+		$query = wp_parse_url( $original_url, PHP_URL_QUERY );
+		if ( $query ) {
+			$path .= '?' . $query;
+		}
+
+		return str_replace( $path, $new_url, $content );
+	}
+
+	/**
+	 * The page a content entry belongs on: its xref first, an unambiguous
+	 * exact title match otherwise. A title shared by more than one page is
+	 * left alone rather than guessed at.
+	 */
+	private function match_content_post( $wp_fields, $title, $index ) {
+		$xref = '';
+		foreach ( $wp_fields->postmeta as $meta ) {
+			$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+			if ( self::CONTENT_META_KEY === (string) $meta_fields->meta_key ) {
+				$xref = (string) $meta_fields->meta_value;
+				break;
+			}
+		}
+
+		if ( $xref && isset( $index['xref'][ $xref ] ) ) {
+			return (int) $index['xref'][ $xref ];
+		}
+
+		$key = strtolower( $title );
+		if ( $key && ! empty( $index['title'][ $key ] ) && 1 === count( $index['title'][ $key ] ) ) {
+			return (int) $index['title'][ $key ][0];
+		}
+
+		return 0;
 	}
 }
