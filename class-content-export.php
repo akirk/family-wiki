@@ -36,7 +36,7 @@ class Content_Export {
 	 */
 	public function render_export_button() {
 		?>
-		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for. Compatible with Familypedia.', 'family-wiki' ); ?></p>
+		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for.', 'family-wiki' ); ?></p>
 		<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::EXPORT_ACTION ); ?>" />
 			<?php wp_nonce_field( self::EXPORT_ACTION ); ?>
