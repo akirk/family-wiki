@@ -2780,10 +2780,17 @@ class GEDCOM {
 		);
 
 		foreach ( $people as $person ) {
-			$lines = array_merge(
-				$lines,
-				$this->export_content_item_lines( $person, $link_keys, array( self::CONTENT_META_KEY => $ids[ $person->ID ] ) )
-			);
+			$meta_pairs  = array( self::CONTENT_META_KEY => $ids[ $person->ID ] );
+			$parent_xref = $this->exported_parent_xref( $person, $ids );
+			if ( $parent_xref ) {
+				// A person can have facts of their own — and so a GEDCOM
+				// individual of their own — while still sitting under
+				// another exported page, the way a page hierarchy can
+				// even where father/mother say nothing about it.
+				$meta_pairs[ self::CONTENT_RELATED_META_KEY ] = $parent_xref;
+			}
+
+			$lines = array_merge( $lines, $this->export_content_item_lines( $person, $link_keys, $meta_pairs ) );
 		}
 
 		foreach ( $related as $entry ) {
@@ -2887,6 +2894,18 @@ class GEDCOM {
 		}
 
 		return $related;
+	}
+
+	/**
+	 * The xref of an exported post's own post_parent, when that parent
+	 * was itself exported — the site's page hierarchy, which is a
+	 * different relationship from anything GEDCOM's father/mother
+	 * pointers describe, and is otherwise not carried anywhere.
+	 */
+	private function exported_parent_xref( $post, $ids ) {
+		$parent_id = (int) $post->post_parent;
+
+		return ( $parent_id && isset( $ids[ $parent_id ] ) ) ? $ids[ $parent_id ] : '';
 	}
 
 	/**
