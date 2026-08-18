@@ -5,8 +5,41 @@ class GEDCOM {
 	const MENU_SLUG = 'family-wiki-gedcom';
 	const XREF_META = '_family_wiki_gedcom_xref';
 	const IMPORT_TRANSIENT_PREFIX = 'family_wiki_gedcom_import_';
+	const RUN_TRANSIENT_PREFIX = 'family_wiki_gedcom_run_';
+
+	/**
+	 * How much of the file one request takes on. Small enough that no single
+	 * request is at risk of the timeout a whole family would run into, large
+	 * enough that the file is not re-read hundreds of times on the way through.
+	 */
+	const BATCH_PEOPLE = 25;
+	const BATCH_FAMILIES = 50;
+
+	const CONTENT_EXPORT_ACTION = 'family_wiki_content_export';
+
+	/**
+	 * The meta key the content file uses to match a person, independent of
+	 * XREF_META above: its value is whatever xref the paired GEDCOM export
+	 * assigned that person in the same request.
+	 */
+	const CONTENT_META_KEY = '_gedcom_xref';
+
+	/**
+	 * The meta key a link between two exported people travels under: its
+	 * value is the relative path the link was rewritten to, and the xref
+	 * of the person it points to, joined with "|".
+	 */
+	const CONTENT_LINK_META_KEY = '_gedcom_link';
 
 	private $nav_menu_auto_add_priority = false;
+
+	/**
+	 * Per token: a companion content file's items keyed by xref, and
+	 * whether it asked to download images — parsed once per request no
+	 * matter how many people in a batch ask for it. False for a token with
+	 * no companion file.
+	 */
+	private $content_index_cache = array();
 
 	private $field_keys = array(
 		'alive'                    => 'field_65aa3e2cb6f44',
@@ -36,6 +69,266 @@ class GEDCOM {
 		add_action( 'admin_init', array( $this, 'register_importer' ) );
 		add_action( 'admin_bar_menu', array( $this, 'admin_bar_menu' ), 81 );
 		add_action( 'admin_post_family_wiki_gedcom_export', array( $this, 'export_download' ) );
+		add_action( 'admin_post_' . self::CONTENT_EXPORT_ACTION, array( $this, 'export_content_download' ) );
+		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
+	}
+
+	public static function can_import() {
+		return current_user_can( 'import' );
+	}
+
+	/**
+	 * The import, a batch per request.
+	 *
+	 * A family of any size takes longer than one page load should, and a form
+	 * post that sits there for a minute is indistinguishable from one that has
+	 * died. These walk the same file in pieces and say how far they have got. The
+	 * form post below still works on its own, for whoever has no JavaScript.
+	 */
+	public function register_rest_routes() {
+		register_rest_route(
+			'family-wiki/v1',
+			'/import',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_import_start' ),
+			)
+		);
+
+		register_rest_route(
+			'family-wiki/v1',
+			'/import/(?P<run>[a-z0-9]{32})',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_import_step' ),
+			)
+		);
+	}
+
+	/**
+	 * Work out what this import will do, and remember it under a run id.
+	 */
+	public function rest_import_start( $request ) {
+		$token    = sanitize_key( (string) $request->get_param( 'token' ) );
+		$contents = $token ? $this->get_import_file( $token ) : false;
+		if ( false === $contents ) {
+			return new \WP_Error( 'family_wiki_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
+		}
+
+		$records = $this->parse_records( $contents );
+		if ( empty( $records['INDI'] ) ) {
+			return new \WP_Error( 'family_wiki_no_individuals', $this->error_message( 'no_individuals' ), array( 'status' => 400 ) );
+		}
+
+		$xrefs    = array_keys( $records['INDI'] );
+		$selected = $request->get_param( 'selected' );
+
+		// Null is everyone, which is what a request that names nobody asks for.
+		if ( is_array( $selected ) ) {
+			$wanted = array_fill_keys( array_map( 'sanitize_text_field', $selected ), true );
+			$xrefs  = array_values(
+				array_filter(
+					$xrefs,
+					function ( $xref ) use ( $wanted ) {
+						return isset( $wanted[ $xref ] );
+					}
+				)
+			);
+
+			if ( empty( $xrefs ) ) {
+				return new \WP_Error( 'family_wiki_no_selection', $this->error_message( 'no_selection' ), array( 'status' => 400 ) );
+			}
+		}
+
+		$run   = strtolower( wp_generate_password( 32, false, false ) );
+		$state = array(
+			'token'    => $token,
+			'xrefs'    => $xrefs,
+			'families' => empty( $records['FAM'] ) ? array() : array_keys( $records['FAM'] ),
+			'stage'    => 'people',
+			'cursor'   => 0,
+			// Built once, as the form post builds it once, so that a page written
+			// by this import is not matched against by a later entry.
+			'index'    => $this->existing_page_index(),
+			'id_map'   => array(),
+			'claimed'  => array(),
+			'created'  => 0,
+			'updated'  => 0,
+		);
+
+		// Lets a companion content file uploaded alongside this one join the
+		// run, so each person's text lands right after the person themselves.
+		$state = $this->add_content_to_run_state( $state, $token );
+
+		if ( ! set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'family_wiki_run_failed', $this->error_message( 'store_failed' ), array( 'status' => 500 ) );
+		}
+
+		return array(
+			'run'      => $run,
+			'people'   => count( $state['xrefs'] ),
+			'families' => count( $state['families'] ),
+		);
+	}
+
+	/**
+	 * Carry one run a batch further.
+	 */
+	public function rest_import_step( $request ) {
+		$run   = sanitize_key( (string) $request->get_param( 'run' ) );
+		$state = get_transient( self::RUN_TRANSIENT_PREFIX . $run );
+		if ( ! is_array( $state ) ) {
+			return new \WP_Error( 'family_wiki_run_expired', __( 'The import stopped before it finished. Please upload the file again.', 'family-wiki' ), array( 'status' => 400 ) );
+		}
+
+		$contents = $this->get_import_file( $state['token'] );
+		if ( false === $contents ) {
+			return new \WP_Error( 'family_wiki_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
+		}
+
+		$records = $this->parse_records( $contents );
+
+		$this->suspend_nav_menu_auto_add();
+		if ( 'families' === $state['stage'] ) {
+			$state = $this->import_families_batch( $state, $records );
+		} else {
+			$state = $this->import_people_batch( $state, $records );
+		}
+		$this->restore_nav_menu_auto_add();
+
+		if ( is_wp_error( $state ) ) {
+			// The run and the file are kept, so that it can be sent again.
+			return $state;
+		}
+
+		if ( 'done' === $state['stage'] ) {
+			return $this->finish_run( $run, $state );
+		}
+
+		set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS );
+
+		return $this->run_progress( $state );
+	}
+
+	private function import_people_batch( $state, $records ) {
+		$total = count( $state['xrefs'] );
+		$end   = min( $total, $state['cursor'] + self::BATCH_PEOPLE );
+
+		for ( ; $state['cursor'] < $end; $state['cursor']++ ) {
+			$xref = $state['xrefs'][ $state['cursor'] ];
+			if ( ! isset( $records['INDI'][ $xref ] ) ) {
+				continue;
+			}
+
+			$person = $this->import_person( $xref, $records['INDI'][ $xref ], $state['index'], $state['claimed'] );
+			if ( is_wp_error( $person ) ) {
+				return $person;
+			}
+
+			$state['id_map'][ $xref ] = $person['id'];
+
+			if ( $person['existed'] ) {
+				++$state['updated'];
+			} else {
+				++$state['created'];
+			}
+
+			// A companion content file, if the run has one, applies this
+			// person's text right after the person themselves — the progress
+			// bar is one person at a time either way.
+			$state = $this->apply_content_to_person( $state, $xref, $person['id'] );
+		}
+
+		if ( $state['cursor'] >= $total ) {
+			$state['stage']  = $state['families'] ? 'families' : 'done';
+			$state['cursor'] = 0;
+		}
+
+		return $state;
+	}
+
+	/**
+	 * Families are linked once everybody is in, and can be taken a slice at a
+	 * time: each slice merges into what the last one wrote rather than replacing
+	 * it, so the result is the same as doing them all at once.
+	 */
+	private function import_families_batch( $state, $records ) {
+		$all   = isset( $records['FAM'] ) ? $records['FAM'] : array();
+		$total = count( $state['families'] );
+		$end   = min( $total, $state['cursor'] + self::BATCH_FAMILIES );
+		$slice = array();
+
+		for ( ; $state['cursor'] < $end; $state['cursor']++ ) {
+			$xref = $state['families'][ $state['cursor'] ];
+			if ( isset( $all[ $xref ] ) ) {
+				$slice[ $xref ] = $all[ $xref ];
+			}
+		}
+
+		$this->import_family_links( $slice, $state['id_map'] );
+
+		if ( $state['cursor'] >= $total ) {
+			$state['stage'] = 'done';
+		}
+
+		return $state;
+	}
+
+	private function finish_run( $run, $state ) {
+		Calendar::flush_dates_cache();
+		Front_Page::flush_cache();
+
+		// Every person this run touched now has a page, so a content file's
+		// links to them can be resolved — while it is still parked, before
+		// it is cleaned up below.
+		if ( ! empty( $state['content'] ) ) {
+			$this->resolve_content_links( $state['token'], $state['id_map'] );
+		}
+
+		// Cleans up the content file too, if there was one: it shares this
+		// same token's one transient and temp files with the GEDCOM file.
+		$this->delete_import_file( $state['token'] );
+		delete_transient( self::RUN_TRANSIENT_PREFIX . $run );
+
+		$message = sprintf(
+			// translators: %1$d is a number of pages created, %2$d a number updated.
+			__( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ),
+			$state['created'],
+			$state['updated']
+		);
+
+		// A companion content file, if the run had one, adds its own summary
+		// sentence and its own counts to the redirect.
+		$message    = $this->add_content_to_finish_message( $message, $state );
+		$query_args = $this->add_content_to_finish_query_args(
+			array(
+				'family_wiki_imported' => $state['created'],
+				'family_wiki_updated'  => $state['updated'],
+			),
+			$state
+		);
+
+		return array(
+			'done'     => true,
+			'stage'    => 'done',
+			'created'  => $state['created'],
+			'updated'  => $state['updated'],
+			'message'  => $message,
+			'redirect' => add_query_arg( $query_args, admin_url( 'admin.php?import=family-wiki-gedcom' ) ),
+		);
+	}
+
+	private function run_progress( $state ) {
+		return array(
+			'done'     => false,
+			'stage'    => $state['stage'],
+			'position' => (int) $state['cursor'],
+			'total'    => 'families' === $state['stage'] ? count( $state['families'] ) : count( $state['xrefs'] ),
+			'created'  => $state['created'],
+			'updated'  => $state['updated'],
+		);
 	}
 
 	public function admin_menu() {
@@ -58,14 +351,40 @@ class GEDCOM {
 			<h1><?php esc_html_e( 'Family Wiki', 'family-wiki' ); ?></h1>
 			<h2><?php esc_html_e( 'Export', 'family-wiki' ); ?></h2>
 			<p><?php esc_html_e( 'Download published wiki pages as a GEDCOM file.', 'family-wiki' ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="family_wiki_gedcom_export" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_export' ); ?>
 				<?php submit_button( __( 'Download GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
+				<span class="family-wiki-download-check" aria-hidden="true" hidden>&#10003;</span>
 			</form>
+			<?php $this->render_content_export_button(); ?>
 			<hr />
 			<h2><?php esc_html_e( 'Import', 'family-wiki' ); ?></h2>
 			<?php $this->render_upload_form(); ?>
+			<style>
+				.family-wiki-download-form {
+					align-items: center;
+					display: inline-flex;
+				}
+
+				.family-wiki-download-check {
+					color: #008a20;
+					font-weight: 600;
+					margin-left: 0.5em;
+				}
+			</style>
+			<script>
+				(function () {
+					document.querySelectorAll( '.family-wiki-download-form' ).forEach( function ( form ) {
+						form.addEventListener( 'submit', function () {
+							var check = form.querySelector( '.family-wiki-download-check' );
+							if ( check ) {
+								check.hidden = false;
+							}
+						} );
+					} );
+				}());
+			</script>
 		</div>
 		<?php
 	}
@@ -80,7 +399,10 @@ class GEDCOM {
 			<?php wp_nonce_field( 'family_wiki_gedcom_import' ); ?>
 			<input type="hidden" name="family_wiki_gedcom_step" value="upload" />
 			<p>
-				<input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required />
+				<label>
+					<?php esc_html_e( 'GEDCOM file', 'family-wiki' ); ?><br />
+					<input type="file" name="gedcom" accept=".ged,.gedcom,text/plain" required />
+				</label>
 				<span class="description">
 					<?php
 					echo esc_html(
@@ -93,6 +415,7 @@ class GEDCOM {
 					?>
 				</span>
 			</p>
+			<?php $this->render_content_field(); ?>
 			<?php submit_button( __( 'Upload and review GEDCOM', 'family-wiki' ), 'primary', 'submit', false ); ?>
 		</form>
 		<?php
@@ -148,7 +471,20 @@ class GEDCOM {
 		<div class="wrap">
 			<h2><?php esc_html_e( 'Import Family Wiki', 'family-wiki' ); ?></h2>
 			<?php if ( null !== $imported && null !== $updated ) : ?>
-				<div class="notice notice-success"><p><?php echo esc_html( sprintf( __( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ), $imported, $updated ) ); ?></p></div>
+				<div class="notice notice-success">
+					<p>
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %1$d is a number of created pages, %2$d a number of updated pages.
+								__( 'GEDCOM import complete. Created %1$d pages and updated %2$d pages.', 'family-wiki' ),
+								$imported,
+								$updated
+							)
+						);
+						?>
+					</p>
+				</div>
 			<?php endif; ?>
 			<?php if ( $error ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $this->error_message( $error ) ); ?></p></div>
@@ -179,9 +515,11 @@ class GEDCOM {
 			return;
 		}
 
-		$people      = $this->review_people( $records );
-		$total       = count( $people );
-		$family_count = empty( $records['FAM'] ) ? 0 : count( $records['FAM'] );
+		$families     = empty( $records['FAM'] ) ? array() : $records['FAM'];
+		$people       = $this->review_people( $records );
+		$total        = count( $people );
+		$family_count = count( $families );
+		$tree_data    = $this->review_tree_data( $families, $people );
 		?>
 		<section class="family-wiki-gedcom-review">
 			<h2><?php esc_html_e( 'Review GEDCOM import', 'family-wiki' ); ?></h2>
@@ -210,7 +548,7 @@ class GEDCOM {
 				);
 				?>
 			</p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?import=family-wiki-gedcom&noheader=true' ) ); ?>" data-family-wiki-gedcom-form>
 				<input type="hidden" name="family_wiki_gedcom_step" value="selected" />
 				<input type="hidden" name="family_wiki_review" value="<?php echo esc_attr( $token ); ?>" />
 				<?php wp_nonce_field( 'family_wiki_gedcom_import_selected' ); ?>
@@ -309,6 +647,27 @@ class GEDCOM {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<div
+					class="family-wiki-gedcom-tree"
+					data-family-wiki-gedcom-drop-label="<?php esc_attr_e( 'Drop', 'family-wiki' ); ?>"
+					data-family-wiki-gedcom-branch-label="<?php esc_attr_e( 'Drop branch', 'family-wiki' ); ?>"
+					data-family-wiki-gedcom-toggle-label="<?php esc_attr_e( 'Show or hide this branch', 'family-wiki' ); ?>"
+				>
+					<h3><?php esc_html_e( 'Selected people', 'family-wiki' ); ?></h3>
+					<p class="description" data-family-wiki-gedcom-tree-empty><?php esc_html_e( 'Tick people above and the branches you picked are drawn here, so you can drop the ones you did not mean to take.', 'family-wiki' ); ?></p>
+					<ul class="family-wiki-gedcom-tree__list" data-family-wiki-gedcom-tree-list></ul>
+					<p class="description" data-family-wiki-gedcom-tree-more hidden>
+						<?php
+						echo esc_html(
+							sprintf(
+								// translators: %d is a number of people left out of a drawing of the selection.
+								__( '%d more selected people are not drawn here.', 'family-wiki' ),
+								0
+							)
+						);
+						?>
+					</p>
+				</div>
 				<p>
 					<strong data-family-wiki-gedcom-count>
 						<?php
@@ -323,8 +682,92 @@ class GEDCOM {
 						?>
 					</strong>
 				</p>
+				<div class="family-wiki-gedcom-progress" data-family-wiki-gedcom-progress hidden>
+					<progress data-family-wiki-gedcom-progress-bar max="100" value="0"></progress>
+					<p role="status" data-family-wiki-gedcom-progress-text></p>
+				</div>
 				<?php submit_button( __( 'Import selected people', 'family-wiki' ) ); ?>
 			</form>
+			<script type="application/json" id="family-wiki-gedcom-import-data">
+				<?php
+				echo wp_json_encode(
+					array(
+						'endpoint' => rest_url( 'family-wiki/v1/import' ),
+						'nonce'    => wp_create_nonce( 'wp_rest' ),
+						'token'    => $token,
+						'l10n'     => array(
+							'starting' => __( 'Reading the file…', 'family-wiki' ),
+							// translators: %1$s is a number of people done, %2$s the total.
+							'people'   => __( 'Importing people: %1$s of %2$s', 'family-wiki' ),
+							// translators: %1$s is a number of family records done, %2$s the total.
+							'families' => __( 'Linking families: %1$s of %2$s', 'family-wiki' ),
+							// translators: %s is an error message.
+							'failed'   => __( 'The import stopped: %s', 'family-wiki' ),
+						),
+					),
+					JSON_HEX_TAG | JSON_HEX_AMP
+				);
+				?>
+			</script>
+			<style>
+				.family-wiki-gedcom-tree__list,
+				.family-wiki-gedcom-tree__list ul {
+					list-style: none;
+					margin: 0;
+					padding: 0;
+				}
+
+				.family-wiki-gedcom-tree__list ul {
+					border-left: 1px solid rgba(127, 127, 127, 0.3);
+					margin-left: 0.4em;
+					padding-left: 1.1em;
+				}
+
+				.family-wiki-gedcom-tree__list li {
+					line-height: 1.6;
+					margin: 0.15em 0;
+				}
+
+				.family-wiki-gedcom-tree__line--branch [data-family-wiki-gedcom-node] {
+					cursor: pointer;
+				}
+
+				.family-wiki-gedcom-tree__years {
+					color: rgba(127, 127, 127, 0.9);
+					white-space: nowrap;
+				}
+
+				/*
+				 * Two classes deep, because .wp-core-ui .button-link zeroes the
+				 * margin and pins the text left, and would win against one.
+				 */
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__mark {
+					display: inline-block;
+					text-align: center;
+					width: 1.4em;
+				}
+
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__toggle {
+					color: inherit;
+					font-size: 1.1em;
+					line-height: 1;
+					text-decoration: none;
+					vertical-align: baseline;
+				}
+
+				.family-wiki-gedcom-tree .family-wiki-gedcom-tree__drop {
+					margin-left: 0.8em;
+				}
+
+				.family-wiki-gedcom-progress progress {
+					width: 100%;
+				}
+
+				.family-wiki-gedcom-progress--failed progress {
+					accent-color: #d63638;
+				}
+			</style>
+			<script type="application/json" id="family-wiki-gedcom-tree-data"><?php echo wp_json_encode( $tree_data, JSON_HEX_TAG | JSON_HEX_AMP ); ?></script>
 			<script>
 				(function () {
 					var review = document.querySelector('.family-wiki-gedcom-review');
@@ -340,6 +783,42 @@ class GEDCOM {
 					var needle = '';
 					var sortKey = '';
 					var sortDescending = true;
+
+					var tree = JSON.parse(document.getElementById('family-wiki-gedcom-tree-data').textContent);
+					var treeList = review.querySelector('[data-family-wiki-gedcom-tree-list]');
+					var treeEmpty = review.querySelector('[data-family-wiki-gedcom-tree-empty]');
+					var treeMore = review.querySelector('[data-family-wiki-gedcom-tree-more]');
+					var moreTemplate = treeMore.textContent.trim();
+					var treeBox = review.querySelector('.family-wiki-gedcom-tree');
+					var dropLabel = treeBox.getAttribute('data-family-wiki-gedcom-drop-label');
+					var branchLabel = treeBox.getAttribute('data-family-wiki-gedcom-branch-label');
+					var toggleLabel = treeBox.getAttribute('data-family-wiki-gedcom-toggle-label');
+					// Everything starts folded, so picking a branch reads as the few
+					// lines it hangs from rather than a wall of names. Kept outside
+					// the drawing, which starts over on every tick, so a branch
+					// opened up stays open while the selection changes.
+					var opened = Object.create(null);
+					// Far past what anyone reads. Drawing every node of a whole-file
+					// selection would only make ticking a box slow.
+					var TREE_LIMIT = 400;
+
+					// Xrefs come out of the file, so they are never spliced into a
+					// selector: every lookup goes through these maps instead.
+					var boxes = Object.create(null);
+					rows.forEach(function (row) {
+						var box = boxOf(row);
+						if (box) {
+							boxes[box.value] = box;
+						}
+					});
+
+					var parentsOf = Object.create(null);
+					Object.keys(tree).forEach(function (xref) {
+						(tree[xref].children || []).forEach(function (child) {
+							parentsOf[child] = parentsOf[child] || [];
+							parentsOf[child].push(xref);
+						});
+					});
 
 					function boxOf(row) {
 						return row.querySelector('[data-family-wiki-gedcom-person]');
@@ -367,6 +846,237 @@ class GEDCOM {
 						}).length;
 						// Replace the leading number in the rendered, translated string.
 						counter.textContent = countTemplate.replace(/\d+/, String(selected));
+					}
+
+					function refresh() {
+						refreshCount();
+						renderTree();
+					}
+
+					function person(xref) {
+						return tree[xref] || { name: xref };
+					}
+
+					function yearRange(entry) {
+						if (entry.birth && entry.death) {
+							return entry.birth + '–' + entry.death;
+						}
+						if (entry.birth) {
+							return '*' + entry.birth;
+						}
+						if (entry.death) {
+							return '†' + entry.death;
+						}
+
+						return '';
+					}
+
+					function nameOf(xref) {
+						var entry = person(xref);
+						var node = document.createElement('span');
+						node.setAttribute('data-family-wiki-gedcom-node', xref);
+						node.appendChild(document.createTextNode(entry.name));
+
+						var years = yearRange(entry);
+						if (years) {
+							var dates = document.createElement('span');
+							dates.className = 'family-wiki-gedcom-tree__years';
+							dates.textContent = ' (' + years + ')';
+							node.appendChild(dates);
+						}
+
+						return node;
+					}
+
+					function byBirth(a, b) {
+						// Undated people sort last rather than first, where a missing
+						// year would read as the oldest child of every household.
+						var left = person(a).birth || '9999';
+						var right = person(b).birth || '9999';
+						if (left === right) {
+							return person(a).name.localeCompare(person(b).name);
+						}
+
+						return left < right ? -1 : 1;
+					}
+
+					function householdChildren(xref, partners) {
+						var seen = Object.create(null);
+						var children = [];
+						[xref].concat(partners).forEach(function (parent) {
+							(person(parent).children || []).forEach(function (child) {
+								if (!seen[child]) {
+									seen[child] = true;
+									children.push(child);
+								}
+							});
+						});
+
+						return children;
+					}
+
+					/**
+					 * Who a line's drop button takes away: the branch hanging under
+					 * it, and only once nothing hangs there the couple on the line
+					 * itself. Taking the line along with its branch would carry off
+					 * people who married in, and with them whichever of their own
+					 * brothers and sisters were drawn beneath them.
+					 */
+					function dropTargets(item) {
+						var branch = item.querySelector('ul');
+
+						return (branch || item.querySelector('.family-wiki-gedcom-tree__line'))
+							.querySelectorAll('[data-family-wiki-gedcom-node]');
+					}
+
+					function toggleFor(xref, list) {
+						var toggle = document.createElement('button');
+						toggle.type = 'button';
+						toggle.className = 'button-link family-wiki-gedcom-tree__mark family-wiki-gedcom-tree__toggle';
+						toggle.setAttribute('data-family-wiki-gedcom-toggle', xref);
+						toggle.setAttribute('aria-label', toggleLabel);
+						setOpen(toggle, list, !!opened[xref]);
+
+						return toggle;
+					}
+
+					function fold(toggle) {
+						var xref = toggle.getAttribute('data-family-wiki-gedcom-toggle');
+						opened[xref] = !opened[xref];
+						setOpen(toggle, toggle.closest('li').querySelector('ul'), opened[xref]);
+					}
+
+					function setOpen(toggle, list, open) {
+						// The people below stay in the page while folded away: the
+						// count on the drop button, and what it drops, are the branch
+						// itself and not the part of it that happens to be in view.
+						list.hidden = !open;
+						toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+						toggle.textContent = open ? '▼' : '►';
+					}
+
+					function renderPerson(xref, state) {
+						if (state.drawn[xref] || state.left < 1) {
+							return null;
+						}
+						state.drawn[xref] = true;
+						state.left -= 1;
+
+						var item = document.createElement('li');
+						var line = document.createElement('div');
+						line.className = 'family-wiki-gedcom-tree__line';
+						line.appendChild(nameOf(xref));
+
+						// The people they married, on the same line: a couple splits
+						// their children between them, so drawing them apart would
+						// show every household twice with half a family each.
+						var partners = (person(xref).partners || []).filter(function (partner) {
+							return state.selected[partner] && !state.drawn[partner];
+						});
+						partners.forEach(function (partner) {
+							state.drawn[partner] = true;
+							state.left -= 1;
+							line.appendChild(document.createTextNode(' & '));
+							line.appendChild(nameOf(partner));
+						});
+
+						item.appendChild(line);
+
+						var children = householdChildren(xref, partners).filter(function (child) {
+							return state.selected[child] && !state.drawn[child];
+						}).sort(byBirth);
+
+						if (children.length) {
+							var list = document.createElement('ul');
+							children.forEach(function (child) {
+								var childItem = renderPerson(child, state);
+								if (childItem) {
+									list.appendChild(childItem);
+								}
+							});
+							if (list.childNodes.length) {
+								item.appendChild(list);
+								line.insertBefore(toggleFor(xref, list), line.firstChild);
+							}
+						}
+
+						// A line with nobody under it still gives up the width, so the
+						// names down a generation stay under one another.
+						if (!item.querySelector('ul')) {
+							var spacer = document.createElement('span');
+							spacer.className = 'family-wiki-gedcom-tree__mark';
+							spacer.setAttribute('aria-hidden', 'true');
+							line.insertBefore(spacer, line.firstChild);
+						}
+
+						// Only now is it known whether anyone hangs off this line, which
+						// is what the button offers to take away.
+						var branch = item.querySelector('ul');
+						if (branch) {
+							line.classList.add('family-wiki-gedcom-tree__line--branch');
+						}
+
+						var drop = document.createElement('button');
+						drop.type = 'button';
+						drop.className = 'button-link family-wiki-gedcom-tree__drop';
+						drop.setAttribute('data-family-wiki-gedcom-drop', '');
+						drop.textContent = (branch ? branchLabel : dropLabel)
+							+ ' (' + dropTargets(item).length + ')';
+						line.appendChild(drop);
+
+						return item;
+					}
+
+					function renderTree() {
+						var state = {
+							selected: Object.create(null),
+							drawn: Object.create(null),
+							left: TREE_LIMIT
+						};
+						var total = 0;
+						rows.forEach(function (row) {
+							var box = boxOf(row);
+							if (box && box.checked) {
+								state.selected[box.value] = true;
+								total += 1;
+							}
+						});
+
+						treeList.textContent = '';
+						treeEmpty.hidden = total > 0;
+						treeMore.hidden = true;
+						if (!total) {
+							return;
+						}
+
+						// Start from everyone whose parents are staying behind. Those
+						// are the tops of the branches that were picked, which is not
+						// where the file itself starts.
+						Object.keys(state.selected).filter(function (xref) {
+							return (parentsOf[xref] || []).every(function (parent) {
+								return !state.selected[parent];
+							});
+						}).sort(byBirth).forEach(function (xref) {
+							var item = renderPerson(xref, state);
+							if (item) {
+								treeList.appendChild(item);
+							}
+						});
+
+						// Whatever the branches did not reach still has to show up, or
+						// people would be imported that the tree never accounted for.
+						Object.keys(state.selected).forEach(function (xref) {
+							var item = renderPerson(xref, state);
+							if (item) {
+								treeList.appendChild(item);
+							}
+						});
+
+						var missing = total - Object.keys(state.drawn).length;
+						treeMore.hidden = missing < 1;
+						if (missing > 0) {
+							treeMore.textContent = moreTemplate.replace(/\d+/, String(missing));
+						}
 					}
 
 					function sort(key) {
@@ -419,24 +1129,55 @@ class GEDCOM {
 									box.checked = true;
 								}
 							});
-							refreshCount();
+							refresh();
 							return;
 						}
 
 						var descendants = event.target.closest('[data-family-wiki-gedcom-descendants]');
 						if (descendants) {
 							descendants.getAttribute('data-family-wiki-gedcom-descendants').split(',').forEach(function (xref) {
-								var box = review.querySelector('[data-family-wiki-gedcom-person="' + xref + '"]');
-								if (box) {
-									box.checked = true;
+								if (boxes[xref]) {
+									boxes[xref].checked = true;
 								}
 							});
-							refreshCount();
+							refresh();
+							return;
+						}
+
+						// Folding changes nothing about the selection, so it moves the
+						// one branch rather than drawing the whole tree again.
+						var toggle = event.target.closest('[data-family-wiki-gedcom-toggle]');
+						if (toggle) {
+							fold(toggle);
+							return;
+						}
+
+						// The names are a far bigger target than the arrow beside
+						// them, and fold the same branch. On a line with nobody
+						// underneath there is nothing to fold, so they do nothing.
+						var named = event.target.closest('[data-family-wiki-gedcom-node]');
+						if (named) {
+							var owner = named.closest('li').querySelector('[data-family-wiki-gedcom-toggle]');
+							if (owner) {
+								fold(owner);
+							}
+							return;
+						}
+
+						var drop = event.target.closest('[data-family-wiki-gedcom-drop]');
+						if (drop) {
+							dropTargets(drop.closest('li')).forEach(function (node) {
+								var xref = node.getAttribute('data-family-wiki-gedcom-node');
+								if (boxes[xref]) {
+									boxes[xref].checked = false;
+								}
+							});
+							refresh();
 							return;
 						}
 
 						if (event.target.closest('[data-family-wiki-gedcom-person]')) {
-							refreshCount();
+							refresh();
 						}
 					});
 
@@ -449,7 +1190,124 @@ class GEDCOM {
 					});
 
 					apply();
-					refreshCount();
+					refresh();
+				}());
+			</script>
+			<script>
+				/*
+				 * Importing, a batch at a time.
+				 *
+				 * A whole family is more work than one request should carry, and a
+				 * form post that sits there for a minute looks the same as one that
+				 * has died. The same file is walked in pieces instead, and each piece
+				 * says how far it has got. Without fetch the form posts itself, which
+				 * still works.
+				 */
+				(function () {
+					var review = document.querySelector('.family-wiki-gedcom-review');
+					if (!review) {
+						return;
+					}
+
+					var form = review.querySelector('[data-family-wiki-gedcom-form]');
+					var progress = review.querySelector('[data-family-wiki-gedcom-progress]');
+					var bar = progress ? progress.querySelector('[data-family-wiki-gedcom-progress-bar]') : null;
+					var text = progress ? progress.querySelector('[data-family-wiki-gedcom-progress-text]') : null;
+					var dataEl = document.getElementById('family-wiki-gedcom-import-data');
+					var settings = dataEl ? JSON.parse(dataEl.textContent) : {};
+					var l10n = settings.l10n || {};
+
+					if (!form || !progress || !settings.endpoint || !window.fetch) {
+						return;
+					}
+
+					form.addEventListener('submit', function (event) {
+						var selected = Array.prototype.slice
+							.call(form.querySelectorAll('[data-family-wiki-gedcom-person]:checked'))
+							.map(function (box) {
+								return box.value;
+							});
+
+						// Nothing ticked is a mistake the server already words well, and
+						// letting the form post keeps that wording in one place.
+						if (!selected.length) {
+							return;
+						}
+
+						event.preventDefault();
+						start(selected);
+					});
+
+					function send(url, payload) {
+						return fetch(url, {
+							method: 'POST',
+							credentials: 'same-origin',
+							headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': settings.nonce },
+							body: JSON.stringify(payload || {})
+						}).then(function (response) {
+							return response.json().then(function (data) {
+								if (!response.ok) {
+									throw new Error(data && data.message ? data.message : response.statusText);
+								}
+
+								return data;
+							});
+						});
+					}
+
+					function start(selected) {
+						progress.hidden = false;
+						progress.classList.remove('family-wiki-gedcom-progress--failed');
+						working(true);
+						say(l10n.starting, 0);
+
+						send(settings.endpoint, { token: settings.token, selected: selected })
+							.then(function (started) {
+								return step(started.run);
+							})
+							.catch(failed);
+					}
+
+					function step(run) {
+						return send(settings.endpoint + '/' + run).then(function (state) {
+							if (state.done) {
+								say(state.message, 100);
+								window.location = state.redirect;
+								return;
+							}
+
+							say(
+								(state.stage === 'families' ? l10n.families : l10n.people)
+									.replace('%1$s', state.position)
+									.replace('%2$s', state.total),
+								state.total ? Math.round((state.position / state.total) * 100) : 0
+							);
+
+							return step(run);
+						});
+					}
+
+					function say(message, percent) {
+						text.textContent = message;
+						bar.value = percent;
+					}
+
+					function failed(error) {
+						say(l10n.failed.replace('%s', error.message), 0);
+						progress.classList.add('family-wiki-gedcom-progress--failed');
+						working(false);
+					}
+
+					/**
+					 * While a run is going, the buttons that would start a second one are
+					 * out of reach: the file is walked by cursor, and two walks would
+					 * import it twice.
+					 */
+					function working(busy) {
+						Array.prototype.slice.call(form.querySelectorAll('button, input')).forEach(function (control) {
+							control.disabled = busy;
+						});
+					}
 				}());
 			</script>
 		</section>
@@ -517,6 +1375,10 @@ class GEDCOM {
 			exit;
 		}
 
+		// Lets a companion content file uploaded in the same form park itself
+		// under this same token, so it can join the import once it starts.
+		$this->park_content_file( $token );
+
 		wp_safe_redirect( add_query_arg( 'family_wiki_review', $token, $redirect ) );
 		exit;
 	}
@@ -524,16 +1386,54 @@ class GEDCOM {
 	/**
 	 * Park the uploaded file between the upload and the selection request.
 	 *
-	 * The file itself stays on disk and only its location goes into the
-	 * transient: a GEDCOM is easily hundreds of kilobytes, which is more than
-	 * belongs in an option row, and more than some databases will accept there.
+	 * The files themselves stay on disk and only their location goes into
+	 * the transient: a GEDCOM is easily hundreds of kilobytes, which is more
+	 * than belongs in an option row, and more than some databases will
+	 * accept there. One transient covers both the GEDCOM file and its
+	 * companion content file, since they always arrive and leave together.
 	 */
 	private function store_import_file( $token, $contents ) {
+		$path = $this->write_temp_file( 'family-wiki-gedcom-' . $token, $contents );
+
+		return $path && $this->save_import_state( $token, array( 'gedcom' => $path ) );
+	}
+
+	/**
+	 * Park a companion content file uploaded alongside a GEDCOM file, under
+	 * the same token. Silently does nothing when no content file came
+	 * along, or it failed: it is optional, and should never be the reason a
+	 * GEDCOM import fails.
+	 */
+	private function park_content_file( $token ) {
+		if ( empty( $_FILES['content']['tmp_name'] ) || UPLOAD_ERR_OK !== (int) $_FILES['content']['error'] || ! is_uploaded_file( $_FILES['content']['tmp_name'] ) ) {
+			return;
+		}
+
+		$contents = file_get_contents( $_FILES['content']['tmp_name'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( false === $contents || '' === trim( $contents ) || is_wp_error( $this->parse_content_xml( $contents ) ) ) {
+			return;
+		}
+
+		$path = $this->write_temp_file( 'family-wiki-content-' . $token, $contents );
+		if ( ! $path ) {
+			return;
+		}
+
+		$this->save_import_state(
+			$token,
+			array(
+				'content'         => $path,
+				'download_images' => ! empty( $_POST['download_images'] ),
+			)
+		);
+	}
+
+	private function write_temp_file( $prefix, $contents ) {
 		if ( ! function_exists( 'wp_tempnam' ) ) {
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 		}
 
-		$path = wp_tempnam( 'family-wiki-gedcom-' . $token );
+		$path = wp_tempnam( $prefix );
 		if ( ! $path ) {
 			return false;
 		}
@@ -543,17 +1443,52 @@ class GEDCOM {
 			return false;
 		}
 
-		if ( ! set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, $path, HOUR_IN_SECONDS ) ) {
-			wp_delete_file( $path );
-			return false;
+		return $path;
+	}
+
+	/**
+	 * Merge into whatever's already parked under this token, so the GEDCOM
+	 * file and a companion content file share one transient even though
+	 * they arrive as two separate temp files, possibly in two requests.
+	 */
+	private function save_import_state( $token, $changes ) {
+		$state = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		if ( ! is_array( $state ) ) {
+			$state = array(
+				'gedcom'          => '',
+				'content'         => '',
+				'download_images' => false,
+			);
 		}
 
-		return true;
+		return set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, array_merge( $state, $changes ), HOUR_IN_SECONDS );
+	}
+
+	private function import_state( $token ) {
+		$state = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+
+		return is_array( $state ) ? $state : array();
 	}
 
 	private function get_import_file( $token ) {
-		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$state = $this->import_state( $token );
 
+		return empty( $state['gedcom'] ) ? false : $this->read_temp_file( $state['gedcom'] );
+	}
+
+	private function get_content_file( $token ) {
+		$state = $this->import_state( $token );
+
+		return empty( $state['content'] ) ? false : $this->read_temp_file( $state['content'] );
+	}
+
+	private function content_download_images_requested( $token ) {
+		$state = $this->import_state( $token );
+
+		return ! empty( $state['download_images'] );
+	}
+
+	private function read_temp_file( $path ) {
 		// Only ever read back a file this class parked in the temp directory.
 		if ( ! is_string( $path ) || 0 !== strpos( $path, get_temp_dir() ) || ! is_readable( $path ) ) {
 			return false;
@@ -565,11 +1500,13 @@ class GEDCOM {
 	}
 
 	private function delete_import_file( $token ) {
-		$path = get_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
+		$state = $this->import_state( $token );
 		delete_transient( self::IMPORT_TRANSIENT_PREFIX . $token );
 
-		if ( is_string( $path ) && 0 === strpos( $path, get_temp_dir() ) && file_exists( $path ) ) {
-			wp_delete_file( $path );
+		foreach ( array( 'gedcom', 'content' ) as $key ) {
+			if ( ! empty( $state[ $key ] ) && 0 === strpos( $state[ $key ], get_temp_dir() ) && file_exists( $state[ $key ] ) ) {
+				wp_delete_file( $state[ $key ] );
+			}
 		}
 	}
 
@@ -594,26 +1531,28 @@ class GEDCOM {
 			exit;
 		}
 
-		$this->delete_import_file( $token );
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'family_wiki_imported' => $result['created'],
-					'family_wiki_updated'  => $result['updated'],
-				),
-				$redirect
-			)
+		// Lets a companion content file uploaded alongside this one apply
+		// itself now, while it is still parked: the no-JS path has no
+		// per-person step for it to ride along with, so it goes in as one
+		// whole-file pass, once, before the files are cleaned up.
+		$query_args = $this->add_content_to_import_extra_args(
+			array(
+				'family_wiki_imported' => $result['created'],
+				'family_wiki_updated'  => $result['updated'],
+			),
+			$token,
+			$result['ids']
 		);
+
+		$this->delete_import_file( $token );
+
+		wp_safe_redirect( add_query_arg( $query_args, $redirect ) );
 		exit;
 	}
 
 	public function export_string() {
 		$people = $this->get_export_people();
-		$ids    = array();
-		$i      = 1;
-		foreach ( $people as $person ) {
-			$ids[ $person->ID ] = 'I' . $i++;
-		}
+		$ids    = $this->export_xref_map( $people );
 
 		$families = $this->get_export_families( $people, $ids );
 		$lines    = array(
@@ -666,38 +1605,18 @@ class GEDCOM {
 		$this->suspend_nav_menu_auto_add();
 
 		foreach ( $records['INDI'] as $xref => $record ) {
-			$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
-			$post_id = $this->find_person_post( $xref, $title, $index, $claimed, $this->gedcom_birth_year( $record ) );
-			$data    = array(
-				'post_type'    => 'page',
-				'post_status'  => 'publish',
-				'post_title'   => $title ? $title : $xref,
-				'post_content' => '',
-			);
-
-			if ( $post_id ) {
-				$data['ID'] = $post_id;
-				unset( $data['post_content'] );
-				$result = wp_update_post( wp_slash( $data ), true );
-				if ( is_wp_error( $result ) ) {
-					$this->restore_nav_menu_auto_add();
-					return $result;
-				}
-				$updated++;
-			} else {
-				$result = wp_insert_post( wp_slash( $data ), true );
-				if ( is_wp_error( $result ) ) {
-					$this->restore_nav_menu_auto_add();
-					return $result;
-				}
-				$post_id = $result;
-				$created++;
+			$person = $this->import_person( $xref, $record, $index, $claimed );
+			if ( is_wp_error( $person ) ) {
+				$this->restore_nav_menu_auto_add();
+				return $person;
 			}
 
-			$id_map[ $xref ]   = $post_id;
-			$claimed[ $post_id ] = true;
-			update_post_meta( $post_id, self::XREF_META, $xref );
-			$this->import_individual_fields( $post_id, $record );
+			$id_map[ $xref ] = $person['id'];
+			if ( $person['existed'] ) {
+				++$updated;
+			} else {
+				++$created;
+			}
 		}
 
 		$this->restore_nav_menu_auto_add();
@@ -709,6 +1628,51 @@ class GEDCOM {
 		return array(
 			'created' => $created,
 			'updated' => $updated,
+			'ids'     => $id_map,
+		);
+	}
+
+	/**
+	 * Create or update the one page a GEDCOM individual record becomes.
+	 * Split out from import_string() so a batched import can call it a
+	 * person at a time.
+	 *
+	 * @return array|\WP_Error array( 'id' => int, 'existed' => bool ).
+	 */
+	private function import_person( $xref, $record, $index, &$claimed ) {
+		$title   = $this->gedcom_name_to_title( $this->first_value( $record, 'NAME' ) );
+		$post_id = $this->find_person_post( $xref, $title, $index, $claimed, $this->gedcom_birth_year( $record ) );
+		$existed = (bool) $post_id;
+		$data    = array(
+			'post_type'    => 'page',
+			'post_status'  => 'publish',
+			'post_title'   => $title ? $title : $xref,
+			'post_content' => '',
+		);
+
+		if ( $existed ) {
+			$data['ID'] = $post_id;
+			unset( $data['post_content'] );
+			$result = wp_update_post( wp_slash( $data ), true );
+		} else {
+			$result = wp_insert_post( wp_slash( $data ), true );
+		}
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		if ( ! $existed ) {
+			$post_id = $result;
+		}
+
+		$claimed[ $post_id ] = true;
+		update_post_meta( $post_id, self::XREF_META, $xref );
+		$this->import_individual_fields( $post_id, $record );
+
+		return array(
+			'id'      => (int) $post_id,
+			'existed' => $existed,
 		);
 	}
 
@@ -727,7 +1691,22 @@ class GEDCOM {
 		}
 	}
 
-	private function get_export_people() {
+	/**
+	 * Assign each exported person an xref, in the order they will appear in
+	 * the GEDCOM. Shared with export_content_string(), so a person gets the
+	 * same xref in both files.
+	 */
+	private function export_xref_map( $people ) {
+		$ids = array();
+		$i   = 1;
+		foreach ( $people as $person ) {
+			$ids[ $person->ID ] = 'I' . $i++;
+		}
+
+		return $ids;
+	}
+
+	public function get_export_people() {
 		$pages = get_posts(
 			array(
 				'post_type'      => 'page',
@@ -928,6 +1907,8 @@ class GEDCOM {
 				'name'        => $names[ $xref ],
 				'birth'       => $this->review_event_label( $birth ),
 				'death'       => $this->review_event_label( $death ),
+				'birth_year'  => $this->gedcom_year( $birth ),
+				'death_year'  => $this->gedcom_year( $death ),
 				'descendants' => $subtree,
 				'count'       => count( $subtree ),
 				'wiki_hits'   => $hits,
@@ -938,6 +1919,39 @@ class GEDCOM {
 		usort( $people, array( $this, 'sort_review_people' ) );
 
 		return $people;
+	}
+
+	/**
+	 * The shape of the file, small enough to hand to the browser: the tree of
+	 * selected people is drawn there and redrawn on every tick, so it needs the
+	 * links between people without another round trip. Names and years only —
+	 * the table above it already carries the detail.
+	 */
+	private function review_tree_data( $families, $people ) {
+		list( $children_by_parent, $partners_by_person ) = $this->family_links( $families );
+
+		$data = array();
+		foreach ( $people as $person ) {
+			$xref  = $person['xref'];
+			$entry = array( 'name' => $person['name'] );
+
+			if ( $person['birth_year'] ) {
+				$entry['birth'] = $person['birth_year'];
+			}
+			if ( $person['death_year'] ) {
+				$entry['death'] = $person['death_year'];
+			}
+			if ( ! empty( $children_by_parent[ $xref ] ) ) {
+				$entry['children'] = array_values( $children_by_parent[ $xref ] );
+			}
+			if ( ! empty( $partners_by_person[ $xref ] ) ) {
+				$entry['partners'] = array_values( $partners_by_person[ $xref ] );
+			}
+
+			$data[ $xref ] = $entry;
+		}
+
+		return $data;
 	}
 
 	/**
@@ -990,7 +2004,10 @@ class GEDCOM {
 		return strcasecmp( $a['name'], $b['name'] );
 	}
 
-	private function descendants_by_person( $families ) {
+	/**
+	 * Who each person's children and partners are, read off the family records.
+	 */
+	private function family_links( $families ) {
 		$children_by_parent = array();
 		$partners_by_person = array();
 
@@ -1013,6 +2030,12 @@ class GEDCOM {
 				}
 			}
 		}
+
+		return array( $children_by_parent, $partners_by_person );
+	}
+
+	private function descendants_by_person( $families ) {
+		list( $children_by_parent, $partners_by_person ) = $this->family_links( $families );
 
 		$descendants = array();
 		foreach ( array_keys( $children_by_parent ) as $xref ) {
@@ -1387,9 +2410,11 @@ class GEDCOM {
 	}
 
 	private function gedcom_birth_year( $record ) {
-		$birth = $this->event_values( $record, 'BIRT' );
+		return $this->gedcom_year( $this->event_values( $record, 'BIRT' ) );
+	}
 
-		return empty( $birth['date'] ) ? '' : substr( preg_replace( '/\D/', '', $birth['date'] ), 0, 4 );
+	private function gedcom_year( $event ) {
+		return empty( $event['date'] ) ? '' : substr( preg_replace( '/\D/', '', $event['date'] ), 0, 4 );
 	}
 
 	private function get_field_value( $field, $post_id ) {
@@ -1521,5 +2546,628 @@ class GEDCOM {
 		);
 
 		return isset( $messages[ $error ] ) ? $messages[ $error ] : __( 'The GEDCOM import failed.', 'family-wiki' );
+	}
+
+	/*
+	 * ------------------------------------------------------------------
+	 * The content file: the text written on a page, which GEDCOM has no
+	 * room for. It always rides along with a GEDCOM file, uploaded in the
+	 * same form and applied to each person right after the person
+	 * themselves, matched by the same xref. It only ever updates a page
+	 * that already exists; it never creates one.
+	 * ------------------------------------------------------------------
+	 */
+
+	/**
+	 * Grouped with the GEDCOM download button, not a section of its own.
+	 */
+	private function render_content_export_button() {
+		?>
+		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for.', 'family-wiki' ); ?></p>
+		<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::CONTENT_EXPORT_ACTION ); ?>" />
+			<?php wp_nonce_field( self::CONTENT_EXPORT_ACTION ); ?>
+			<?php submit_button( __( 'Download Content', 'family-wiki' ), 'primary', 'submit', false ); ?>
+			<span class="family-wiki-download-check" aria-hidden="true" hidden>&#10003;</span>
+		</form>
+		<?php
+	}
+
+	/**
+	 * The optional content field inside the GEDCOM upload form, for
+	 * importing both together in one step.
+	 */
+	private function render_content_field() {
+		?>
+		<p>
+			<label>
+				<?php esc_html_e( 'Content file (optional)', 'family-wiki' ); ?><br />
+				<input type="file" name="content" accept=".xml,text/xml" />
+			</label>
+		</p>
+		<p>
+			<label>
+				<input type="checkbox" name="download_images" value="1" />
+				<?php esc_html_e( 'Also download images into the media library and use them as the page photo', 'family-wiki' ); ?>
+			</label>
+		</p>
+		<?php
+	}
+
+	/**
+	 * A content file's items keyed by its people's xref, and whether it
+	 * asked to download images — parsed once per request no matter how many
+	 * people ask for it during a batch.
+	 *
+	 * @return array|false array( 'by_xref' => [...], 'download_images' => bool ), or false for a token with no content file.
+	 */
+	private function content_index( $token ) {
+		if ( array_key_exists( $token, $this->content_index_cache ) ) {
+			return $this->content_index_cache[ $token ];
+		}
+
+		$contents = $this->get_content_file( $token );
+		$xml      = false === $contents ? false : $this->parse_content_xml( $contents );
+
+		if ( false === $contents || is_wp_error( $xml ) ) {
+			$this->content_index_cache[ $token ] = false;
+			return false;
+		}
+
+		$by_xref = array();
+		foreach ( $xml->channel->item as $item ) {
+			$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+			foreach ( $wp_fields->postmeta as $meta ) {
+				$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+				if ( self::CONTENT_META_KEY === (string) $meta_fields->meta_key ) {
+					$by_xref[ (string) $meta_fields->meta_value ] = $item;
+					break;
+				}
+			}
+		}
+
+		$this->content_index_cache[ $token ] = array(
+			'by_xref'         => $by_xref,
+			'download_images' => $this->content_download_images_requested( $token ),
+		);
+
+		return $this->content_index_cache[ $token ];
+	}
+
+	/**
+	 * If this run's token has a content file, give the run somewhere to
+	 * keep its counts as people are imported.
+	 */
+	private function add_content_to_run_state( $state, $token ) {
+		if ( ! $this->content_index( $token ) ) {
+			return $state;
+		}
+
+		$state['content'] = array(
+			'updated' => 0,
+			'images'  => 0,
+		);
+
+		return $state;
+	}
+
+	/**
+	 * Applies one person's text right after the person themselves, using
+	 * the post that was just resolved directly — there is nothing left to
+	 * match, since this is the exact page that xref just became.
+	 */
+	private function apply_content_to_person( $state, $xref, $post_id ) {
+		if ( empty( $state['content'] ) || empty( $state['token'] ) ) {
+			return $state;
+		}
+
+		$index = $this->content_index( $state['token'] );
+		if ( ! $index || ! isset( $index['by_xref'][ $xref ] ) ) {
+			return $state;
+		}
+
+		$result = $this->apply_content_item_to_post( $index['by_xref'][ $xref ], $post_id, $index['download_images'] );
+		++$state['content']['updated'];
+		$state['content']['images'] += $result['images'];
+
+		return $state;
+	}
+
+	private function add_content_to_finish_message( $message, $state ) {
+		if ( empty( $state['content'] ) ) {
+			return $message;
+		}
+
+		$message .= ' ' . sprintf(
+			// translators: %d is a number of pages whose text was applied.
+			__( 'Applied text from the content file to %d of them.', 'family-wiki' ),
+			$state['content']['updated']
+		);
+
+		if ( $state['content']['images'] ) {
+			$message .= ' ' . sprintf(
+				// translators: %d is a number of downloaded images.
+				__( 'Downloaded %d images into the media library.', 'family-wiki' ),
+				$state['content']['images']
+			);
+		}
+
+		return $message;
+	}
+
+	private function add_content_to_finish_query_args( $args, $state ) {
+		if ( empty( $state['content'] ) ) {
+			return $args;
+		}
+
+		return array_merge(
+			$args,
+			array(
+				'family_wiki_content_updated' => $state['content']['updated'],
+				'family_wiki_content_images'  => $state['content']['images'],
+			)
+		);
+	}
+
+	/**
+	 * The no-JS path has no per-person step for a content file to ride
+	 * along with, so it goes in as one whole-file pass instead, matched by
+	 * xref or title the same way import_string() matches GEDCOM entries.
+	 * Called while the file is still parked, before delete_import_file().
+	 *
+	 * @param array  $args    Extra query args to redirect with.
+	 * @param string $token   The review token this import used.
+	 * @param array  $id_map  Xref => post ID, from this same import_string() call.
+	 */
+	private function add_content_to_import_extra_args( $args, $token, $id_map ) {
+		$contents = $this->get_content_file( $token );
+		if ( false === $contents ) {
+			return $args;
+		}
+
+		$result = $this->apply_content( $contents, $this->content_download_images_requested( $token ) );
+		if ( is_wp_error( $result ) ) {
+			return $args;
+		}
+
+		$this->resolve_content_links( $token, $id_map );
+
+		return array_merge(
+			$args,
+			array(
+				'family_wiki_content_updated' => $result['updated'],
+				'family_wiki_content_images'  => $result['images'],
+			)
+		);
+	}
+
+	public function export_content_download() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Sorry, you are not allowed to export content.', 'family-wiki' ) );
+		}
+		check_admin_referer( self::CONTENT_EXPORT_ACTION );
+
+		$filename = sanitize_file_name( wp_parse_url( home_url(), PHP_URL_HOST ) . '-family-wiki-content-' . current_time( 'Ymd-His' ) . '.xml' );
+
+		nocache_headers();
+		header( 'Content-Type: text/xml; charset=UTF-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		echo $this->export_content_string();
+		exit;
+	}
+
+	private function export_content_string() {
+		$people = $this->get_export_people();
+		$ids    = $this->export_xref_map( $people );
+
+		$lines = array(
+			'<?xml version="1.0" encoding="UTF-8" ?>',
+			'<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wp="http://wordpress.org/export/1.2/">',
+			'<channel>',
+		);
+
+		foreach ( $people as $person ) {
+			$links   = array();
+			$content = $this->normalize_wiki_links( $person->post_content );
+			$content = $this->relativize_images( $content );
+			$content = $this->relativize_links( $content, $ids, $links );
+
+			$lines[] = '<item>';
+			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
+			$lines[] = '<content:encoded>' . $this->cdata( $content ) . '</content:encoded>';
+			if ( has_post_thumbnail( $person ) ) {
+				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
+			}
+			foreach ( $this->content_image_urls( $person->post_content ) as $url ) {
+				$lines[] = '<wp:content_image_url>' . $this->cdata( $url ) . '</wp:content_image_url>';
+			}
+			$lines[] = '<wp:postmeta>';
+			$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_META_KEY ) . '</wp:meta_key>';
+			$lines[] = '<wp:meta_value>' . $this->cdata( $ids[ $person->ID ] ) . '</wp:meta_value>';
+			$lines[] = '</wp:postmeta>';
+			foreach ( $links as $path => $target_xref ) {
+				$lines[] = '<wp:postmeta>';
+				$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_LINK_META_KEY ) . '</wp:meta_key>';
+				$lines[] = '<wp:meta_value>' . $this->cdata( $path . '|' . $target_xref ) . '</wp:meta_value>';
+				$lines[] = '</wp:postmeta>';
+			}
+			$lines[] = '</item>';
+		}
+
+		$lines[] = '</channel>';
+		$lines[] = '</rss>';
+
+		return implode( "\n", $lines ) . "\n";
+	}
+
+	/**
+	 * The same CDATA-splitting WordPress core's own WXR export uses, so a
+	 * page whose text happens to contain "]]>" can't break the file.
+	 */
+	private function cdata( $value ) {
+		return '<![CDATA[' . str_replace( ']]>', ']]]]><![CDATA[>', (string) $value ) . ']]>';
+	}
+
+	/**
+	 * This site's own image URLs referenced in a page's text, so the
+	 * importer has something to fetch — listed separately, in full, because
+	 * the text itself keeps only the path (see relativize_images()).
+	 */
+	private function content_image_urls( $content ) {
+		if ( ! preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\']/i', $content, $matches ) ) {
+			return array();
+		}
+
+		$home = home_url();
+		$urls = array();
+		foreach ( array_unique( $matches[1] ) as $url ) {
+			if ( 0 === strpos( $url, $home ) ) {
+				$urls[] = $url;
+			}
+		}
+
+		return $urls;
+	}
+
+	/**
+	 * Some pages still carry links in the shape a MediaWiki site generates,
+	 * left over from an earlier migration — including a "red link" pointing
+	 * at an edit screen for a page that had not been written yet
+	 * (index.php?title=X&action=edit&redlink=1). Rewritten here into a
+	 * plain same-site link by slugified title, so relativize_links() below
+	 * resolves it exactly like any other internal link — to another
+	 * exported person if there is one, or otherwise to an inert relative
+	 * link — instead of every consumer of this file having to understand
+	 * MediaWiki's own URL shape.
+	 */
+	private function normalize_wiki_links( $content ) {
+		return preg_replace_callback(
+			'/href=(["\'])(?:[^"\']*\/)?index\.php\?[^"\']*\btitle=([^&"\']+)[^"\']*\1/i',
+			function ( $matches ) {
+				$title = sanitize_title_with_dashes( str_replace( '_', ' ', urldecode( $matches[2] ) ) );
+
+				return 'href=' . $matches[1] . home_url( '/' . $title ) . $matches[1];
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Strips this site's own domain from same-site image references in a
+	 * page's text, so the file does not silently hotlink a private wiki's
+	 * photos into wherever it ends up — the path is only good for anything
+	 * once the importer has actually downloaded the image.
+	 */
+	private function relativize_images( $content ) {
+		return preg_replace_callback(
+			'/(<img[^>]+src=["\'])' . preg_quote( home_url(), '/' ) . '([^"\']*)(["\'])/i',
+			function ( $matches ) {
+				return $matches[1] . $matches[2] . $matches[3];
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Strips this site's own domain from same-site links in a page's text,
+	 * the same reason relativize_images() does it for photos. Where a link
+	 * points to another page in this same export, its path and the xref it
+	 * points to are collected into $links by reference, so the importer can
+	 * put back a working link once it knows where that page landed there —
+	 * a page's own URL structure is not something a content file can know
+	 * in advance, especially crossing between two different plugins.
+	 */
+	private function relativize_links( $content, $ids, &$links ) {
+		$home = home_url();
+
+		return preg_replace_callback(
+			'/(<a\s[^>]*href=["\'])' . preg_quote( $home, '/' ) . '([^"\']*)(["\'])/i',
+			function ( $matches ) use ( $home, $ids, &$links ) {
+				$path    = $matches[2];
+				$post_id = url_to_postid( $home . $path );
+				if ( $post_id && isset( $ids[ $post_id ] ) ) {
+					$links[ $path ] = $ids[ $post_id ];
+				}
+
+				return $matches[1] . $path . $matches[3];
+			},
+			$content
+		);
+	}
+
+	/**
+	 * The links a content item's text had to other exported people, as
+	 * path => the xref that link pointed to.
+	 */
+	private function content_links_for_item( $item ) {
+		$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+		$links     = array();
+
+		foreach ( $wp_fields->postmeta as $meta ) {
+			$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+			if ( self::CONTENT_LINK_META_KEY !== (string) $meta_fields->meta_key ) {
+				continue;
+			}
+
+			$parts = explode( '|', (string) $meta_fields->meta_value, 2 );
+			if ( 2 === count( $parts ) && '' !== $parts[0] ) {
+				$links[ $parts[0] ] = $parts[1];
+			}
+		}
+
+		return $links;
+	}
+
+	/**
+	 * Puts working links back into the text of everyone this run touched
+	 * who had one, now that every person in $id_map has a page here. Called
+	 * while the content file is still parked — it reads the same file
+	 * apply_content_to_person()/apply_content() already read from.
+	 */
+	private function resolve_content_links( $token, $id_map ) {
+		$index = $this->content_index( $token );
+		if ( ! $index ) {
+			return;
+		}
+
+		foreach ( $id_map as $xref => $post_id ) {
+			if ( ! isset( $index['by_xref'][ $xref ] ) ) {
+				continue;
+			}
+
+			$links = $this->content_links_for_item( $index['by_xref'][ $xref ] );
+			if ( ! $links ) {
+				continue;
+			}
+
+			$replacements = array();
+			foreach ( $links as $path => $target_xref ) {
+				if ( isset( $id_map[ $target_xref ] ) ) {
+					$replacements[ $path ] = get_permalink( $id_map[ $target_xref ] );
+				}
+			}
+
+			if ( ! $replacements ) {
+				continue;
+			}
+
+			$post = get_post( $post_id );
+			if ( ! $post ) {
+				continue;
+			}
+
+			$new_content = str_replace( array_keys( $replacements ), array_values( $replacements ), $post->post_content );
+			if ( $new_content !== $post->post_content ) {
+				wp_update_post(
+					wp_slash(
+						array(
+							'ID'           => $post_id,
+							'post_content' => $new_content,
+						)
+					)
+				);
+			}
+		}
+	}
+
+	/**
+	 * Apply a content file to the pages it matches. Never creates a page
+	 * and never touches anything but post_content — and, when asked, a
+	 * page's photo. Used for the no-JS whole-file path only; a batched
+	 * GEDCOM import applies each item as its own person is resolved.
+	 *
+	 * @param string $contents        The content file.
+	 * @param bool   $download_images Whether to fetch each matched page's
+	 *                                image into the media library and set
+	 *                                it as the page's photo. Off by default:
+	 *                                this is the one part of the file that
+	 *                                makes an outbound request, to whatever
+	 *                                URL the file names.
+	 */
+	private function apply_content( $contents, $download_images = false ) {
+		$xml = $this->parse_content_xml( $contents );
+		if ( is_wp_error( $xml ) ) {
+			return $xml;
+		}
+
+		$index   = $this->existing_page_index();
+		$updated = 0;
+		$skipped = 0;
+		$images  = 0;
+
+		foreach ( $xml->channel->item as $item ) {
+			$result = $this->apply_content_item( $item, $index, $download_images );
+			if ( $result['matched'] ) {
+				++$updated;
+			} else {
+				++$skipped;
+			}
+			$images += $result['images'];
+		}
+
+		return array(
+			'updated' => $updated,
+			'skipped' => $skipped,
+			'images'  => $images,
+		);
+	}
+
+	/**
+	 * Parse a content file, the same way for the whole-file path and the
+	 * per-person one.
+	 *
+	 * @return \SimpleXMLElement|\WP_Error
+	 */
+	private function parse_content_xml( $contents ) {
+		$previous_setting = libxml_use_internal_errors( true );
+		$xml               = simplexml_load_string( $contents, 'SimpleXMLElement', LIBXML_NONET );
+		libxml_clear_errors();
+		libxml_use_internal_errors( $previous_setting );
+
+		if ( false === $xml || ! isset( $xml->channel ) ) {
+			return new \WP_Error( 'invalid_file', __( 'This does not look like a Family Wiki content file.', 'family-wiki' ), array( 'status' => 400 ) );
+		}
+
+		return $xml;
+	}
+
+	/**
+	 * Apply one <item> to the page it matches.
+	 *
+	 * @return array array( 'matched' => bool, 'images' => int ).
+	 */
+	private function apply_content_item( $item, $index, $download_images ) {
+		$wp_fields = $item->children( 'http://wordpress.org/export/1.2/' );
+		$title     = trim( (string) $item->title );
+
+		$post_id = $this->match_content_post( $wp_fields, $title, $index );
+		if ( ! $post_id ) {
+			return array(
+				'matched' => false,
+				'images'  => 0,
+			);
+		}
+
+		return array_merge(
+			array( 'matched' => true ),
+			$this->apply_content_item_to_post( $item, $post_id, $download_images )
+		);
+	}
+
+	/**
+	 * Apply one <item> to a page already known to be its match — the person
+	 * a GEDCOM import just resolved, when a content file rides along with
+	 * it. Split out from apply_content_item() since there is nothing left
+	 * to match there.
+	 *
+	 * @return array array( 'images' => int ).
+	 */
+	private function apply_content_item_to_post( $item, $post_id, $download_images ) {
+		$wp_fields  = $item->children( 'http://wordpress.org/export/1.2/' );
+		$content_ns = $item->children( 'http://purl.org/rss/1.0/modules/content/' );
+		$content    = isset( $content_ns->encoded ) ? (string) $content_ns->encoded : '';
+		$image_url  = isset( $wp_fields->attachment_url ) ? trim( (string) $wp_fields->attachment_url ) : '';
+		$images     = 0;
+
+		if ( $download_images ) {
+			if ( $image_url ) {
+				$attachment_id = $this->sideload_image( $image_url, $post_id );
+				if ( $attachment_id ) {
+					set_post_thumbnail( $post_id, $attachment_id );
+					++$images;
+				}
+			}
+
+			foreach ( $wp_fields->content_image_url as $node ) {
+				$url = trim( (string) $node );
+				if ( ! $url ) {
+					continue;
+				}
+				$attachment_id = $this->sideload_image( $url, $post_id );
+				if ( $attachment_id ) {
+					$content = $this->replace_image_reference( $content, $url, wp_get_attachment_url( $attachment_id ) );
+					++$images;
+				}
+			}
+		}
+
+		wp_update_post(
+			wp_slash(
+				array(
+					'ID'           => $post_id,
+					'post_content' => $content,
+				)
+			)
+		);
+
+		return array( 'images' => $images );
+	}
+
+	/**
+	 * Fetch an image into the media library, attached to the given page.
+	 * Only ever called when the upload form's checkbox asked for it.
+	 *
+	 * @return int The new attachment's ID, or 0 on failure.
+	 */
+	private function sideload_image( $url, $post_id ) {
+		if ( ! wp_http_validate_url( $url ) ) {
+			return 0;
+		}
+
+		if ( ! function_exists( 'media_sideload_image' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/media.php';
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			require_once ABSPATH . 'wp-admin/includes/image.php';
+		}
+
+		$attachment_id = media_sideload_image( $url, $post_id, null, 'id' );
+
+		return is_wp_error( $attachment_id ) ? 0 : $attachment_id;
+	}
+
+	/**
+	 * The text keeps only the path an image lived at on the exporting site
+	 * (see relativize_images()), not its domain — this puts back wherever
+	 * the image now lives here, once it has been downloaded.
+	 */
+	private function replace_image_reference( $content, $original_url, $new_url ) {
+		$path = wp_parse_url( $original_url, PHP_URL_PATH );
+		if ( ! $path ) {
+			return $content;
+		}
+
+		$query = wp_parse_url( $original_url, PHP_URL_QUERY );
+		if ( $query ) {
+			$path .= '?' . $query;
+		}
+
+		return str_replace( $path, $new_url, $content );
+	}
+
+	/**
+	 * The page a content entry belongs on: its xref first, an unambiguous
+	 * exact title match otherwise. A title shared by more than one page is
+	 * left alone rather than guessed at.
+	 */
+	private function match_content_post( $wp_fields, $title, $index ) {
+		$xref = '';
+		foreach ( $wp_fields->postmeta as $meta ) {
+			$meta_fields = $meta->children( 'http://wordpress.org/export/1.2/' );
+			if ( self::CONTENT_META_KEY === (string) $meta_fields->meta_key ) {
+				$xref = (string) $meta_fields->meta_value;
+				break;
+			}
+		}
+
+		if ( $xref && isset( $index['xref'][ $xref ] ) ) {
+			return (int) $index['xref'][ $xref ];
+		}
+
+		$key = strtolower( $title );
+		if ( $key && ! empty( $index['title'][ $key ] ) && 1 === count( $index['title'][ $key ] ) ) {
+			return (int) $index['title'][ $key ][0];
+		}
+
+		return 0;
 	}
 }
