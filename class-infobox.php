@@ -88,8 +88,8 @@ class Infobox {
 	}
 
 	private function title_with_parent( $title, $post_id ) {
-		$parent_id = wp_get_post_parent_id( $post_id );
-		if ( ! $parent_id || ! $this->has_infobox_data( $parent_id ) ) {
+		$parent_id = $this->nearest_infobox_ancestor( $post_id );
+		if ( ! $parent_id ) {
 			return $title;
 		}
 
@@ -137,9 +137,28 @@ class Infobox {
 			return $post_id;
 		}
 
-		$parent_id = wp_get_post_parent_id( $post_id );
-		if ( $parent_id && 'publish' === get_post_status( $parent_id ) && $this->has_infobox_data( $parent_id ) ) {
-			return $parent_id;
+		return $this->nearest_infobox_ancestor( $post_id );
+	}
+
+	/**
+	 * Walks up from a page through its own chain of parents — as far as
+	 * they are themselves related pages with no facts — to the first
+	 * ancestor that has any, or 0 if the chain ends without one.
+	 */
+	private function nearest_infobox_ancestor( $post_id ) {
+		$parent_id = (int) wp_get_post_parent_id( $post_id );
+		$seen      = array( (int) $post_id => true );
+
+		while ( $parent_id && empty( $seen[ $parent_id ] ) ) {
+			if ( 'publish' !== get_post_status( $parent_id ) ) {
+				return 0;
+			}
+			if ( $this->has_infobox_data( $parent_id ) ) {
+				return $parent_id;
+			}
+
+			$seen[ $parent_id ] = true;
+			$parent_id          = (int) wp_get_post_parent_id( $parent_id );
 		}
 
 		return 0;

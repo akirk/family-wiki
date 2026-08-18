@@ -2796,7 +2796,7 @@ class GEDCOM {
 		foreach ( $related as $entry ) {
 			$lines = array_merge(
 				$lines,
-				$this->export_content_item_lines( $entry['post'], $link_keys, array( self::CONTENT_RELATED_META_KEY => $entry['parent_xref'] ), $entry['post']->post_name )
+				$this->export_content_item_lines( $entry['post'], $link_keys, array( self::CONTENT_RELATED_META_KEY => $entry['parent_key'] ), $entry['post']->post_name )
 			);
 		}
 
@@ -2858,42 +2858,70 @@ class GEDCOM {
 	/**
 	 * Additional pages under an exported person: pages with no facts of
 	 * their own, so GEDCOM has no record of them, but with text this file
-	 * can still carry. Direct children only, matching what the infobox
-	 * itself treats as an additional page.
+	 * can still carry. Walks the whole subtree beneath a person, not just
+	 * their direct children, since an additional page can itself hold
+	 * further additional pages nested under it.
 	 *
 	 * @param \WP_Post[] $people Exported people.
 	 * @param array      $ids    Post ID => xref, from export_xref_map().
-	 * @return array Each entry: 'post' the child WP_Post, 'parent_xref',
-	 *               and 'key' the target key a link to it is recorded by.
+	 * @return array Each entry: 'post' the child WP_Post, 'parent_key'
+	 *               its immediate parent's own key (a person's xref, or
+	 *               another additional page's own key), and 'key' the
+	 *               target key a link to it — or to a page nested under
+	 *               it in turn — is recorded by.
 	 */
 	private function get_export_related_pages( $people, $ids ) {
 		$related = array();
 
 		foreach ( $people as $person ) {
-			$children = get_posts(
-				array(
-					'post_type'      => 'page',
-					'post_parent'    => $person->ID,
-					'post_status'    => 'publish',
-					'posts_per_page' => -1,
-				)
-			);
-
-			foreach ( $children as $child ) {
-				// Already exported in its own right as a person with facts.
-				if ( isset( $ids[ $child->ID ] ) ) {
-					continue;
-				}
-
-				$related[] = array(
-					'post'        => $child,
-					'parent_xref' => $ids[ $person->ID ],
-					'key'         => 'R:' . $ids[ $person->ID ] . ':' . $child->post_name,
-				);
-			}
+			$this->collect_related_pages( $person->ID, $ids[ $person->ID ], $ids, $related );
 		}
 
 		return $related;
+	}
+
+	/**
+	 * The recursive step behind get_export_related_pages(): every child
+	 * of $parent_post_id that isn't independently exported as a person,
+	 * tagged with $parent_key, then walked into for pages nested under
+	 * it in turn — in parent-before-child order, since that is the order
+	 * import needs to create them in.
+	 *
+	 * @param int    $parent_post_id The immediate parent to walk children of.
+	 * @param string $parent_key     That parent's own key: an xref for a
+	 *                                person, or an "R:…" key for an
+	 *                                additional page.
+	 * @param array  $ids            Post ID => xref, for people with facts.
+	 * @param array  $related        Accumulator, built up by reference.
+	 */
+	private function collect_related_pages( $parent_post_id, $parent_key, $ids, &$related ) {
+		$children = get_posts(
+			array(
+				'post_type'      => 'page',
+				'post_parent'    => $parent_post_id,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+			)
+		);
+
+		foreach ( $children as $child ) {
+			// Already exported in its own right as a person with facts:
+			// its own structural parent, if any, is tagged directly onto
+			// its own item by export_content_string() instead.
+			if ( isset( $ids[ $child->ID ] ) ) {
+				continue;
+			}
+
+			$key = 'R:' . $parent_key . ':' . $child->post_name;
+
+			$related[] = array(
+				'post'       => $child,
+				'parent_key' => $parent_key,
+				'key'        => $key,
+			);
+
+			$this->collect_related_pages( $child->ID, $key, $ids, $related );
+		}
 	}
 
 	/**
