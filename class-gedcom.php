@@ -31,6 +31,14 @@ class GEDCOM {
 	 */
 	const CONTENT_LINK_META_KEY = '_gedcom_link';
 
+	/**
+	 * The meta key on a content item for an additional page under a
+	 * person — a chronology, a house, anything with no facts of its own
+	 * for GEDCOM to carry — rather than a person's own text. Its value is
+	 * the xref of the person the page belongs under.
+	 */
+	const CONTENT_RELATED_META_KEY = '_gedcom_related_of';
+
 	private $nav_menu_auto_add_priority = false;
 
 	/**
@@ -2563,7 +2571,7 @@ class GEDCOM {
 	 */
 	private function render_content_export_button() {
 		?>
-		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for.', 'family-wiki' ); ?></p>
+		<p><?php esc_html_e( 'The content file carries the page text GEDCOM has no room for, including any additional pages under a person.', 'family-wiki' ); ?></p>
 		<form class="family-wiki-download-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::CONTENT_EXPORT_ACTION ); ?>" />
 			<?php wp_nonce_field( self::CONTENT_EXPORT_ACTION ); ?>
@@ -2757,8 +2765,13 @@ class GEDCOM {
 	}
 
 	private function export_content_string() {
-		$people = $this->get_export_people();
-		$ids    = $this->export_xref_map( $people );
+		$people    = $this->get_export_people();
+		$ids       = $this->export_xref_map( $people );
+		$related   = $this->get_export_related_pages( $people, $ids );
+		$link_keys = $ids;
+		foreach ( $related as $entry ) {
+			$link_keys[ $entry['post']->ID ] = $entry['key'];
+		}
 
 		$lines = array(
 			'<?xml version="1.0" encoding="UTF-8" ?>',
@@ -2767,37 +2780,113 @@ class GEDCOM {
 		);
 
 		foreach ( $people as $person ) {
-			$links   = array();
-			$content = $this->normalize_wiki_links( $person->post_content );
-			$content = $this->relativize_images( $content );
-			$content = $this->relativize_links( $content, $ids, $links );
+			$lines = array_merge(
+				$lines,
+				$this->export_content_item_lines( $person, $link_keys, array( self::CONTENT_META_KEY => $ids[ $person->ID ] ) )
+			);
+		}
 
-			$lines[] = '<item>';
-			$lines[] = '<title>' . $this->cdata( get_the_title( $person ) ) . '</title>';
-			$lines[] = '<content:encoded>' . $this->cdata( $content ) . '</content:encoded>';
-			if ( has_post_thumbnail( $person ) ) {
-				$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $person ) ) ) . '</wp:attachment_url>';
-			}
-			foreach ( $this->content_image_urls( $person->post_content ) as $url ) {
-				$lines[] = '<wp:content_image_url>' . $this->cdata( $url ) . '</wp:content_image_url>';
-			}
-			$lines[] = '<wp:postmeta>';
-			$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_META_KEY ) . '</wp:meta_key>';
-			$lines[] = '<wp:meta_value>' . $this->cdata( $ids[ $person->ID ] ) . '</wp:meta_value>';
-			$lines[] = '</wp:postmeta>';
-			foreach ( $links as $path => $target_xref ) {
-				$lines[] = '<wp:postmeta>';
-				$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_LINK_META_KEY ) . '</wp:meta_key>';
-				$lines[] = '<wp:meta_value>' . $this->cdata( $path . '|' . $target_xref ) . '</wp:meta_value>';
-				$lines[] = '</wp:postmeta>';
-			}
-			$lines[] = '</item>';
+		foreach ( $related as $entry ) {
+			$lines = array_merge(
+				$lines,
+				$this->export_content_item_lines( $entry['post'], $link_keys, array( self::CONTENT_RELATED_META_KEY => $entry['parent_xref'] ), $entry['post']->post_name )
+			);
 		}
 
 		$lines[] = '</channel>';
 		$lines[] = '</rss>';
 
 		return implode( "\n", $lines ) . "\n";
+	}
+
+	/**
+	 * One <item>'s worth of lines: a person's own text, or an additional
+	 * page's — the two differ only in which postmeta says what the item
+	 * is, and whether a slug travels with it for a page that has no xref
+	 * of its own to be found by.
+	 *
+	 * @param \WP_Post $post       The person or additional page being exported.
+	 * @param array    $link_keys  Post ID => the key a link to it should
+	 *                             record, covering people and additional
+	 *                             pages alike.
+	 * @param array    $meta_pairs Meta key => value to identify this item.
+	 * @param string   $post_name  The item's own slug, when it needs one to
+	 *                             be found again on re-import.
+	 */
+	private function export_content_item_lines( $post, $link_keys, $meta_pairs, $post_name = '' ) {
+		$links   = array();
+		$content = $this->normalize_wiki_links( $post->post_content );
+		$content = $this->relativize_images( $content );
+		$content = $this->relativize_links( $content, $link_keys, $links );
+
+		$lines = array( '<item>' );
+		$lines[] = '<title>' . $this->cdata( get_the_title( $post ) ) . '</title>';
+		if ( '' !== $post_name ) {
+			$lines[] = '<wp:post_name>' . $this->cdata( $post_name ) . '</wp:post_name>';
+		}
+		$lines[] = '<content:encoded>' . $this->cdata( $content ) . '</content:encoded>';
+		if ( has_post_thumbnail( $post ) ) {
+			$lines[] = '<wp:attachment_url>' . $this->cdata( wp_get_attachment_url( get_post_thumbnail_id( $post ) ) ) . '</wp:attachment_url>';
+		}
+		foreach ( $this->content_image_urls( $post->post_content ) as $url ) {
+			$lines[] = '<wp:content_image_url>' . $this->cdata( $url ) . '</wp:content_image_url>';
+		}
+		foreach ( $meta_pairs as $meta_key => $meta_value ) {
+			$lines[] = '<wp:postmeta>';
+			$lines[] = '<wp:meta_key>' . $this->cdata( $meta_key ) . '</wp:meta_key>';
+			$lines[] = '<wp:meta_value>' . $this->cdata( $meta_value ) . '</wp:meta_value>';
+			$lines[] = '</wp:postmeta>';
+		}
+		foreach ( $links as $path => $target_key ) {
+			$lines[] = '<wp:postmeta>';
+			$lines[] = '<wp:meta_key>' . $this->cdata( self::CONTENT_LINK_META_KEY ) . '</wp:meta_key>';
+			$lines[] = '<wp:meta_value>' . $this->cdata( $path . '|' . $target_key ) . '</wp:meta_value>';
+			$lines[] = '</wp:postmeta>';
+		}
+		$lines[] = '</item>';
+
+		return $lines;
+	}
+
+	/**
+	 * Additional pages under an exported person: pages with no facts of
+	 * their own, so GEDCOM has no record of them, but with text this file
+	 * can still carry. Direct children only, matching what the infobox
+	 * itself treats as an additional page.
+	 *
+	 * @param \WP_Post[] $people Exported people.
+	 * @param array      $ids    Post ID => xref, from export_xref_map().
+	 * @return array Each entry: 'post' the child WP_Post, 'parent_xref',
+	 *               and 'key' the target key a link to it is recorded by.
+	 */
+	private function get_export_related_pages( $people, $ids ) {
+		$related = array();
+
+		foreach ( $people as $person ) {
+			$children = get_posts(
+				array(
+					'post_type'      => 'page',
+					'post_parent'    => $person->ID,
+					'post_status'    => 'publish',
+					'posts_per_page' => -1,
+				)
+			);
+
+			foreach ( $children as $child ) {
+				// Already exported in its own right as a person with facts.
+				if ( isset( $ids[ $child->ID ] ) ) {
+					continue;
+				}
+
+				$related[] = array(
+					'post'        => $child,
+					'parent_xref' => $ids[ $person->ID ],
+					'key'         => 'R:' . $ids[ $person->ID ] . ':' . $child->post_name,
+				);
+			}
+		}
+
+		return $related;
 	}
 
 	/**
