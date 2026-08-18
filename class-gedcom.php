@@ -2768,7 +2768,8 @@ class GEDCOM {
 
 		foreach ( $people as $person ) {
 			$links   = array();
-			$content = $this->relativize_images( $person->post_content );
+			$content = $this->normalize_wiki_links( $person->post_content );
+			$content = $this->relativize_images( $content );
 			$content = $this->relativize_links( $content, $ids, $links );
 
 			$lines[] = '<item>';
@@ -2826,6 +2827,29 @@ class GEDCOM {
 		}
 
 		return $urls;
+	}
+
+	/**
+	 * Some pages still carry links in the shape a MediaWiki site generates,
+	 * left over from an earlier migration — including a "red link" pointing
+	 * at an edit screen for a page that had not been written yet
+	 * (index.php?title=X&action=edit&redlink=1). Rewritten here into a
+	 * plain same-site link by slugified title, so relativize_links() below
+	 * resolves it exactly like any other internal link — to another
+	 * exported person if there is one, or otherwise to an inert relative
+	 * link — instead of every consumer of this file having to understand
+	 * MediaWiki's own URL shape.
+	 */
+	private function normalize_wiki_links( $content ) {
+		return preg_replace_callback(
+			'/href=(["\'])(?:[^"\']*\/)?index\.php\?[^"\']*\btitle=([^&"\']+)[^"\']*\1/i',
+			function ( $matches ) {
+				$title = sanitize_title_with_dashes( str_replace( '_', ' ', urldecode( $matches[2] ) ) );
+
+				return 'href=' . $matches[1] . home_url( '/' . $title ) . $matches[1];
+			},
+			$content
+		);
 	}
 
 	/**
