@@ -13,7 +13,7 @@ class Private_Site {
 		add_filter( 'rest_dispatch_request', array( $this, 'rest_dispatch_request' ), 10, 3 );
 		add_action( 'opml_head', array( $this, 'opml_head' ) );
 		add_filter( 'bloginfo', array( $this, 'bloginfo' ), 3, 2 );
-		add_filter( 'preprocess_comment', array( $this, 'parse_request' ), 0 );
+		add_filter( 'preprocess_comment', array( $this, 'preprocess_comment' ), 0 );
 		add_filter( 'robots_txt', array( $this, 'robots_txt' ) );
 	}
 
@@ -25,52 +25,60 @@ class Private_Site {
 		<?php
 	}
 
-	private function is_private() {
-		static $is_private;
+	/**
+	 * Whether the blog currently switched to (get_current_blog_id(), which
+	 * on a multisite network a caller can move with switch_to_blog() before
+	 * asking) is private to the current user.
+	 *
+	 * Cached per blog id, since Cross_Wiki asks this about more than one
+	 * blog within a single request.
+	 */
+	public static function is_private() {
+		static $is_private = array();
 
-		if ( isset( $is_private ) ) {
-			return $is_private;
+		$blog_id = get_current_blog_id();
+		if ( isset( $is_private[ $blog_id ] ) ) {
+			return $is_private[ $blog_id ];
 		}
 
 		if ( get_option( 'blog_public' ) >= 0 ) {
-			$is_private = false;
-			return $is_private;
+			$is_private[ $blog_id ] = false;
+			return false;
 		}
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			$is_private = false;
-			return $is_private;
+			$is_private[ $blog_id ] = false;
+			return false;
 		}
 
 		if ( defined( 'WP_IMPORTING' ) && WP_IMPORTING ) {
-			$is_private = false;
-			return $is_private;
+			$is_private[ $blog_id ] = false;
+			return false;
 		}
 
 		$user = wp_get_current_user();
 		if ( ! $user->ID ) {
-			$is_private = true;
-			return $is_private;
+			$is_private[ $blog_id ] = true;
+			return true;
 		}
-		$blog_id = get_current_blog_id();
 		if ( ! $blog_id ) {
-			$is_private = true;
-			return $is_private;
+			$is_private[ $blog_id ] = true;
+			return true;
 		}
 
 		$the_user = clone( $user );
 		$the_user->for_site( $blog_id );
 		if ( ! $the_user->has_cap( self::MINIMUM_CAPABILITY ) ) {
-			$is_private = true;
-			return $is_private;
+			$is_private[ $blog_id ] = true;
+			return true;
 		}
 
-		$is_private = false;
-		return $is_private;
+		$is_private[ $blog_id ] = false;
+		return false;
 	}
 
 	public function xmlrpc_methods( $methods ) {
-		if ( ! $this->is_private() ) {
+		if ( ! self::is_private() ) {
 			return $methods;
 		}
 
@@ -78,7 +86,7 @@ class Private_Site {
 	}
 
 	public function parse_request() {
-		if ( ! $this->is_private() ) {
+		if ( ! self::is_private() ) {
 			return;
 		}
 
@@ -130,11 +138,25 @@ class Private_Site {
 			return null;
 		}
 
-		if ( $this->is_private() ) {
+		if ( self::is_private() ) {
 			return new \WP_Error( 'private_site', __( 'This site is private.', 'family-wiki' ), array( 'status' => 403 ) );
 		}
 
 		return null;
+	}
+
+	/**
+	 * Blocking a comment post is parse_request()'s job, and it exits on its
+	 * own when the site is private. Otherwise this filter must hand
+	 * $commentdata back untouched, so it cannot just hook parse_request()
+	 * directly the way the other no-argument hooks above do.
+	 */
+	public function preprocess_comment( $commentdata ) {
+		if ( self::is_private() ) {
+			$this->parse_request();
+		}
+
+		return $commentdata;
 	}
 
 	public function opml_head() {
@@ -148,13 +170,13 @@ class Private_Site {
 	}
 
 	public function bloginfo( $value, $what ) {
-		if ( ( 'name' === $what || 'title' === $what ) && $this->is_private() ) {
+		if ( ( 'name' === $what || 'title' === $what ) && self::is_private() ) {
 			return __( 'This site is private.', 'family-wiki' );
 		}
 
 		return $value;
 	}
 	public function robots_txt() {
-		return 'User-agent: *nDisallow: /n';
+		return "User-agent: *\nDisallow: /\n";
 	}
 }
