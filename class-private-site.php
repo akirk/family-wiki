@@ -130,7 +130,7 @@ class Private_Site {
 			return null;
 		}
 
-		if ( get_option( 'blog_public' ) === -1 ) {
+		if ( $this->is_private() ) {
 			return new \WP_Error( 'private_site', __( 'This site is private.', 'family-wiki' ), array( 'status' => 403 ) );
 		}
 
