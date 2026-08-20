@@ -4,7 +4,7 @@
 - Tags: family, wiki
 - Tested up to: 6.8
 - License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-- Stable tag: 1.1.9
+- Stable tag: 1.2.0
 
 Keep your family history in a wiki hosted on WordPress.
 
@@ -58,6 +58,17 @@ For displaying the red missing links or green external links, all pages are eval
 ![7. Inserting a birthday calendar block.](/assets/screenshot-7.png)
 
 ## Changelog
+
+### 1.2.0
+- Add automatic infoboxes with structured marriages data.
+- Add cross-wiki settings, allowing infoboxes to link to the same person or page on peer wikis.
+- Add a Family Wiki menu and virtual calendar pages.
+- Add citizenships and cache family wiki data for performance.
+- Add wedding anniversaries to the family calendar.
+- Add a Family Tree block.
+- Add GEDCOM import and export support, including a review step for large files.
+- Add a content export/import alongside GEDCOM, carrying related child pages along with a person.
+- Fix a cross-wiki privacy leak.
 
 ### 1.1.9
 - Translated ACF fields to German.

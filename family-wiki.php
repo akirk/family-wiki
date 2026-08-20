@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Family Wiki
  * Plugin URI: https://github.com/akirk/family-wiki
- * Version: 1.1.9
+ * Version: 1.2.0
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
  * Requires at least: 5.0
