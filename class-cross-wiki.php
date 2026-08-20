@@ -118,6 +118,15 @@ class Cross_Wiki {
 		}
 
 		switch_to_blog( $blog_id );
+
+		// A cross-linked site that has turned itself private since being
+		// configured here is not this visitor's to see.
+		if ( Private_Site::is_private() ) {
+			restore_current_blog();
+			$pages[ $cache_key ] = false;
+			return false;
+		}
+
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		if ( ! $page || 'publish' !== $page->post_status ) {
 			restore_current_blog();
