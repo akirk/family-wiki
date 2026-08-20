@@ -1,9 +1,10 @@
 <?php
 /**
  * Plugin Name: Family Wiki
- * Plugin author: Alex Kirk
  * Plugin URI: https://github.com/akirk/family-wiki
  * Version: 1.1.9
+ * Author: Alex Kirk
+ * Author URI: https://alex.kirk.at/
  * Requires at least: 5.0
  * Requires PHP: 5.2.4
  *
