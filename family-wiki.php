@@ -6,6 +6,7 @@
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
  * Requires at least: 5.0
+ * Tested up to: 7.1
  * Requires PHP: 5.2.4
  *
  * Description: Keep your family history in a wiki hosted on WordPress.

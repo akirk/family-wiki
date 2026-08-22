@@ -2,7 +2,7 @@
 
 - Contributors: akirk
 - Tags: family, wiki
-- Tested up to: 6.8
+- Tested up to: 7.1
 - License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
 - Stable tag: 1.2.0
 
