@@ -15,7 +15,7 @@ class Upgrade {
 		add_action( 'init', array( $this, 'setup' ), 100 );
 	}
 
-	/** Capture old-install evidence before the new version creates its own roles. */
+	/** Capture old-install evidence before legacy roles are removed. */
 	public static function record_previous_install() {
 		if ( null !== get_option( self::PREVIOUS_INSTALL, null ) ) {
 			return;
@@ -47,6 +47,7 @@ class Upgrade {
 
 	public function setup() {
 		self::record_previous_install();
+		Main::setup_roles();
 		if ( '2.0.0' !== get_option( 'family_wiki_app_version' ) ) {
 			Main::setup();
 			update_option( 'family_wiki_app_version', '2.0.0' );

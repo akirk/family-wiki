@@ -28,6 +28,7 @@
         "test": [
             "@lint",
             "php tests/upgrade.php",
+            "php tests/roles.php",
             "php tests/relatives.php",
             "php tests/stubs.php",
             "@phpcs"

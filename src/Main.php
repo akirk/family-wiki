@@ -108,71 +108,49 @@ class Main {
 	}
 
 	/**
-	 * The people post type uses the page capabilities, so these roles give the
-	 * same access to people that Family Wiki's roles gave to wiki pages, and
-	 * WordPress's own Editor role works without any further setup.
+	 * Replace legacy wiki roles with the standard Editor role on this site.
+	 * Preserve other roles, especially Administrator, on multi-role accounts.
 	 */
 	public static function setup_roles() {
-		$default_roles = array(
-			'wiki-user'   => _x( 'Wiki User', 'User role', 'family-wiki' ),
-			'wiki-editor' => _x( 'Wiki Editor', 'User role', 'family-wiki' ),
-		);
+		if ( get_option( 'family_wiki_standard_roles' ) || ! get_role( 'editor' ) ) {
+			return;
+		}
 
-		$roles = new \WP_Roles();
+		Upgrade::record_previous_install();
+		$legacy_roles = array( 'wiki-user', 'wiki-editor' );
+		foreach ( wp_roles()->roles as $slug => $role ) {
+			if ( ! empty( $role['capabilities']['wiki-user'] ) || ! empty( $role['capabilities']['wiki-editor'] ) ) {
+				$legacy_roles[] = $slug;
+			}
+		}
+		$legacy_roles = array_unique( $legacy_roles );
 
-		foreach ( $default_roles as $type => $name ) {
-			$role = false;
-			foreach ( $roles->roles as $slug => $data ) {
-				if ( isset( $data['capabilities'][ $type ] ) ) {
-					$role = get_role( $slug );
-					break;
+		foreach ( $legacy_roles as $slug ) {
+			// Fetch successive batches from the shrinking set of legacy members.
+			do {
+				$users = get_users( array( 'role' => $slug, 'number' => 100, 'orderby' => 'ID' ) );
+				foreach ( $users as $user ) {
+					$has_access = false;
+					foreach ( array_diff( $user->roles, $legacy_roles ) as $remaining_role ) {
+						$role = get_role( $remaining_role );
+						if ( $role && $role->has_cap( 'edit_others_pages' ) ) {
+							$has_access = true;
+							break;
+						}
+					}
+					if ( ! $has_access ) {
+						$user->add_role( 'editor' );
+					}
+					$user->remove_role( $slug );
 				}
+			} while ( count( $users ) === 100 );
+
+			if ( $slug === get_option( 'default_role' ) ) {
+				update_option( 'default_role', 'subscriber' );
 			}
-
-			if ( ! $role ) {
-				add_role( $type, $name, self::get_role_capabilities( $type ) );
-				continue;
-			}
-
-			// This might add capabilities a previous version did not grant.
-			foreach ( array_keys( self::get_role_capabilities( $type ) ) as $cap ) {
-				$role->add_cap( $cap );
-			}
-		}
-	}
-
-	public static function get_role_capabilities( $role ) {
-		$capabilities = array();
-
-		$capabilities['wiki-user'] = array(
-			'edit_pages'           => true,
-			'edit_others_pages'    => true,
-			'edit_published_pages' => true,
-			'publish_pages'        => true,
-			'edit_files'           => true,
-			'upload_files'         => true,
-			'read'                 => true,
-		);
-
-		$capabilities['wiki-editor'] = array_merge(
-			$capabilities['wiki-user'],
-			array(
-				'delete_pages'           => true,
-				'delete_others_pages'    => true,
-				'delete_published_pages' => true,
-			)
-		);
-
-		// All roles belonging to this plugin have the familypedia capability.
-		foreach ( array_keys( $capabilities ) as $type ) {
-			$capabilities[ $type ][ $type ]  = true;
-			$capabilities[ $type ]['family-wiki'] = true;
+			remove_role( $slug );
 		}
 
-		if ( ! isset( $capabilities[ $role ] ) ) {
-			return array();
-		}
-
-		return $capabilities[ $role ];
+		update_option( 'family_wiki_standard_roles', 1 );
 	}
 }
