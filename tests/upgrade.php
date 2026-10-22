@@ -32,6 +32,7 @@ namespace {
 	function __( $text, $domain ) { return $text; }
 	function absint( $id ) { return abs( (int) $id ); }
 	function sanitize_text_field( $value ) { return trim( strip_tags( $value ) ); }
+	function wp_roles() { return (object) array( 'roles' => $GLOBALS['fixture_roles'] ?? array() ); }
 	function get_option( $key, $default = false ) { return $GLOBALS['options'][ $key ] ?? $default; }
 	function update_option( $key, $value ) { $GLOBALS['options'][ $key ] = $value; }
 	function add_option( $key, $value ) { if ( ! array_key_exists( $key, $GLOBALS['options'] ) ) { update_option( $key, $value ); } }
@@ -102,6 +103,29 @@ namespace {
 	check( $connected_rows[4]['relationships']['father'] === array( 3 ), 'Scalar ACF parent ID must be read.' );
 	unset( $GLOBALS['meta'][4] );
 	check( \Family_Wiki\Upgrade::has_legacy_pages(), 'Existing family facts must trigger migration detection.' );
+	$saved_options = $GLOBALS['options'];
+	$GLOBALS['allowed'] = true;
+	$GLOBALS['options'] = array();
+	$GLOBALS['fixture_roles'] = array();
+	\Family_Wiki\Upgrade::record_previous_install();
+	check( ! \Family_Wiki\Upgrade::should_show_notice(), 'Family metadata alone must not trigger an upgrade notice on a fresh install.' );
+	$GLOBALS['fixture_roles'] = array( 'wiki-user' => array( 'capabilities' => array( 'family-wiki' => true ) ) );
+	\Family_Wiki\Upgrade::record_previous_install();
+	check( ! \Family_Wiki\Upgrade::should_show_notice(), 'Roles added after a fresh install must not change its recorded history.' );
+	$GLOBALS['options'] = array();
+	\Family_Wiki\Upgrade::record_previous_install();
+	check( \Family_Wiki\Upgrade::should_show_notice(), 'Pre-existing 1.x wiki roles and unmigrated pages must trigger the notice.' );
+	$GLOBALS['options'][\Family_Wiki\Upgrade::OPTION] = '2.0.0';
+	check( ! \Family_Wiki\Upgrade::should_show_notice(), 'Completed migration must hide the notice.' );
+	$GLOBALS['options'] = array( 'family_wiki_app_version' => '2.0.0' );
+	\Family_Wiki\Upgrade::record_previous_install();
+	check( ! \Family_Wiki\Upgrade::should_show_notice(), 'New-version roles must not be mistaken for old-install history.' );
+	$GLOBALS['options'] = array( 'family_wiki_virtual_pages' => array() );
+	$GLOBALS['fixture_roles'] = array();
+	\Family_Wiki\Upgrade::record_previous_install();
+	check( \Family_Wiki\Upgrade::should_show_notice(), 'Stored 1.x settings must establish prior use even if empty.' );
+	$GLOBALS['options'] = $saved_options;
+
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 2 ) ) ), 'Child without parent must be rejected.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1 ) ) ), 'Parent without child must be rejected.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1, 2 ) ) ), 'Omitted spouse must be rejected.' );

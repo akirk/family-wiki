@@ -4,6 +4,7 @@ namespace Family_Wiki;
 /** Reviewed, resumable migration from the page/ACF data model. */
 class Upgrade {
 	const OPTION = 'family_wiki_app_migration';
+	const PREVIOUS_INSTALL = 'family_wiki_previous_install';
 	const META = '_family_wiki_legacy_url';
 
 	public function __construct() {
@@ -14,7 +15,38 @@ class Upgrade {
 		add_action( 'init', array( $this, 'setup' ), 100 );
 	}
 
+	/** Capture old-install evidence before the new version creates its own roles. */
+	public static function record_previous_install() {
+		if ( null !== get_option( self::PREVIOUS_INSTALL, null ) ) {
+			return;
+		}
+		$previous = (bool) get_option( self::OPTION, false );
+		foreach ( array( 'family_wiki_infobox_settings', 'family_wiki_virtual_pages', 'family_wiki_cross_wiki_sites' ) as $option ) {
+			if ( null !== get_option( $option, null ) ) {
+				$previous = true;
+			}
+		}
+		// After 2.0 has initialized, the roles alone no longer prove a 1.x install.
+		if ( ! get_option( 'family_wiki_app_version', false ) ) {
+			foreach ( wp_roles()->roles as $role ) {
+				if ( ! empty( $role['capabilities']['family-wiki'] ) ) {
+					$previous = true;
+					break;
+				}
+			}
+		}
+		add_option( self::PREVIOUS_INSTALL, (int) $previous, '', false );
+	}
+
+	public static function should_show_notice() {
+		return current_user_can( 'manage_options' )
+			&& get_option( self::PREVIOUS_INSTALL, false )
+			&& ! get_option( self::OPTION )
+			&& self::has_legacy_pages();
+	}
+
 	public function setup() {
+		self::record_previous_install();
 		if ( '2.0.0' !== get_option( 'family_wiki_app_version' ) ) {
 			Main::setup();
 			update_option( 'family_wiki_app_version', '2.0.0' );
@@ -53,7 +85,7 @@ class Upgrade {
 	}
 
 	public function notice() {
-		if ( ! current_user_can( 'manage_options' ) || get_option( self::OPTION ) || ! self::has_legacy_pages() ) {
+		if ( ! self::should_show_notice() ) {
 			return;
 		}
 		echo '<div class="notice notice-warning"><p><a href="' . esc_url( admin_url( 'tools.php?page=family-wiki-upgrade' ) ) . '">';

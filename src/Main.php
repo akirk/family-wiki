@@ -98,6 +98,7 @@ class Main {
 	}
 
 	public static function setup() {
+		Upgrade::record_previous_install();
 		self::setup_roles();
 		Person::register_post_type();
 		Front_Page::register_post_type();
