@@ -3,7 +3,7 @@
  * Plugin Name: Familypedia
  * Plugin URI: https://github.com/akirk/family-wiki
  * Description: Like Wikipedia, but private and just for your family — stories and photos for every relative, compatible with other family tree apps via GEDCOM.
- * Version: 2.0.0
+ * Version: 2.0.0+aef12f76faca
  * Requires at least: 6.0
  * Tested up to: 7.1
  * Requires PHP: 7.4
