@@ -5,6 +5,8 @@
 	<rule ref="WordPress-Core">
 		<exclude name="WordPress.XSS.EscapeOutput.UnsafePrintingFunction" />
 		<exclude name="WordPress.Files.FileName.InvalidClassFileName" />
+		<!-- Classes are PSR-4 autoloaded from src/, as create-wp-app scaffolds them. -->
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase" />
 		<exclude name="Squiz.Commenting" />
 		<exclude name="WordPress.NamingConventions.ValidVariableName.NotSnakeCaseMemberVar" />
 		<exclude name="WordPress.DB.PreparedSQL.NotPrepared" />
@@ -15,7 +17,10 @@
 
 	<!-- Check all PHP files in directory tree by default. -->
 	<arg name="extensions" value="php"/>
-	<file>.</file>
+	<file>src</file>
+	<file>templates</file>
+	<file>family-wiki.php</file>
+	<file>class-private-site.php</file>
 
 	<!-- Show progress and sniff codes in all reports -->
 	<arg value="ps"/>

@@ -1,0 +1,621 @@
+/*
+ * The page around the wiki content, which Family Wiki got from the theme
+ * and Familypedia has to provide itself. Only the app loads this.
+ *
+ * Colours come from the WpApp tokens that wp_app_head() prints, so the app
+ * follows the reader's admin colour scheme and its dark mode. The fallbacks are
+ * the light values, for the case where those tokens are not there.
+ */
+body.familypedia {
+	--familypedia-background: var(--wp-app-color-background, #f6f7f7);
+	--familypedia-surface: var(--wp-app-color-surface, #fff);
+	--familypedia-surface-alt: var(--wp-app-color-surface-alt, #f0f0f1);
+	--familypedia-text: var(--wp-app-color-text, #1d2327);
+	--familypedia-muted: var(--wp-app-color-muted, #646970);
+	--familypedia-border: var(--wp-app-color-border, #dcdcde);
+	--familypedia-primary: var(--wp-app-color-primary, #3858e9);
+	--familypedia-primary-hover: var(--wp-app-color-primary-hover, #2145e6);
+	--familypedia-on-primary: var(--wp-app-color-on-primary, #fff);
+	--familypedia-focus: var(--wp-app-color-focus, #3858e9);
+	--familypedia-error: #b32d2e;
+	--familypedia-radius: 4px;
+
+	background: var(--familypedia-background);
+	color: var(--familypedia-text);
+	color-scheme: var(--wp-app-color-scheme, light);
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	line-height: 1.6;
+	margin: 0;
+}
+
+.familypedia-page {
+	box-sizing: border-box;
+	margin: 0 auto;
+	max-width: 60rem;
+	padding: 1.5rem 1rem 3rem;
+}
+
+.familypedia-masthead {
+	align-items: center;
+	border-bottom: 1px solid var(--familypedia-border);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	justify-content: space-between;
+	margin: 0 0 1.5rem;
+	padding-bottom: 0.75rem;
+}
+
+.familypedia-masthead__home {
+	color: inherit;
+	font-size: 1.25rem;
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.familypedia-search {
+	display: flex;
+	gap: 0.35rem;
+}
+
+.familypedia-search input[type="search"] {
+	min-width: 14rem;
+}
+
+.familypedia-footer {
+	border-top: 1px solid var(--familypedia-border);
+	color: var(--familypedia-muted);
+	margin-top: 3rem;
+	padding-top: 0.75rem;
+}
+
+.familypedia-footer nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.familypedia-main h1 {
+	line-height: 1.2;
+	margin-top: 0;
+}
+
+/*
+ * Form controls. WordPress gives the app nothing here, and the browser default
+ * next to the rest of the page reads as an unfinished box, so every control the
+ * app uses is drawn the same way.
+ */
+body.familypedia input[type="text"],
+body.familypedia input[type="search"],
+body.familypedia input[type="date"],
+body.familypedia input[type="number"],
+body.familypedia input[type="email"],
+body.familypedia input[type="url"],
+body.familypedia input[type="password"],
+body.familypedia input[type="file"],
+body.familypedia select,
+body.familypedia textarea {
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+	box-sizing: border-box;
+	color: inherit;
+	font: inherit;
+	line-height: 1.4;
+	margin: 0;
+	max-width: 100%;
+	padding: 0.4rem 0.6rem;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+body.familypedia textarea {
+	resize: vertical;
+}
+
+body.familypedia select {
+	/* Room for the browser's own arrow, whichever side it puts it on. */
+	padding-right: 1.75rem;
+}
+
+body.familypedia input[type="file"] {
+	padding: 0.35rem 0.5rem;
+}
+
+body.familypedia input:not([type="checkbox"]):not([type="radio"]):hover,
+body.familypedia select:hover,
+body.familypedia textarea:hover {
+	border-color: var(--familypedia-muted);
+}
+
+body.familypedia input:not([type="checkbox"]):not([type="radio"]):focus,
+body.familypedia select:focus,
+body.familypedia textarea:focus {
+	border-color: var(--familypedia-primary);
+	box-shadow: 0 0 0 1px var(--familypedia-primary);
+	outline: 2px solid transparent;
+	outline-offset: 0;
+}
+
+body.familypedia input[type="checkbox"],
+body.familypedia input[type="radio"] {
+	accent-color: var(--familypedia-primary);
+	margin: 0;
+	vertical-align: middle;
+}
+
+body.familypedia :focus-visible {
+	outline: 2px solid var(--familypedia-focus);
+	outline-offset: 1px;
+}
+
+body.familypedia ::placeholder {
+	color: var(--familypedia-muted);
+	opacity: 1;
+}
+
+.familypedia-notice {
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-left: 4px solid var(--familypedia-muted);
+	border-radius: var(--familypedia-radius);
+	margin: 0 0 1.5rem;
+	padding: 0.75rem 1rem;
+}
+
+.familypedia-notice--error {
+	border-left-color: var(--familypedia-error);
+}
+
+.familypedia-notice--warning {
+	border-left-color: #dba617;
+}
+
+.familypedia-notice--success {
+	border-left-color: #00a32a;
+}
+
+/* Blocks say what is wrong to whoever can put it right, and nothing to anyone else. */
+.familypedia-block-notice {
+	background: var(--familypedia-surface-alt);
+	border: 1px dashed var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	color: var(--familypedia-muted);
+	padding: 1rem;
+	text-align: center;
+}
+
+.familypedia-front-page__actions {
+	border-top: 1px solid var(--familypedia-border);
+	clear: both;
+	margin-top: 2rem;
+	padding-top: 0.75rem;
+}
+
+.familypedia-person__header {
+	align-items: baseline;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	justify-content: space-between;
+}
+
+.familypedia-person__actions {
+	display: flex;
+	gap: 1rem;
+	margin: 0;
+}
+
+.familypedia-person__content::after {
+	clear: both;
+	content: "";
+	display: table;
+}
+
+.familypedia-person__empty {
+	color: var(--familypedia-muted);
+}
+
+.familypedia-people__index {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.familypedia-people__group h2 {
+	border-bottom: 1px solid var(--familypedia-border);
+	font-size: 1.25rem;
+	margin: 1.5rem 0 0.5rem;
+}
+
+/*
+ * Buttons. Only elements carrying the class are styled: the buttons inside the
+ * forms and the GEDCOM tree are meant to read as text and reset themselves
+ * below, which a rule on the bare element would win against.
+ */
+.familypedia-button {
+	align-items: center;
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+	color: inherit;
+	cursor: pointer;
+	display: inline-flex;
+	font: inherit;
+	gap: 0.35rem;
+	justify-content: center;
+	line-height: 1.4;
+	padding: 0.4rem 0.9rem;
+	text-decoration: none;
+	transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+	white-space: nowrap;
+}
+
+.familypedia-button:hover,
+.familypedia-button:focus {
+	background: var(--familypedia-surface-alt);
+	border-color: var(--familypedia-muted);
+	color: inherit;
+}
+
+.familypedia-button:active {
+	background: var(--familypedia-border);
+}
+
+.familypedia-button[disabled],
+.familypedia-button[aria-disabled="true"] {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.familypedia-button--primary {
+	background: var(--familypedia-primary);
+	border-color: var(--familypedia-primary);
+	color: var(--familypedia-on-primary);
+	font-weight: 600;
+}
+
+.familypedia-button--primary:hover,
+.familypedia-button--primary:focus {
+	background: var(--familypedia-primary-hover);
+	border-color: var(--familypedia-primary-hover);
+	color: var(--familypedia-on-primary);
+}
+
+.familypedia-button--primary:active {
+	background: var(--familypedia-primary-hover);
+}
+
+.familypedia-form fieldset {
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	margin: 0 0 1.5rem;
+	padding: 1rem 1.25rem 1.25rem;
+}
+
+.familypedia-form legend {
+	font-size: 1.0625rem;
+	font-weight: 700;
+	padding: 0 0.4rem;
+}
+
+/* A marriage is a group inside a group; a second frame around it would be noise. */
+.familypedia-form .familypedia-marriage {
+	background: var(--familypedia-surface-alt);
+	border-style: dashed;
+	margin: 0 0 1rem;
+	padding: 0.75rem 1rem 1rem;
+}
+
+.familypedia-field {
+	margin: 0 0 0.9rem;
+}
+
+.familypedia-field > label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.25rem;
+}
+
+.familypedia-field--check > label {
+	align-items: center;
+	display: flex;
+	font-weight: 400;
+	gap: 0.5rem;
+}
+
+.familypedia-field input[type="text"],
+.familypedia-field input[type="date"],
+.familypedia-field input[type="search"],
+.familypedia-field input[type="number"],
+.familypedia-field select,
+.familypedia-field textarea {
+	max-width: 30rem;
+	width: 100%;
+}
+
+/* The marriage fields wrap their input in the label; it still wants its own line. */
+.familypedia-field:not(.familypedia-field--check) > label > input,
+.familypedia-field:not(.familypedia-field--check) > label > select,
+.familypedia-field:not(.familypedia-field--check) > label > textarea {
+	display: block;
+	margin-top: 0.25rem;
+}
+
+.familypedia-field__hint {
+	color: var(--familypedia-muted);
+	font-size: 0.875rem;
+	margin-top: 0.15rem;
+}
+
+/*
+ * A hint is a line of its own, spans included. Kept off the hidden ones: a
+ * class beats the browser's own rule for the attribute, and a hint given a
+ * display would be drawn while hidden.
+ */
+.familypedia-field__hint:not([hidden]) {
+	display: block;
+}
+
+.familypedia-row {
+	align-items: center;
+	display: flex;
+	gap: 0.5rem;
+}
+
+.familypedia-row input[type="text"] {
+	flex: 1 1 auto;
+}
+
+.familypedia-row__remove {
+	background: none;
+	border: 0;
+	border-radius: var(--familypedia-radius);
+	color: var(--familypedia-error);
+	cursor: pointer;
+	font: inherit;
+	padding: 0.1rem 0.2rem;
+	text-decoration: underline;
+}
+
+.familypedia-row__remove:hover,
+.familypedia-row__remove:focus {
+	text-decoration: none;
+}
+
+.familypedia-marriage__dates {
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.familypedia-form__actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.familypedia-gedcom {
+	margin: 0 0 2rem;
+}
+
+.familypedia-download-form {
+	align-items: center;
+	display: inline-flex;
+}
+
+.familypedia-download-check {
+	color: #008a20;
+	font-weight: 600;
+	margin-left: 0.5em;
+}
+
+/* Taking the whole file is the common case, so it reads as the main action. */
+.familypedia-gedcom-review__actions {
+	align-items: center;
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin: 0 0 1rem;
+	padding: 0.85rem 1rem;
+}
+
+.familypedia-gedcom-review__actions .familypedia-field__hint {
+	display: inline;
+	margin: 0;
+}
+
+.familypedia-gedcom-progress {
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-left: 4px solid var(--familypedia-primary);
+	border-radius: var(--familypedia-radius);
+	margin: 0 0 1rem;
+	padding: 0.85rem 1rem;
+}
+
+.familypedia-gedcom-progress--failed {
+	border-left-color: var(--familypedia-error);
+}
+
+.familypedia-gedcom-progress progress {
+	display: block;
+	height: 0.6rem;
+	width: 100%;
+}
+
+.familypedia-gedcom-progress--failed progress {
+	display: none;
+}
+
+.familypedia-gedcom-progress__text {
+	margin: 0.5rem 0 0;
+}
+
+.familypedia-gedcom-review__table {
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.familypedia-gedcom-review__table th,
+.familypedia-gedcom-review__table td {
+	border-bottom: 1px solid var(--familypedia-border);
+	padding: 0.4rem 0.5rem;
+	text-align: left;
+	vertical-align: top;
+}
+
+.familypedia-gedcom-review__table tbody tr:nth-child(odd) {
+	background: var(--familypedia-surface-alt);
+}
+
+/*
+ * The file is drawn by tree.css, the same stylesheet as the tree on the wiki
+ * itself. Only the controls this review adds to the lines live here.
+ */
+.familypedia-gedcom-tree__actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+/* Names on the left, the front page's offer at the far end of the line. */
+.familypedia-gedcom-tree__line {
+	align-items: baseline;
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+}
+
+/* The names run on as text, and wrap inside their half of the line. */
+.familypedia-gedcom-tree__names {
+	min-width: 0;
+}
+
+.familypedia-gedcom-tree__front {
+	color: var(--familypedia-muted);
+	cursor: pointer;
+	flex: none;
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+/* A name is the label of its own box, and reads as one thing with it. */
+.familypedia-gedcom-tree__person {
+	cursor: pointer;
+}
+
+/* Quieter than in the wiki's tree, where the years are not up against a box. */
+.familypedia-gedcom-tree .familypedia-tree__years {
+	font-size: 0.8em;
+}
+
+/*
+ * A mark on the lines the footnote under the tree is about. Coloured, because
+ * on a wiki whose pages were all deleted every line carries one and it has to
+ * read as a mark rather than as part of the name.
+ */
+.familypedia-gedcom-tree__note {
+	color: var(--familypedia-primary);
+	font-weight: 600;
+	margin-left: 0.15em;
+}
+
+.familypedia-gedcom-tree__footnote {
+	margin-top: 0.75rem;
+}
+
+.familypedia-gedcom-tree__footnote .familypedia-gedcom-tree__note {
+	margin: 0 0.15em 0 0;
+}
+
+/* The buttons inside the tree are text: the lines have to read as names. */
+.familypedia-gedcom-tree__toggle,
+.familypedia-gedcom-tree__branch {
+	background: none;
+	border: 0;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	padding: 0;
+}
+
+/* Set beside the names the way the tree's own "… n more" link is. */
+.familypedia-gedcom-tree__branch {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 0.9em;
+	margin-left: 0.8em;
+	text-decoration: underline;
+}
+
+/*
+ * Room around the boxes, so that a column of them does not read as one block
+ * of ticks. Written against the same [type] the wiki's own checkbox rule uses,
+ * which is otherwise the more specific of the two and wins with margin: 0.
+ */
+body.familypedia input[type="checkbox"].familypedia-gedcom-tree__check {
+	margin: 0 0.5em 0 0.25em;
+}
+
+body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
+	margin: 0 0.35em 0 0;
+}
+
+.familypedia-gedcom-tree .familypedia-tree__list li {
+	margin: 0.4em 0;
+}
+
+/* Narrow enough that the names still line up close to the guide line. */
+.familypedia-gedcom-tree__mark {
+	display: inline-block;
+	text-align: center;
+	width: 1.1em;
+}
+
+/*
+ * The arrow is set larger than the names it opens. Its width is wound back by
+ * the same amount, so that it takes up exactly as much room as the blank mark
+ * on a line with nothing to fold and the names stay in one column.
+ */
+.familypedia-gedcom-tree__toggle {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 1.3em;
+	line-height: 1;
+	vertical-align: baseline;
+	width: 0.85em;
+}
+
+@media (max-width: 40rem) {
+	.familypedia-masthead {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.familypedia-search input[type="search"] {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+}
+
+.screen-reader-text {
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	width: 1px;
+	word-wrap: normal !important;
+}
+
+.familypedia-recent__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
