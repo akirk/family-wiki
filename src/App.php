@@ -45,6 +45,8 @@ class App extends BaseApp {
 		new Homepage();
 
 		add_action( 'init', array( $this, 'register_post_types' ) );
+		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue_menu_style' ) );
+		add_action( 'wp_enqueue_scripts', array( Assets::class, 'enqueue_menu_style' ) );
 	}
 
 	protected function get_url_path(): string {
@@ -109,37 +111,37 @@ class App extends BaseApp {
 	}
 
 	protected function setup_menu(): void {
+		$this->app->add_menu_item( 'familypedia-browse', __( 'Browse', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
 		$this->app->add_menu_item( 'all', __( 'All Pages', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/all/' ) );
-
-		if ( Editor::can_edit() ) {
-			$this->app->add_menu_item( 'stubs', __( 'Stubs', 'family-wiki' ), Stubs::url() );
-		}
+		$this->app->add_menu_item( 'tree', __( 'Family Tree', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/tree/' ) );
 
 		if ( Calendar::is_calendar_enabled() ) {
 			$this->app->add_menu_item( 'calendar', __( 'Calendar', 'family-wiki' ), Calendar::get_calendar_url() );
 		}
-
 		if ( Calendar::is_birthdays_enabled() ) {
 			$this->app->add_menu_item( 'birthdays', __( 'Birthdays', 'family-wiki' ), Calendar::get_birthdays_url() );
 		}
 
-		$this->app->add_menu_item( 'tree', __( 'Tree', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/tree/' ) );
-
+		if ( Editor::can_create() || Wiki_Page::can_create() ) {
+			$this->app->add_menu_item( 'familypedia-add', __( 'Add', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
+		}
 		if ( Editor::can_create() ) {
 			$this->app->add_menu_item( 'new', __( 'Add Person', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new/' ) );
 		}
-
 		if ( Wiki_Page::can_create() ) {
-			$this->app->add_menu_item( 'new-page', __( 'Add Page', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new-page/' ) );
+			$this->app->add_menu_item( 'new-page', __( 'Add Wiki Page', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new-page/' ) );
 		}
 
-		// Everything the app can be reached by is one menu, the one WpApp
-		// builds: a second entry of the plugin's own would draw a second
-		// Familypedia menu beside it, holding half the pages each.
+		// Keep management alongside browsing and creation in WpApp's single menu.
+		if ( Editor::can_edit() || Gedcom::can_use() || current_user_can( 'manage_options' ) ) {
+			$this->app->add_menu_item( 'familypedia-manage', __( 'Manage', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
+		}
+		if ( Editor::can_edit() ) {
+			$this->app->add_menu_item( 'stubs', __( 'Stubs', 'family-wiki' ), Stubs::url() );
+		}
 		if ( Gedcom::can_use() ) {
 			$this->app->add_menu_item( 'import-export', __( 'Import / Export', 'family-wiki' ), Gedcom::get_page_url() );
 		}
-
 		if ( current_user_can( 'manage_options' ) ) {
 			$this->app->add_menu_item( 'settings', __( 'Settings', 'family-wiki' ), admin_url( 'options-general.php?page=' . Settings::PAGE ) );
 		}

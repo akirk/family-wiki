@@ -26,6 +26,13 @@ class Assets {
 		return file_exists( $path ) ? (string) filemtime( $path ) : App::VERSION;
 	}
 
+	/** Group headings also appear when the masterbar is shown in wp-admin. */
+	public static function enqueue_menu_style() {
+		if ( current_user_can( 'edit_others_pages' ) ) {
+			wp_enqueue_style( 'familypedia-menu', self::url( 'menu.css' ), array(), self::version( 'menu.css' ) );
+		}
+	}
+
 	/**
 	 * Enqueue the app stylesheets into whichever WpApp is rendering.
 	 *
@@ -34,6 +41,7 @@ class Assets {
 	 */
 	public static function enqueue_app_style() {
 		wp_app_enqueue_style( 'familypedia-content', self::url( 'content.css' ), array(), self::version( 'content.css' ), App::URL_PATH );
+		wp_app_enqueue_style( 'familypedia-menu', self::url( 'menu.css' ), array(), self::version( 'menu.css' ), App::URL_PATH );
 		wp_app_enqueue_style( 'familypedia-app', self::url( 'app.css' ), array(), self::version( 'app.css' ), App::URL_PATH );
 		wp_app_enqueue_style( 'familypedia-tree', self::url( 'tree.css' ), array(), self::version( 'tree.css' ), App::URL_PATH );
 
