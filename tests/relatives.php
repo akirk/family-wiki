@@ -122,6 +122,10 @@ namespace {
 	Person::update( 'sex', 'Unknown', $parent );
 	Editor::add_relative( $id, 'father', 'Pat' );
 	check( Person::field( 'sex', $parent ) === 'Male', 'Linking an existing unknown father fills sex' );
+	$partnership_rows = Person::sanitize_marriages( array( array( 'spouse' => $parent, 'relationship_type' => 'partnership' ), array( 'relationship_type' => 'partnership' ) ) );
+	check( count( $partnership_rows ) === 1, 'Empty partnership row is discarded' );
+	check( $partnership_rows[0]['relationship_type'] === 'partnership', 'Unmarried relationship type survives sanitization' );
+	check( ! isset( Person::sanitize_marriages( array( array( 'spouse' => $parent ) ) )[0]['relationship_type'] ), 'Legacy marriages keep their default meaning' );
 	$spouse = Editor::add_relative( $id, 'spouse', 'Avery', '1920-1990' );
 	check( ! is_wp_error( $spouse ) && Person::field( 'is_stub', $spouse ), 'New spouse is a stub' );
 	check( Person::field( 'marriages', $id )[0]['spouse'] === $spouse, 'Person links spouse' );

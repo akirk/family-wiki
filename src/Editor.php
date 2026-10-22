@@ -358,14 +358,15 @@ class Editor {
 			$spouse = self::resolve_person( $row['spouse'], $post_id );
 
 			$marriages[] = array(
-				'spouse'         => $spouse,
-				'spouse_name'    => $spouse ? '' : $row['spouse'],
-				'marriage_date'  => $row['marriage_date'],
-				'marriage_year'  => $row['marriage_year'],
-				'marriage_place' => $row['marriage_place'],
-				'ended_date'     => $row['ended_date'],
-				'ended_year'     => $row['ended_year'],
-				'ended_reason'   => $row['ended_reason'],
+				'spouse'            => $spouse,
+				'relationship_type' => isset( $row['relationship_type'] ) ? $row['relationship_type'] : 'marriage',
+				'spouse_name'       => $spouse ? '' : $row['spouse'],
+				'marriage_date'     => $row['marriage_date'],
+				'marriage_year'     => $row['marriage_year'],
+				'marriage_place'    => $row['marriage_place'],
+				'ended_date'        => $row['ended_date'],
+				'ended_year'        => $row['ended_year'],
+				'ended_reason'      => $row['ended_reason'],
 			);
 		}
 		Person::update( 'marriages', $marriages, $post_id );
@@ -404,13 +405,14 @@ class Editor {
 			}
 
 			$row = array(
-				'spouse'         => isset( $row['spouse'] ) ? sanitize_text_field( $row['spouse'] ) : '',
-				'marriage_date'  => isset( $row['marriage_date'] ) ? sanitize_text_field( $row['marriage_date'] ) : '',
-				'marriage_year'  => isset( $row['marriage_year'] ) ? sanitize_text_field( $row['marriage_year'] ) : '',
-				'marriage_place' => isset( $row['marriage_place'] ) ? sanitize_text_field( $row['marriage_place'] ) : '',
-				'ended_date'     => isset( $row['ended_date'] ) ? sanitize_text_field( $row['ended_date'] ) : '',
-				'ended_year'     => isset( $row['ended_year'] ) ? sanitize_text_field( $row['ended_year'] ) : '',
-				'ended_reason'   => isset( $row['ended_reason'] ) ? sanitize_text_field( $row['ended_reason'] ) : '',
+				'relationship_type' => isset( $row['relationship_type'] ) && 'partnership' === $row['relationship_type'] ? 'partnership' : '',
+				'spouse'            => isset( $row['spouse'] ) ? sanitize_text_field( $row['spouse'] ) : '',
+				'marriage_date'     => isset( $row['marriage_date'] ) ? sanitize_text_field( $row['marriage_date'] ) : '',
+				'marriage_year'     => isset( $row['marriage_year'] ) ? sanitize_text_field( $row['marriage_year'] ) : '',
+				'marriage_place'    => isset( $row['marriage_place'] ) ? sanitize_text_field( $row['marriage_place'] ) : '',
+				'ended_date'        => isset( $row['ended_date'] ) ? sanitize_text_field( $row['ended_date'] ) : '',
+				'ended_year'        => isset( $row['ended_year'] ) ? sanitize_text_field( $row['ended_year'] ) : '',
+				'ended_reason'      => isset( $row['ended_reason'] ) ? sanitize_text_field( $row['ended_reason'] ) : '',
 			);
 
 			if ( array_filter( $row ) ) {

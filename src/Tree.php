@@ -510,7 +510,7 @@ class Tree {
 				$partners[ $id ][ $key ] = array(
 					'id'    => $spouse_id,
 					'name'  => $spouse_name,
-					'wed'   => true,
+					'wed'   => empty( $marriage['relationship_type'] ) || 'partnership' !== $marriage['relationship_type'],
 					'ended' => self::marriage_ended( $marriage ),
 				);
 			}

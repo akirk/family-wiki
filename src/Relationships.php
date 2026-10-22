@@ -82,6 +82,10 @@ class Relationships {
 		$links = array();
 
 		foreach ( Person::field( 'marriages', $post_id ) as $marriage ) {
+			if ( isset( $marriage['relationship_type'] ) && 'partnership' === $marriage['relationship_type'] ) {
+				continue;
+			}
+
 			if ( ! empty( $marriage['spouse'] ) ) {
 				$links[] = self::person_link( $marriage['spouse'] );
 			} elseif ( ! empty( $marriage['spouse_name'] ) ) {

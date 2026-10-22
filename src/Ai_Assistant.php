@@ -197,7 +197,7 @@ class Ai_Assistant {
 			'familypedia/get-person',
 			array(
 				'label'               => __( 'Get Person', 'family-wiki' ),
-				'description'         => __( 'Returns full details for one person: recorded facts, a one-line biography, parents, siblings, children, marriages, and any related pages hung under them.', 'family-wiki' ),
+				'description'         => __( 'Returns full details for one person: recorded facts, a one-line biography, parents, siblings, children, spouses (in marriages), and any related pages hung under them.', 'family-wiki' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -222,7 +222,7 @@ class Ai_Assistant {
 					true,
 					false,
 					true,
-					__( 'Use familypedia/list-people first if you only have a name. Use familypedia/get-family-tree for a multi-generation view.', 'family-wiki' )
+					__( 'Use familypedia/list-people first if you only have a name. Spouses are recorded in marriages: use familypedia/update-person with marriages to add a husband or wife, preserving existing entries. Wedding details are optional. Use familypedia/get-family-tree for a multi-generation view.', 'family-wiki' )
 				),
 			)
 		);
@@ -231,7 +231,7 @@ class Ai_Assistant {
 			'familypedia/create-person',
 			array(
 				'label'               => __( 'Create Person', 'family-wiki' ),
-				'description'         => __( 'Creates a new person on the family wiki with a name and, optionally, their recorded facts and relationships.', 'family-wiki' ),
+				'description'         => __( 'Creates a new person on the family wiki with a name and, optionally, their recorded facts, parents, children, and spouses. Record a husband or wife in marriages; wedding dates and places are optional. For unmarried partners use marriages with relationship_type partnership.', 'family-wiki' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::person_facts_input_schema( true ),
 				'output_schema'       => self::person_write_output_schema(),
@@ -250,7 +250,7 @@ class Ai_Assistant {
 			'familypedia/update-person',
 			array(
 				'label'               => __( 'Update Person', 'family-wiki' ),
-				'description'         => __( "Updates an existing person's recorded facts and relationships. Only the fields provided are changed; children and marriages, when provided, replace the full list rather than appending to it.", 'family-wiki' ),
+				'description'         => __( "Updates an existing person's recorded facts, parents, children, and spouses. To record a husband or wife, use marriages with a spouse entry; wedding details are optional. For unmarried partners use marriages with relationship_type partnership. Only the fields provided are changed; children and marriages, when provided, replace the full list rather than appending to it.", 'family-wiki' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::person_facts_input_schema( false ),
 				'output_schema'       => self::person_write_output_schema(),
@@ -905,14 +905,15 @@ class Ai_Assistant {
 				$spouse         = $spouse_entered ? $this->resolve_person_input( $spouse_entered, $post_id ) : 0;
 
 				$marriages[] = array(
-					'spouse'         => $spouse,
-					'spouse_name'    => $spouse ? '' : $spouse_entered,
-					'marriage_date'  => isset( $row['marriage_date'] ) ? $row['marriage_date'] : '',
-					'marriage_year'  => isset( $row['marriage_year'] ) ? $row['marriage_year'] : '',
-					'marriage_place' => isset( $row['marriage_place'] ) ? $row['marriage_place'] : '',
-					'ended_date'     => isset( $row['ended_date'] ) ? $row['ended_date'] : '',
-					'ended_year'     => isset( $row['ended_year'] ) ? $row['ended_year'] : '',
-					'ended_reason'   => isset( $row['ended_reason'] ) ? $row['ended_reason'] : '',
+					'spouse'            => $spouse,
+					'relationship_type' => isset( $row['relationship_type'] ) ? $row['relationship_type'] : 'marriage',
+					'spouse_name'       => $spouse ? '' : $spouse_entered,
+					'marriage_date'     => isset( $row['marriage_date'] ) ? $row['marriage_date'] : '',
+					'marriage_year'     => isset( $row['marriage_year'] ) ? $row['marriage_year'] : '',
+					'marriage_place'    => isset( $row['marriage_place'] ) ? $row['marriage_place'] : '',
+					'ended_date'        => isset( $row['ended_date'] ) ? $row['ended_date'] : '',
+					'ended_year'        => isset( $row['ended_year'] ) ? $row['ended_year'] : '',
+					'ended_reason'      => isset( $row['ended_reason'] ) ? $row['ended_reason'] : '',
 				);
 			}
 			Person::update( 'marriages', $marriages, $post_id );
@@ -976,14 +977,15 @@ class Ai_Assistant {
 	 */
 	private function prepare_marriage_data( $marriage ) {
 		return array(
-			'spouse'         => ! empty( $marriage['spouse'] ) ? $this->person_ref( $marriage['spouse'] ) : null,
-			'spouse_name'    => isset( $marriage['spouse_name'] ) ? (string) $marriage['spouse_name'] : '',
-			'marriage_date'  => isset( $marriage['marriage_date'] ) ? (string) $marriage['marriage_date'] : '',
-			'marriage_year'  => isset( $marriage['marriage_year'] ) ? (string) $marriage['marriage_year'] : '',
-			'marriage_place' => isset( $marriage['marriage_place'] ) ? (string) $marriage['marriage_place'] : '',
-			'ended_date'     => isset( $marriage['ended_date'] ) ? (string) $marriage['ended_date'] : '',
-			'ended_year'     => isset( $marriage['ended_year'] ) ? (string) $marriage['ended_year'] : '',
-			'ended_reason'   => isset( $marriage['ended_reason'] ) ? (string) $marriage['ended_reason'] : '',
+			'spouse'            => ! empty( $marriage['spouse'] ) ? $this->person_ref( $marriage['spouse'] ) : null,
+			'relationship_type' => isset( $marriage['relationship_type'] ) ? $marriage['relationship_type'] : 'marriage',
+			'spouse_name'       => isset( $marriage['spouse_name'] ) ? (string) $marriage['spouse_name'] : '',
+			'marriage_date'     => isset( $marriage['marriage_date'] ) ? (string) $marriage['marriage_date'] : '',
+			'marriage_year'     => isset( $marriage['marriage_year'] ) ? (string) $marriage['marriage_year'] : '',
+			'marriage_place'    => isset( $marriage['marriage_place'] ) ? (string) $marriage['marriage_place'] : '',
+			'ended_date'        => isset( $marriage['ended_date'] ) ? (string) $marriage['ended_date'] : '',
+			'ended_year'        => isset( $marriage['ended_year'] ) ? (string) $marriage['ended_year'] : '',
+			'ended_reason'      => isset( $marriage['ended_reason'] ) ? (string) $marriage['ended_reason'] : '',
 		);
 	}
 
@@ -1210,7 +1212,7 @@ class Ai_Assistant {
 			'marriages'                => array(
 				'type'        => 'array',
 				'items'       => self::marriage_input_schema(),
-				'description' => __( 'Replaces the full recorded list of marriages.', 'family-wiki' ),
+				'description' => __( 'Marriages and unmarried partnerships. For unmarried partners use [{"spouse":"123","relationship_type":"partnership"}]; never infer marriage from being together. Spouse relationships (husband or wife), including multiple marriages. A spouse alone is sufficient; no wedding date or place is required. Example: [{"spouse":"123"}]. Replaces the full list: fetch get-person first and preserve existing entries when adding a spouse. Use [] only to clear the list.', 'family-wiki' ),
 			),
 		);
 
@@ -1246,28 +1248,33 @@ class Ai_Assistant {
 		return array(
 			'type'                 => 'object',
 			'properties'           => array(
-				'spouse'         => array(
+				'relationship_type' => array(
 					'type'        => 'string',
-					'description' => __( "Spouse's person id, or their name if they have no page yet.", 'family-wiki' ),
+					'enum'        => array( 'marriage', 'partnership' ),
+					'description' => __( 'Use partnership for unmarried partners (together, boyfriend, girlfriend). Omitted means marriage. The spouse field identifies the partner in either case.', 'family-wiki' ),
 				),
-				'marriage_date'  => array(
+				'spouse'            => array(
+					'type'        => 'string',
+					'description' => __( "Husband or wife's person id as a string, or their name if they have no page yet. This records the spouse relationship even when no marriage details are known.", 'family-wiki' ),
+				),
+				'marriage_date'     => array(
 					'type'        => 'string',
 					'description' => __( 'Marriage date as YYYY-MM-DD.', 'family-wiki' ),
 				),
-				'marriage_year'  => array(
+				'marriage_year'     => array(
 					'type'        => 'string',
 					'description' => __( 'Marriage year, when only the year is known.', 'family-wiki' ),
 				),
-				'marriage_place' => array( 'type' => 'string' ),
-				'ended_date'     => array(
+				'marriage_place'    => array( 'type' => 'string' ),
+				'ended_date'        => array(
 					'type'        => 'string',
 					'description' => __( 'Date the marriage ended, as YYYY-MM-DD.', 'family-wiki' ),
 				),
-				'ended_year'     => array(
+				'ended_year'        => array(
 					'type'        => 'string',
 					'description' => __( 'Year the marriage ended, when only the year is known.', 'family-wiki' ),
 				),
-				'ended_reason'   => array(
+				'ended_reason'      => array(
 					'type' => 'string',
 					'enum' => array_values( array_filter( array_keys( Person::ended_reason_choices() ) ) ),
 				),
@@ -1321,14 +1328,18 @@ class Ai_Assistant {
 		return array(
 			'type'       => 'object',
 			'properties' => array(
-				'spouse'         => self::person_ref_schema( true ),
-				'spouse_name'    => array( 'type' => 'string' ),
-				'marriage_date'  => array( 'type' => 'string' ),
-				'marriage_year'  => array( 'type' => 'string' ),
-				'marriage_place' => array( 'type' => 'string' ),
-				'ended_date'     => array( 'type' => 'string' ),
-				'ended_year'     => array( 'type' => 'string' ),
-				'ended_reason'   => array( 'type' => 'string' ),
+				'relationship_type' => array(
+					'type' => 'string',
+					'enum' => array( 'marriage', 'partnership' ),
+				),
+				'spouse'            => self::person_ref_schema( true ),
+				'spouse_name'       => array( 'type' => 'string' ),
+				'marriage_date'     => array( 'type' => 'string' ),
+				'marriage_year'     => array( 'type' => 'string' ),
+				'marriage_place'    => array( 'type' => 'string' ),
+				'ended_date'        => array( 'type' => 'string' ),
+				'ended_year'        => array( 'type' => 'string' ),
+				'ended_reason'      => array( 'type' => 'string' ),
 			),
 		);
 	}

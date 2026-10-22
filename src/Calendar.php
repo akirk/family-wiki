@@ -282,6 +282,10 @@ class Calendar {
 
 		$events = array();
 		foreach ( $marriages as $marriage ) {
+			if ( isset( $marriage['relationship_type'] ) && 'partnership' === $marriage['relationship_type'] ) {
+				continue;
+			}
+
 			if (
 				empty( $marriage['marriage_date'] )
 				|| $this->person_is_deceased( $person->ID )

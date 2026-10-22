@@ -204,7 +204,7 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 	</fieldset>
 
 	<fieldset data-familypedia-repeat="marriages">
-		<legend><?php esc_html_e( 'Marriages', 'family-wiki' ); ?></legend>
+		<legend><?php esc_html_e( 'Marriages and partnerships', 'family-wiki' ); ?></legend>
 
 		<div data-familypedia-rows>
 			<?php
@@ -214,14 +214,15 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 				$familypedia_marriage = wp_parse_args(
 					$familypedia_marriage,
 					array(
-						'spouse'         => 0,
-						'spouse_name'    => '',
-						'marriage_date'  => '',
-						'marriage_year'  => '',
-						'marriage_place' => '',
-						'ended_date'     => '',
-						'ended_year'     => '',
-						'ended_reason'   => '',
+						'relationship_type' => 'marriage',
+						'spouse'            => 0,
+						'spouse_name'       => '',
+						'marriage_date'     => '',
+						'marriage_year'     => '',
+						'marriage_place'    => '',
+						'ended_date'        => '',
+						'ended_year'        => '',
+						'ended_reason'      => '',
 					)
 				);
 				$familypedia_spouse = $familypedia_marriage['spouse']
@@ -229,8 +230,14 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 					: $familypedia_marriage['spouse_name'];
 				?>
 				<fieldset class="familypedia-marriage" data-familypedia-row>
+					<p><label><?php esc_html_e( 'Relationship', 'family-wiki' ); ?>
+						<select name="marriages[<?php echo esc_attr( $familypedia_index ); ?>][relationship_type]">
+							<option value="marriage" <?php selected( $familypedia_marriage['relationship_type'], 'marriage' ); ?>><?php esc_html_e( 'Marriage', 'family-wiki' ); ?></option>
+							<option value="partnership" <?php selected( $familypedia_marriage['relationship_type'], 'partnership' ); ?>><?php esc_html_e( 'Unmarried partnership', 'family-wiki' ); ?></option>
+						</select>
+					</label></p>
 					<p class="familypedia-field">
-						<label><?php esc_html_e( 'Spouse', 'family-wiki' ); ?>
+						<label><?php esc_html_e( 'Spouse / Partner', 'family-wiki' ); ?>
 							<input type="text" name="marriages[<?php echo esc_attr( $familypedia_index ); ?>][spouse]" list="familypedia-people-list" value="<?php echo esc_attr( $familypedia_spouse ); ?>" />
 						</label>
 					</p>
@@ -272,12 +279,12 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 							</label>
 						</p>
 					</div>
-					<p><button type="button" class="familypedia-row__remove" data-familypedia-remove><?php esc_html_e( 'Remove marriage', 'family-wiki' ); ?></button></p>
+					<p><button type="button" class="familypedia-row__remove" data-familypedia-remove><?php esc_html_e( 'Remove relationship', 'family-wiki' ); ?></button></p>
 				</fieldset>
 			<?php endforeach; ?>
 		</div>
 
-		<p><button type="button" class="familypedia-button" data-familypedia-add><?php esc_html_e( 'Add marriage', 'family-wiki' ); ?></button></p>
+		<p><button type="button" class="familypedia-button" data-familypedia-add><?php esc_html_e( 'Add marriage or partnership', 'family-wiki' ); ?></button></p>
 	</fieldset>
 
 	<p class="familypedia-form__actions">

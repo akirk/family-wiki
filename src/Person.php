@@ -387,6 +387,7 @@ class Person {
 				continue;
 			}
 
+			$partnership = isset( $row['relationship_type'] ) && 'partnership' === $row['relationship_type'];
 			$row = array(
 				'spouse'         => isset( $row['spouse'] ) ? self::to_id( $row['spouse'] ) : 0,
 				'spouse_name'    => isset( $row['spouse_name'] ) ? sanitize_text_field( $row['spouse_name'] ) : '',
@@ -399,6 +400,9 @@ class Person {
 			);
 
 			if ( array_filter( $row ) ) {
+				if ( $partnership ) {
+					$row['relationship_type'] = 'partnership';
+				}
 				$rows[] = $row;
 			}
 		}
