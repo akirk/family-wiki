@@ -39,12 +39,25 @@ class Upgrade {
 		add_management_page( __( 'Upgrade Familypedia', 'family-wiki' ), __( 'Upgrade Familypedia', 'family-wiki' ), 'manage_options', 'family-wiki-upgrade', array( $this, 'render' ) );
 	}
 
+	/** Default WordPress pages alone do not indicate an old Family Wiki install. */
+	public static function has_legacy_pages() {
+		$keys = array_merge( array_keys( Person::FIELDS ), array( '_family_wiki_gedcom_xref', 'birthdate', 'deathdate', 'parent_of' ) );
+		foreach ( self::candidates() as $page ) {
+			foreach ( $keys as $key ) {
+				if ( metadata_exists( 'post', $page->ID, $key ) ) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
 	public function notice() {
-		if ( ! current_user_can( 'manage_options' ) || get_option( self::OPTION ) || ! self::candidates() ) {
+		if ( ! current_user_can( 'manage_options' ) || get_option( self::OPTION ) || ! self::has_legacy_pages() ) {
 			return;
 		}
 		echo '<div class="notice notice-warning"><p><a href="' . esc_url( admin_url( 'tools.php?page=family-wiki-upgrade' ) ) . '">';
-		esc_html_e( 'A new version of Familypedia is ready. Review your existing pages to bring them into the updated wiki.', 'family-wiki' );
+		esc_html_e( 'Existing family pages found. Review them to bring them into Familypedia.', 'family-wiki' );
 		echo '</a></p></div>';
 	}
 

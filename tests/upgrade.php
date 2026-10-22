@@ -42,6 +42,7 @@ namespace {
 			return $post->post_type === $args['post_type'] && ! in_array( $post->ID, $args['exclude'] ?? array(), true );
 		} ) );
 	}
+	function metadata_exists( $type, $id, $key ) { return array_key_exists( $key, $GLOBALS['meta'][ $id ] ?? array() ); }
 	function get_post_meta( $id, $key, $single = true ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
 	function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; }
 	function get_page_uri( $post ) {
@@ -83,6 +84,10 @@ namespace {
 		$GLOBALS['posts'][ $id ] = $post;
 	}
 	$GLOBALS['options'] = array( 'page_on_front' => 5, 'family_wiki_infobox_settings' => array( 'collapse_mobile' => false ) );
+	$GLOBALS['meta'] = array();
+	check( ! \Family_Wiki\Upgrade::has_legacy_pages(), 'Fresh sites with ordinary pages must not trigger the upgrade notice.' );
+	$GLOBALS['meta'][4]['birth_date'] = '';
+	check( \Family_Wiki\Upgrade::has_legacy_pages(), 'Legacy ACF fields must be detected even when empty.' );
 	$GLOBALS['meta'] = array( 1 => array( 'birth_date' => '19840612', 'spouse' => array( '3' ), 'marriages' => array( array( 'spouse' => '3', 'marriage_date' => '20100612' ) ), '_thumbnail_id' => 99 ) );
 	$rows = \Family_Wiki\Upgrade::review_rows();
 	check( $rows[1]['reason'] === 'facts', 'Saved facts must select the person.' );
@@ -96,6 +101,7 @@ namespace {
 	check( $connected_rows[4]['reason'] === 'facts', 'Raw ACF parent relationship must count as family details.' );
 	check( $connected_rows[4]['relationships']['father'] === array( 3 ), 'Scalar ACF parent ID must be read.' );
 	unset( $GLOBALS['meta'][4] );
+	check( \Family_Wiki\Upgrade::has_legacy_pages(), 'Existing family facts must trigger migration detection.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 2 ) ) ), 'Child without parent must be rejected.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1 ) ) ), 'Parent without child must be rejected.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1, 2 ) ) ), 'Omitted spouse must be rejected.' );
