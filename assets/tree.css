@@ -201,6 +201,8 @@
 	white-space: nowrap;
 }
 
-.familypedia-family-card .familypedia-stub-badge {
-	margin-top: 0.35rem;
+a.familypedia-link--stub {
+	text-decoration-line: underline;
+	text-decoration-style: dashed;
+	text-underline-offset: 0.2em;
 }

@@ -29,14 +29,12 @@ class Family_Graph {
 		if ( ! $person || 'publish' !== $person->post_status ) {
 			return '';
 		}
-		$out = '<div class="familypedia-family-card"><a href="' . esc_url( Person::url( $id ) ) . '">' . esc_html( get_the_title( $id ) ) . '</a>';
+		$class = Person::field( 'is_stub', $id ) ? ' class="familypedia-link--stub"' : '';
+		$out = '<div class="familypedia-family-card"><a' . $class . ' href="' . esc_url( Person::url( $id ) ) . '">' . esc_html( get_the_title( $id ) ) . '</a>';
 		if ( $show_dates ) {
 			$birth = substr( (string) Person::field( 'birth_date', $id ), 0, 4 );
 			$death = substr( (string) Person::field( 'death_date', $id ), 0, 4 );
 			$out .= '<small>' . esc_html( $birth . ( $death ? '–' . $death : '' ) ) . '</small>';
-		}
-		if ( Person::field( 'is_stub', $id ) ) {
-			$out .= '<span class="familypedia-stub-badge">' . esc_html__( 'Stub', 'family-wiki' ) . '</span>';
 		}
 		return $out . '</div>';
 	}

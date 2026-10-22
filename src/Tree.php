@@ -336,7 +336,11 @@ class Tree {
 	private static function person_link( $id, $options ) {
 		$people = self::get_people();
 		$person = $people[ $id ];
-		$label  = '<a href="' . esc_url( $person['url'] ) . '">' . esc_html( $person['title'] ) . '</a>';
+		$stub   = (bool) Person::field( 'is_stub', $id );
+		$remote = $stub ? Cross_Wiki::get_remote_page( Person::path( $id ) ) : false;
+		$url    = $remote ? $remote['url'] : $person['url'];
+		$class  = $stub && ! $remote ? ' class="familypedia-link--stub"' : '';
+		$label  = '<a' . $class . ' href="' . esc_url( $url ) . '">' . esc_html( $person['title'] ) . '</a>';
 
 		if ( $options['show_dates'] ) {
 			$years = self::year_range( $person );
