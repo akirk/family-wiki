@@ -122,14 +122,9 @@ class App extends BaseApp {
 			$this->app->add_menu_item( 'birthdays', __( 'Birthdays', 'family-wiki' ), Calendar::get_birthdays_url() );
 		}
 
-		if ( Editor::can_create() || Wiki_Page::can_create() ) {
-			$this->app->add_menu_item( 'familypedia-add', __( 'Add', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
-		}
 		if ( Editor::can_create() ) {
+			$this->app->add_menu_item( 'familypedia-add', __( 'Add', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
 			$this->app->add_menu_item( 'new', __( 'Add Person', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new/' ) );
-		}
-		if ( Wiki_Page::can_create() ) {
-			$this->app->add_menu_item( 'new-page', __( 'Add Wiki Page', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new-page/' ) );
 		}
 
 		// Keep management alongside browsing and creation in WpApp's single menu.
