@@ -87,7 +87,7 @@ if ( $familypedia_review ) {
 						__( 'Select %s', 'family-wiki' ), get_the_title( $familypedia_person )
 					) ); ?></span></label>
 					<div class="familypedia-stub-details">
-						<h2><a href="<?php echo esc_url( Person::url( $familypedia_person ) ); ?>"><?php echo esc_html( get_the_title( $familypedia_person ) ); ?></a></h2>
+						<h2><a href="<?php echo esc_url( Person::url( $familypedia_person ) ); ?>"><?php echo esc_html( get_the_title( $familypedia_person ) ); ?></a> <?php if ( Person::field( 'is_stub', $familypedia_person->ID ) ) : ?><span class="familypedia-stub-badge"><?php esc_html_e( 'Stub', 'family-wiki' ); ?></span><?php endif; ?></h2>
 						<?php if ( $familypedia_review ) : ?>
 							<p class="familypedia-stub-detail-count"><?php echo Person::field( 'is_stub', $familypedia_person->ID ) ? esc_html__( 'Currently marked as a stub', 'family-wiki' ) : esc_html__( 'Currently not marked as a stub', 'family-wiki' ); ?></p>
 							<p class="familypedia-stub-suggestion"><?php echo $familypedia_detail['sparse'] ? esc_html__( 'Suggested: mark as stub', 'family-wiki' ) : esc_html__( 'Suggested: clear stub flag', 'family-wiki' ); ?></p>
