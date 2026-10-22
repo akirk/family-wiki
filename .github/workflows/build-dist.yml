@@ -2,8 +2,8 @@ name: Build dist branch
 
 on:
   push:
-    branches:
-      - main
+    branches-ignore:
+      - 'dist/**'
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref_name, 'dist/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
