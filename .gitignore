@@ -1,1 +1,4 @@
-vendor
+/vendor/*
+!/vendor/autoload.php
+!/vendor/akirk/
+!/vendor/composer/

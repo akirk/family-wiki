@@ -1,63 +1,50 @@
-# Family Wiki
+# Familypedia
 
 - Contributors: akirk
-- Tags: family, wiki
+- Tags: family, wiki, genealogy
+- Requires at least: 6.0
+- Requires PHP: 7.4
 - Tested up to: 7.1
-- License: [GPLv2 or later](http://www.gnu.org/licenses/gpl-2.0.html)
-- Stable tag: 1.2.0
+- License: [GPLv2 or later](https://www.gnu.org/licenses/gpl-2.0.html)
+- Stable tag: 2.0.0
 
-Keep your family history in a wiki hosted on WordPress.
+Keep your family history in a private wiki app hosted on WordPress.
 
 ## Description
 
-This plugin transforms your WordPress install into a Wiki for keeping your family history.
+Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator, Editor, Wiki User or Wiki Editor account. Advanced Custom Fields is no longer required.
 
-### Recommended setup
+Create family accounts with the Wiki User role (can create and edit) or Wiki Editor role (can also delete). The existing whole-site privacy setting in Settings → Reading remains supported; app content requires wiki access even on a public site.
 
-In wp-admin go to *Settings* → *Reading* and set a static homepage. The plugin also adds an option *I would like my site to be private, visible only to myself and users I choose* which will usually be an option you'll want to use since only registered users should be allowed to edit.
+### Upgrading from Family Wiki 1.x
 
-Create new users with *Wiki User* (can edit pages) or *Wiki Editor* (can also delete pages). Unfortunately otherwise only the roles *Editor* or *Administrator* will allow them to edit pages.
+Back up your database, then open Tools → Upgrade Familypedia. Review and select your people and related pages. Pages with family facts are selected initially; include relatives and child pages together. Migration validates these dependencies before moving any posts.
 
-The plugin automatically provides a family calendar at `/family-wiki/calendar/` and a birthday calendar at `/family-wiki/birthdays/`. Date links in person pages point to the family calendar.
+Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, ACF dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
 
-On WordPress multisite, you can link related family wiki sites from the same network in *Settings* -> *Family Wiki* by selecting from the sites where you are a member. When a page exists on the current wiki and a configured peer wiki with the same slug, the infobox shows an *Also on* row linking to that peer page using its title there. If the same person or page uses different slugs on the two wikis, add a slug mapping for that pair. Missing local wiki links are also checked against configured peer wikis; when a matching peer page exists, the link points to the peer page instead of being marked as missing.
+Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Existing ACF metadata is retained. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
 
-Person pages can have related pages as direct child pages, for example `/person-name/related-page/`. These child pages are recognized by the missing-link checker and listed in the person's infobox.
+### Optional member homepage
 
-### Advanced Custom Fields
+In Settings → Familypedia, enable “Show the wiki at the homepage for signed-in wiki members.” Authorized members then see the app homepage at `/`. Person pages and tools remain under `/familypedia/`. Anonymous visitors and accounts without wiki access keep the normal WordPress homepage, subject to the site's privacy setting. The option defaults off.
 
-The plugin has switched to using Advanced Custom Fields for wiki page metadata. Please install that plugin in version 6.2 or up. The fields should be automatically restored using the provided JSON file in the `acf-json/` directory.
+### Development
 
-For each wiki page, you can enter data like birth or death date, citizenships, and mother/father/children relationships. Dates and family relationships are used for the calendar page and for automatically generating a short bio using the shortcode `[name_with_bio]`. You'd put this as the first thing in a wiki page.
+Runtime dependencies are bundled in `vendor/`. To rebuild them, run `composer install --no-dev`. For development checks, run `composer install` followed by `composer test`. Composer applies a small PHP 8 compatibility patch to wp-app 1.9’s asset helper signatures. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
 
-### GEDCOM import and export
+### Temporary save diagnostics
 
-Administrators can import GEDCOM files from WordPress's standard *Tools* -> *Import* screen and export GEDCOM files from *Tools* -> *Family Wiki*. GEDCOM uploads open a review step where you can choose individual entries or select descendant subtrees before importing. The importer creates or updates person pages from selected `INDI` records, links families from `FAM` records when the related people were selected, and stores each GEDCOM xref on the page so later imports update the same person. The exporter writes published wiki pages as GEDCOM `INDI` and `FAM` records, including names, sex, birth and death facts, parent/child relationships, spouses, and marriage details.
+Enable timings for one hour with `wp --url=your-wiki.example transient set family_wiki_save_debug 1 3600`. Stop early with `wp --url=your-wiki.example transient delete family_wiki_save_debug`.
 
-### Gutenberg Blocks
-
-The *Family Calendar* block will show all dates from the wiki.
-
-The *Birthday Calendar* block will show all dates of living people (determined by `showage`, see above) from the wiki.
-
-### Performance
-
-For displaying the red missing links or green external links, all pages are evaluated on page load. This works for small sites but won't work well if you have thousands of pages.
-
-**Development of this plugin is done [on GitHub](https://github.com/akirk/family-wiki). Pull requests welcome. Please see [issues](https://github.com/akirk/family-wiki/issues) reported there before going to the [plugin forum](https://wordpress.org/support/plugin/family-wiki).**
-
-
-## Screenshots
-
-![1. A homepage showing a missing wiki page.](/assets/screenshot-1.png)
-![2. A person page with a missing wiki page.](/assets/screenshot-2.png)
-![3. Gutenberg view of a person page with the shortcodes.](/assets/screenshot-3.png)
-![4. A 404 page exposing the "Create Page" link in the header.](/assets/screenshot-4.png)
-![5. A person page with external links.](/assets/screenshot-5.png)
-![6. A calendar page.](/assets/screenshot-6.png)
-![7. Inserting a birthday calendar block.](/assets/screenshot-7.png)
+Save requests log callback timings, database query counts, REST response statuses, external HTTP hosts and fatal-error locations to `family-wiki-save-BLOG_ID.log` in PHP’s temporary directory. Logs exclude page content, SQL text and credentials. Timing entries share a request identifier. The web-server account owns the log; its group can read it.
 
 ## Changelog
+
+### 2.0.0
+- Adopt the Familypedia app interface without an ACF dependency.
+- Add reviewed migration of existing wiki pages, settings and legacy URLs.
+- Add an optional wiki homepage for signed-in members.
+- Preserve whole-site privacy, existing bio shortcodes and saved wiki blocks.
 
 ### 1.2.0
 - Add automatic infoboxes with structured marriages data.

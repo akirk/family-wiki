@@ -1,0 +1,83 @@
+.familypedia-settings__sites {
+	display: grid;
+	gap: 1rem;
+	max-width: 70rem;
+}
+
+.familypedia-settings__section {
+	max-width: 70rem;
+}
+
+.familypedia-settings__intro {
+	margin: 1rem 0;
+	max-width: 70rem;
+}
+
+.familypedia-settings__intro h2 {
+	margin-top: 0;
+}
+
+.familypedia-settings__intro ul {
+	list-style: disc;
+	margin-left: 1.5rem;
+}
+
+.familypedia-settings__site {
+	border: 1px solid #c3c4c7;
+	padding: 1rem;
+}
+
+.familypedia-settings__site-header {
+	align-items: start;
+	display: flex;
+	gap: 1rem;
+	justify-content: space-between;
+}
+
+.familypedia-settings__fields {
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+	margin-top: 1rem;
+}
+
+.familypedia-settings__mapping {
+	align-items: end;
+	display: grid;
+	gap: 0.75rem;
+	grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto;
+	margin: 0.75rem 0;
+}
+
+.familypedia-settings__field label {
+	display: block;
+	font-weight: 600;
+	margin-bottom: 0.25rem;
+}
+
+.familypedia-settings__choices label {
+	display: block;
+	margin: 0.65rem 0;
+}
+
+.familypedia-settings__notice {
+	border-left: 4px solid #dba617;
+	max-width: 70rem;
+}
+
+.familypedia-settings__site-template,
+.familypedia-settings__mapping-template {
+	display: none;
+}
+
+.button.familypedia-settings__remove {
+	border-color: #b32d2e;
+	color: #b32d2e;
+}
+
+.button.familypedia-settings__remove:hover,
+.button.familypedia-settings__remove:focus {
+	background: #fcf0f1;
+	border-color: #b32d2e;
+	color: #b32d2e;
+}

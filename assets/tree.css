@@ -1,0 +1,36 @@
+.familypedia-tree__list,
+.familypedia-tree__list ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.familypedia-tree__list ul {
+	border-left: 1px solid rgba(127, 127, 127, 0.3);
+	margin-left: 0.4em;
+	padding-left: 1.1em;
+}
+
+.familypedia-tree__list li {
+	line-height: 1.6;
+	margin: 0.15em 0;
+}
+
+.familypedia-tree__years {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 0.9em;
+	white-space: nowrap;
+}
+
+.familypedia-tree__seen,
+.familypedia-tree__more {
+	color: rgba(127, 127, 127, 0.9);
+	font-size: 0.9em;
+}
+
+.familypedia-tree__notice {
+	background: rgba(127, 127, 127, 0.08);
+	border: 1px dashed rgba(127, 127, 127, 0.4);
+	padding: 1em;
+	text-align: center;
+}
