@@ -47,6 +47,46 @@ class App extends BaseApp {
 		add_action( 'init', array( $this, 'register_post_types' ) );
 		add_action( 'admin_enqueue_scripts', array( Assets::class, 'enqueue_menu_style' ) );
 		add_action( 'wp_enqueue_scripts', array( Assets::class, 'enqueue_menu_style' ) );
+		add_action( 'wp_app_admin_bar_menu', array( $this, 'add_edit_link' ) );
+	}
+
+	/** Add the current page's editor to the masterbar. */
+	public function add_edit_link( $admin_bar ) {
+		global $wp_app_route;
+
+		if ( self::URL_PATH !== get_query_var( 'wp_app_path' ) ) {
+			return;
+		}
+
+		$template = $wp_app_route['template'] ?? '';
+		$url      = '';
+		$title    = __( 'Edit Page', 'family-wiki' );
+
+		if ( 'index.php' === $template && Front_Page::can_edit() ) {
+			$url = Front_Page::edit_url();
+		} elseif ( 'person.php' === $template ) {
+			$person = self::routed_person();
+			if ( $person && in_array( $person->post_status, array( 'publish', 'private', 'draft' ), true ) && Editor::can_edit( $person->ID ) ) {
+				if ( Wiki_Page::is_page( $person ) ) {
+					$url = get_edit_post_link( $person->ID, 'raw' );
+				} else {
+					$title = __( 'Edit Person', 'family-wiki' );
+					$url   = Person::edit_url( $person );
+				}
+			}
+		}
+
+		// Replace any edit link inherited from the underlying WordPress query.
+		$admin_bar->remove_node( 'edit' );
+		if ( $url ) {
+			$admin_bar->add_node(
+				array(
+					'id'    => 'edit',
+					'title' => $title,
+					'href'  => $url,
+				)
+			);
+		}
 	}
 
 	protected function get_url_path(): string {
