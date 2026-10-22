@@ -26,7 +26,7 @@ $familypedia_review = isset( $_GET['review'] ) && '1' === $_GET['review'];
 $familypedia_query = isset( $_GET['q'] ) && is_string( $_GET['q'] ) ? sanitize_text_field( wp_unslash( $_GET['q'] ) ) : '';
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $familypedia_page = isset( $_GET['pagenum'] ) ? max( 1, absint( $_GET['pagenum'] ) ) : 1;
-$familypedia_page_title = $familypedia_review ? __( 'Review suggestions', 'family-wiki' ) : __( 'Marked stubs', 'family-wiki' );
+$familypedia_page_title = $familypedia_review ? __( 'Review suggestions', 'family-wiki' ) : __( 'Stubs', 'family-wiki' );
 $familypedia_stubs = $familypedia_review ? Stubs::suggestions( $familypedia_query ) : Stubs::people( $familypedia_query );
 $familypedia_total = count( $familypedia_stubs );
 $familypedia_pages = max( 1, (int) ceil( $familypedia_total / 25 ) );
@@ -41,7 +41,7 @@ require __DIR__ . '/partials/header.php';
 	<p><?php esc_html_e( 'These people are already marked as stubs. This list uses their saved flags. Add information, then mark them complete when you are satisfied.', 'family-wiki' ); ?></p>
 <?php endif; ?>
 <nav class="familypedia-stubs-tabs" aria-label="<?php esc_attr_e( 'Stub views', 'family-wiki' ); ?>">
-	<a href="<?php echo esc_url( Stubs::url() ); ?>" <?php if ( ! $familypedia_review ) { echo 'aria-current="page"'; } ?>><?php esc_html_e( 'Marked stubs', 'family-wiki' ); ?></a>
+	<a href="<?php echo esc_url( Stubs::url() ); ?>" <?php if ( ! $familypedia_review ) { echo 'aria-current="page"'; } ?>><?php esc_html_e( 'Stubs', 'family-wiki' ); ?></a>
 	<a href="<?php echo esc_url( add_query_arg( 'review', '1', Stubs::url() ) ); ?>" <?php if ( $familypedia_review ) { echo 'aria-current="page"'; } ?>><?php esc_html_e( 'Review suggestions', 'family-wiki' ); ?></a>
 </nav>
 <?php if ( $familypedia_review ) : ?>
