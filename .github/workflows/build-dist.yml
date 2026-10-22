@@ -1,0 +1,115 @@
+name: Build dist branch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-dist-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DIST_REF: dist/${{ github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install production dependencies
+        if: hashFiles('composer.json') != ''
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-scripts --no-plugins
+
+      - name: Stamp plugin version with source commit
+        run: |
+          PLUGIN_FILE="$(php -r '
+          foreach ( glob("*.php") as $file ) {
+              $contents = file_get_contents($file);
+              if ( preg_match("/^\\s*\\*\\s*Plugin Name:/mi", $contents) ) {
+                  echo $file;
+                  exit(0);
+              }
+          }
+          fwrite(STDERR, "Could not find plugin main file.\n");
+          exit(1);
+          ')"
+          SOURCE_COMMIT="$(git rev-parse --short=12 HEAD)"
+          echo "PLUGIN_FILE=${PLUGIN_FILE}" >> "${GITHUB_ENV}"
+          PLUGIN_FILE="${PLUGIN_FILE}" SOURCE_COMMIT="${SOURCE_COMMIT}" php -r '
+          $path = getenv("PLUGIN_FILE");
+          $contents = file_get_contents($path);
+          $commit = getenv("SOURCE_COMMIT");
+          $updated = preg_replace_callback(
+              "/^(\\s*\\*\\s*Version:\\s*)([^\\r\\n]+)/mi",
+              static function ( $matches ) use ( $commit ) {
+                  $base_version = preg_replace("/\\+[0-9a-f]+$/i", "", trim($matches[2]));
+                  return $matches[1] . $base_version . "+" . $commit;
+              },
+              $contents,
+              1,
+              $count
+          );
+          if ( 1 !== $count ) {
+              fwrite(STDERR, "Could not find plugin Version header in {$path}.\n");
+              exit(1);
+          }
+          file_put_contents($path, $updated);
+          '
+
+      - name: Point blueprints at dist branch
+        run: |
+          php -r '
+          $dist_ref = getenv("DIST_REF");
+          $repo_url = "https://github.com/" . getenv("GITHUB_REPOSITORY");
+          foreach (array_merge(glob("blueprint*.json") ?: [], ["demo.json"]) as $path) {
+              if (!is_file($path)) {
+                  continue;
+              }
+              $data = json_decode(file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+              foreach ($data["steps"] as &$step) {
+                  if (
+                      ($step["step"] ?? null) === "installPlugin" &&
+                      ($step["pluginData"]["resource"] ?? null) === "git:directory" &&
+                      ($step["pluginData"]["url"] ?? null) === $repo_url &&
+                      isset($step["pluginData"]["ref"])
+                  ) {
+                      $step["pluginData"]["ref"] = $dist_ref;
+                  }
+              }
+              unset($step);
+              file_put_contents($path, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+          }
+          '
+
+      - name: Push to dist branch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${PLUGIN_FILE}"
+          for file in blueprint*.json demo.json; do
+            if [ -f "${file}" ]; then
+              git add "${file}"
+            fi
+          done
+          if [ -d vendor ]; then
+            git add -f -A vendor/
+          fi
+          git diff --cached --quiet || git commit -m "Build distribution from source"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/${DIST_REF} --force

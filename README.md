@@ -30,7 +30,9 @@ In Settings → Familypedia, enable “Show the wiki at the homepage for signed-
 
 ### Development
 
-Runtime dependencies are bundled in `vendor/`. To rebuild them, run `composer install --no-dev`. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
+Development happens on `main`, with runtime dependencies committed in `vendor/`. To rebuild them, run `composer install --no-dev`. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
+
+Every push to `main` builds the installable `dist/main` branch with production dependencies and appends the source commit to the plugin version. The build can also be run manually for `main` from GitHub Actions. Use `dist/main` for installations and WordPress Playground; PR previews continue to use their source branches.
 
 ### Temporary save diagnostics
 
