@@ -77,7 +77,10 @@ if ( $familypedia_review ) {
 		<input type="hidden" name="familypedia_action" value="<?php echo esc_attr( Stubs::ACTION ); ?>" />
 		<input type="hidden" name="review" value="<?php echo $familypedia_review ? '1' : '0'; ?>" />
 		<input type="hidden" name="q" value="<?php echo esc_attr( $familypedia_query ); ?>" />
-		<p><label hidden data-stubs-select-all-label><input type="checkbox" data-stubs-select-all /> <?php esc_html_e( 'Select all on this page', 'family-wiki' ); ?></label></p>
+		<div class="familypedia-stub-bulk-actions">
+			<label hidden data-stubs-select-all-label><input type="checkbox" data-stubs-select-all /> <?php esc_html_e( 'Select all on this page', 'family-wiki' ); ?></label>
+			<button type="submit" class="familypedia-button familypedia-button--primary"><?php echo $familypedia_review ? esc_html__( 'Apply selected suggestions', 'family-wiki' ) : esc_html__( 'Mark selected complete', 'family-wiki' ); ?></button>
+		</div>
 		<ul class="familypedia-stub-list">
 			<?php foreach ( $familypedia_stubs as $familypedia_person ) : ?>
 				<?php $familypedia_detail = Stubs::detail( $familypedia_person ); ?>
