@@ -1,23 +1,6 @@
-/* Flat sections in the Familypedia masterbar menu. */
-#wpadminbar .familypedia-menu-heading {
+/* Separate the browsing, creation and management links without heading rows. */
+#wpadminbar .familypedia-menu-section-start {
 	border-top: 1px solid rgba(127, 127, 127, 0.3);
 	margin-top: 0.4rem;
 	padding-top: 0.4rem;
-}
-
-#wpadminbar .familypedia-menu-heading:first-child {
-	border-top: 0;
-	margin-top: 0;
-	padding-top: 0;
-}
-
-#wpadminbar .familypedia-menu-heading > .ab-item,
-#wpadminbar .familypedia-menu-heading:hover > .ab-item {
-	background: transparent;
-	color: inherit;
-	cursor: default;
-	font-size: 11px;
-	font-weight: 600;
-	line-height: 24px;
-	opacity: 0.65;
 }

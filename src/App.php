@@ -111,7 +111,6 @@ class App extends BaseApp {
 	}
 
 	protected function setup_menu(): void {
-		$this->app->add_menu_item( 'familypedia-browse', __( 'Browse', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
 		$this->app->add_menu_item( 'all', __( 'All Pages', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/all/' ) );
 		$this->app->add_menu_item( 'tree', __( 'Family Tree', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/tree/' ) );
 
@@ -123,22 +122,21 @@ class App extends BaseApp {
 		}
 
 		if ( Editor::can_create() ) {
-			$this->app->add_menu_item( 'familypedia-add', __( 'Add', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
-			$this->app->add_menu_item( 'new', __( 'Add Person', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new/' ) );
+			$this->app->add_menu_item( 'new', __( 'Add Person', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/new/' ), array( 'class' => 'familypedia-menu-section-start' ) );
 		}
 
 		// Keep management alongside browsing and creation in WpApp's single menu.
-		if ( Editor::can_edit() || Gedcom::can_use() || current_user_can( 'manage_options' ) ) {
-			$this->app->add_menu_item( 'familypedia-manage', __( 'Manage', 'family-wiki' ), '', array( 'class' => 'familypedia-menu-heading' ) );
-		}
+		$manage_args = array( 'class' => 'familypedia-menu-section-start' );
 		if ( Editor::can_edit() ) {
-			$this->app->add_menu_item( 'stubs', __( 'Stubs', 'family-wiki' ), Stubs::url() );
+			$this->app->add_menu_item( 'stubs', __( 'Stubs', 'family-wiki' ), Stubs::url(), $manage_args );
+			$manage_args = array();
 		}
 		if ( Gedcom::can_use() ) {
-			$this->app->add_menu_item( 'import-export', __( 'Import / Export', 'family-wiki' ), Gedcom::get_page_url() );
+			$this->app->add_menu_item( 'import-export', __( 'Import / Export', 'family-wiki' ), Gedcom::get_page_url(), $manage_args );
+			$manage_args = array();
 		}
 		if ( current_user_can( 'manage_options' ) ) {
-			$this->app->add_menu_item( 'settings', __( 'Settings', 'family-wiki' ), admin_url( 'options-general.php?page=' . Settings::PAGE ) );
+			$this->app->add_menu_item( 'settings', __( 'Settings', 'family-wiki' ), admin_url( 'options-general.php?page=' . Settings::PAGE ), $manage_args );
 		}
 	}
 
