@@ -23,6 +23,209 @@ class Editor {
 
 	public function __construct() {
 		add_action( 'wp_loaded', array( $this, 'maybe_save' ) );
+		add_action( 'wp_loaded', array( $this, 'maybe_add_relative' ) );
+	}
+
+	/** Create a stub or link an existing relative, keeping both sides in sync. */
+	public function maybe_add_relative() {
+		if ( 'familypedia_add_relative' !== self::post_text( 'familypedia_action' ) ) {
+			return;
+		}
+		$id = absint( self::post_text( 'person_id' ) );
+		check_admin_referer( 'familypedia_add_relative_' . $id );
+		$person = Person::to_post( $id );
+		if ( ! $person || Wiki_Page::is_page( $person ) || ! self::can_edit( $id ) || ! self::can_create() ) {
+			wp_die( esc_html__( 'You cannot add relatives to this person.', 'family-wiki' ), 403 );
+		}
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Each row is checked and sanitized below after nonce verification.
+		$rows = isset( $_POST['relatives'] ) && is_array( $_POST['relatives'] ) ? wp_unslash( $_POST['relatives'] ) : array();
+		$results = array();
+		foreach ( $rows as $key => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$name = isset( $row['name'] ) && is_string( $row['name'] ) ? sanitize_text_field( $row['name'] ) : '';
+			$relationship = isset( $row['relationship'] ) && is_string( $row['relationship'] ) ? sanitize_text_field( $row['relationship'] ) : '';
+			$years = isset( $row['years'] ) && is_string( $row['years'] ) ? sanitize_text_field( $row['years'] ) : '';
+			if ( '' === trim( $name ) && '' === trim( $years ) ) {
+				continue;
+			}
+			$result = self::add_relative( $id, $relationship, $name, $years );
+			$results[] = array(
+				'key' => (string) $key,
+				'saved' => ! is_wp_error( $result ),
+				'message' => is_wp_error( $result ) ? $result->get_error_message() : $name,
+				'url' => is_wp_error( $result ) ? '' : Person::url( $result ),
+			);
+		}
+		if ( '1' === self::post_text( 'familypedia_ajax' ) ) {
+			$response = array( 'results' => $results, 'graph' => Family_Graph::render( $id, true ) );
+			if ( '1' === self::post_text( 'familypedia_tree' ) ) {
+				Tree::reset_expanded();
+				$response['tree'] = Tree::render_list( $id );
+			}
+			wp_send_json_success( $response );
+		}
+		self::set_notice( __( 'Family entries processed. Review the family links before adding more.', 'family-wiki' ) );
+		wp_safe_redirect( Person::url( $id ) );
+		exit;
+	}
+
+	/** Validate all affected people before creating a relative or changing links. */
+	public static function add_relative( $id, $relationship, $name, $years = '' ) {
+		$dates = self::parse_relative_years( $years );
+		if ( is_wp_error( $dates ) ) {
+			return $dates;
+		}
+		if ( 'child' === $relationship ) {
+			$sex = Person::field( 'sex', $id );
+			if ( ! in_array( $sex, array( 'Male', 'Female' ), true ) ) {
+				return new \WP_Error( 'relative', __( 'Choose whether this person is the child’s father or mother.', 'family-wiki' ) );
+			}
+			$relationship = 'Female' === $sex ? 'child_mother' : 'child_father';
+		}
+		$links = array();
+		if ( in_array( $relationship, array( 'father', 'mother' ), true ) ) {
+			$links[] = array( $id, $relationship, 0 );
+		} elseif ( in_array( $relationship, array( 'child_father', 'child_mother' ), true ) ) {
+			$links[] = array( 0, substr( $relationship, 6 ), $id );
+		} elseif ( 'sibling' === $relationship ) {
+			foreach ( Person::SINGLE_PERSON_FIELDS as $field ) {
+				$parent = Person::field( $field, $id );
+				if ( $parent ) {
+					$links[] = array( 0, $field, $parent->ID );
+				}
+			}
+		}
+		$name = trim( sanitize_text_field( $name ) );
+		if ( ( ! $links && 'spouse' !== $relationship ) || '' === $name ) {
+			return new \WP_Error( 'relative', __( 'Enter a name and relationship. To add a sibling, record a shared parent first.', 'family-wiki' ) );
+		}
+		$relative = self::resolve_person( $name, $id );
+		if ( self::name_key( $name ) === self::name_key( get_the_title( $id ) ) || ( $relative && Wiki_Page::is_page( get_post( $relative ) ) ) ) {
+			return new \WP_Error( 'relative', __( 'Choose a different person.', 'family-wiki' ) );
+		}
+		if ( 'spouse' === $relationship && ( ! self::can_edit( $id ) || ( $relative && ! self::can_edit( $relative ) ) ) ) {
+			return new \WP_Error( 'relative', __( 'You cannot edit both spouses.', 'family-wiki' ) );
+		}
+		if ( $relative ) {
+			foreach ( $dates as $event => $year ) {
+				$existing_date = Person::field( $event . '_date', $relative );
+				if ( $existing_date && substr( $existing_date, 0, 4 ) !== $year ) {
+					return new \WP_Error( 'years', __( 'These years conflict with recorded dates. Edit the person’s facts to change them.', 'family-wiki' ) );
+				}
+			}
+		}
+		foreach ( $links as $link ) {
+			list( $child, $field, $parent ) = $link;
+			$child = $child ?: $relative;
+			$parent = $parent ?: $relative;
+			$existing = $child ? Person::field( $field, $child ) : false;
+			// Following parent links must never lead back to the proposed child.
+			$pending = $parent ? array( $parent ) : array();
+			$seen = array();
+			while ( $pending ) {
+				$ancestor = array_pop( $pending );
+				if ( $child && (int) $ancestor === (int) $child ) {
+					return new \WP_Error( 'relative', __( 'This relationship would create a loop in the family tree.', 'family-wiki' ) );
+				}
+				if ( isset( $seen[ $ancestor ] ) ) {
+					continue;
+				}
+				$seen[ $ancestor ] = true;
+				foreach ( Person::SINGLE_PERSON_FIELDS as $ancestor_field ) {
+					$next = Person::field( $ancestor_field, $ancestor );
+					if ( $next ) {
+						$pending[] = $next->ID;
+					}
+				}
+			}
+			if ( ( $child && ! self::can_edit( $child ) ) || ( $parent && ! self::can_edit( $parent ) ) || ( $child && $child === $parent ) || ( $existing && (int) $existing->ID !== (int) $parent ) ) {
+				return new \WP_Error( 'relative', __( 'This relationship conflicts with an existing parent or a person you cannot edit. Review their facts first.', 'family-wiki' ) );
+			}
+		}
+		if ( ! $relative ) {
+			$relative = wp_insert_post( wp_slash( array( 'post_type' => Person::POST_TYPE, 'post_status' => 'publish', 'post_title' => $name ) ), true );
+			if ( is_wp_error( $relative ) ) {
+				return $relative;
+			}
+			Person::update( 'is_stub', true, $relative );
+		}
+		foreach ( $links as $link ) {
+			list( $child, $field, $parent ) = $link;
+			$child = $child ?: $relative;
+			$parent = $parent ?: $relative;
+			if ( ! in_array( Person::field( 'sex', $parent ), array( 'Male', 'Female' ), true ) ) {
+				Person::update( 'sex', 'father' === $field ? 'Male' : 'Female', $parent );
+			}
+			Person::update( $field, $parent, $child );
+			Person::update( $field . '_name', '', $child );
+			$children = Person::to_ids( Person::field( 'children', $parent ) );
+			$children[] = $child;
+			Person::update( 'children', $children, $parent );
+			Main::flush_family_data_cache( $child );
+			Main::flush_family_data_cache( $parent );
+		}
+		if ( 'spouse' === $relationship ) {
+			self::record_spouse( $id, $relative );
+			self::record_spouse( $relative, $id );
+			Main::flush_family_data_cache( $id );
+		}
+		foreach ( $dates as $event => $year ) {
+			if ( ! Person::field( $event . '_date', $relative ) ) {
+				Person::update( $event . '_date', $year . '-01-01', $relative );
+				Person::update( 'exact_' . $event . '_date_unknown', true, $relative );
+			}
+			if ( 'death' === $event ) {
+				Person::update( 'alive', false, $relative );
+			}
+		}
+		Main::flush_family_data_cache( $relative );
+		return $relative;
+	}
+
+	/** Add a marriage without replacing details or hiding older spouse records. */
+	private static function record_spouse( $id, $spouse ) {
+		$rows = Person::field( 'marriages', $id );
+		$known = array();
+		$names = array();
+		foreach ( $rows as $row ) {
+			if ( ! empty( $row['spouse'] ) ) {
+				$known[] = (int) $row['spouse'];
+			} elseif ( ! empty( $row['spouse_name'] ) ) {
+				$names[] = $row['spouse_name'];
+			}
+		}
+		foreach ( Person::field( 'spouse', $id ) as $legacy ) {
+			if ( ! in_array( (int) $legacy->ID, $known, true ) ) {
+				$rows[] = array( 'spouse' => $legacy->ID, 'marriage_date' => Person::field( 'marriage_date', $id ), 'marriage_place' => Person::field( 'marriage_place', $id ) );
+				$known[] = (int) $legacy->ID;
+			}
+		}
+		$legacy_name = Person::field( 'spouse_name', $id );
+		if ( $legacy_name && ! in_array( $legacy_name, $names, true ) ) {
+			$rows[] = array( 'spouse_name' => $legacy_name, 'marriage_date' => Person::field( 'marriage_date', $id ), 'marriage_place' => Person::field( 'marriage_place', $id ) );
+		}
+		if ( ! in_array( (int) $spouse, $known, true ) ) {
+			$rows[] = array( 'spouse' => $spouse );
+		}
+		Person::update( 'marriages', $rows, $id );
+	}
+
+	/** Accept a birth year or a birth–death year range without inventing exact dates. */
+	public static function parse_relative_years( $years ) {
+		$years = trim( $years );
+		if ( '' === $years ) {
+			return array();
+		}
+		if ( ! preg_match( '/^([0-9]{4})(?:\s*[-–]\s*([0-9]{4}))?$/u', $years, $matches ) || (int) $matches[1] < 1 || ( isset( $matches[2] ) && (int) $matches[2] < (int) $matches[1] ) ) {
+			return new \WP_Error( 'years', __( 'Use a birth year such as 1923 or a lifespan such as 1923-2000.', 'family-wiki' ) );
+		}
+		$dates = array( 'birth' => $matches[1] );
+		if ( isset( $matches[2] ) ) {
+			$dates['death'] = $matches[2];
+		}
+		return $dates;
 	}
 
 	public static function can_edit( $post_id = 0 ) {
@@ -113,6 +316,7 @@ class Editor {
 	 */
 	private static function save_fields( $post_id ) {
 		$unmatched = array();
+		Person::update( 'is_stub', ! empty( $_POST['is_stub'] ), $post_id ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		foreach ( array( 'born_as', 'birth_place', 'death_place', 'marriage_place' ) as $field ) {
 			Person::update( $field, self::post_text( $field ), $post_id );
@@ -259,12 +463,6 @@ class Editor {
 	 * @return array Label => post ID.
 	 */
 	public static function name_index() {
-		static $index;
-
-		if ( isset( $index ) ) {
-			return $index;
-		}
-
 		$by_name = array();
 		foreach ( Person::get_all() as $person ) {
 			$by_name[ self::name_key( get_the_title( $person ) ) ][] = $person;

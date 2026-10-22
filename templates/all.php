@@ -16,6 +16,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 $familypedia_search = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 
+// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+$familypedia_stubs = ! empty( $_GET['stubs'] );
+
 $familypedia_page_title = $familypedia_search
 	? sprintf(
 		// translators: %s is a search term.
@@ -27,6 +30,12 @@ $familypedia_page_title = $familypedia_search
 require __DIR__ . '/partials/header.php';
 
 $familypedia_people = Person::get_all( $familypedia_search ? array( 's' => $familypedia_search ) : array() );
+
+if ( $familypedia_stubs ) {
+	$familypedia_people = array_filter( $familypedia_people, function ( $person ) {
+		return ! Wiki_Page::is_page( $person ) && Person::field( 'is_stub', $person->ID );
+	} );
+}
 
 /**
  * Group by the first letter of the name, which is how you look someone up in a
@@ -45,6 +54,7 @@ ksort( $familypedia_groups );
 
 <h1><?php echo esc_html( $familypedia_page_title ); ?></h1>
 
+<p><a href="<?php echo esc_url( add_query_arg( 'stubs', $familypedia_stubs ? false : '1' ) ); ?>"><?php echo $familypedia_stubs ? esc_html__( 'Show all pages', 'family-wiki' ) : esc_html__( 'Show stubs needing information', 'family-wiki' ); ?></a></p>
 <?php if ( empty( $familypedia_people ) ) : ?>
 	<p><?php esc_html_e( 'Nothing found.', 'family-wiki' ); ?></p>
 <?php else : ?>
@@ -90,6 +100,9 @@ ksort( $familypedia_groups );
 					?>
 					<li>
 						<a href="<?php echo esc_url( Person::url( $familypedia_item ) ); ?>"><?php echo esc_html( get_the_title( $familypedia_item ) ); ?></a>
+						<?php if ( Person::field( 'is_stub', $familypedia_item->ID ) ) : ?>
+							<span><?php esc_html_e( 'Stub', 'family-wiki' ); ?></span>
+						<?php endif; ?>
 						<?php if ( $familypedia_years ) : ?>
 							<span class="familypedia-person-list__meta">(<?php echo esc_html( $familypedia_years ); ?>)</span>
 						<?php endif; ?>

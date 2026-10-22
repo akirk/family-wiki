@@ -202,6 +202,7 @@ body.familypedia ::placeholder {
 
 .familypedia-person__actions {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 1rem;
 	margin: 0;
 }
@@ -618,4 +619,69 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 0.5rem;
+}
+
+.familypedia-add-relative {
+	display: none;
+	clear: both;
+}
+
+.familypedia-add-relative:target {
+	display: block;
+}
+
+.familypedia-action-menu {
+	position: relative;
+}
+
+.familypedia-action-menu > summary {
+	color: var(--familypedia-primary);
+	cursor: pointer;
+}
+
+.familypedia-action-menu > ul {
+	background: var(--familypedia-surface);
+	border: 1px solid var(--familypedia-border);
+	border-radius: var(--familypedia-radius);
+	box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
+	list-style: none;
+	margin: 0.35rem 0 0;
+	min-width: 10rem;
+	padding: 0.25rem;
+	position: absolute;
+	right: 0;
+	z-index: 10;
+}
+
+.familypedia-action-menu a {
+	display: block;
+	padding: 0.4rem 0.65rem;
+	white-space: nowrap;
+}
+
+.familypedia-action-menu a:hover,
+.familypedia-action-menu a:focus-visible {
+	background: var(--familypedia-surface-alt);
+}
+
+.familypedia-add-relative {
+	background: var(--familypedia-surface-alt);
+	border: 1px solid var(--familypedia-border);
+	border-radius: 10px;
+	margin: 1.25rem 0;
+	padding: 1.25rem;
+}
+
+.familypedia-add-relative > h2 {
+	margin-top: 0;
+}
+
+.familypedia-add-relative .familypedia-form {
+	max-width: none;
+}
+
+.familypedia-tree__intro {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
 }

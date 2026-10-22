@@ -58,12 +58,16 @@ class Tree {
 			array(
 				'api_version'     => 3,
 				'title'           => __( 'Family Tree', 'family-wiki' ),
-				'description'     => __( 'A descendant outline starting from one person.', 'family-wiki' ),
+				'description'     => __( 'A descendant outline or family cards centered on one person.', 'family-wiki' ),
 				'category'        => 'widgets',
 				'icon'            => 'networking',
 				'editor_script'   => 'familypedia-tree-block',
 				'style'           => 'familypedia-tree-block',
 				'attributes'      => array(
+					'view'        => array(
+						'type'    => 'string',
+						'default' => 'outline',
+					),
 					'root'        => array(
 						'type'    => 'number',
 						'default' => 0,
@@ -140,6 +144,7 @@ class Tree {
 		$attributes = wp_parse_args(
 			is_array( $attributes ) ? $attributes : array(),
 			array(
+				'view'        => 'outline',
 				'root'        => 0,
 				'maxDepth'    => 0,
 				'expandFully' => false,
@@ -158,6 +163,11 @@ class Tree {
 			return '<div ' . get_block_wrapper_attributes( array( 'class' => 'familypedia-tree' ) ) . '><p class="familypedia-tree__notice">'
 				. esc_html__( 'Family Tree: pick the person to start this branch from.', 'family-wiki' )
 				. '</p></div>';
+		}
+
+		if ( 'cards' === $attributes['view'] ) {
+			return '<div ' . get_block_wrapper_attributes( array( 'class' => 'familypedia-tree' ) ) . '>'
+				. Family_Graph::render( $root, false, (bool) $attributes['showDates'] ) . '</div>';
 		}
 
 		return '<div ' . get_block_wrapper_attributes( array( 'class' => 'familypedia-tree' ) ) . '>' . self::render_list(

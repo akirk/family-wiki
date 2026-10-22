@@ -51,17 +51,39 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 	<header class="familypedia-person__header">
 		<h1><?php echo esc_html( $familypedia_title ); ?></h1>
 		<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
-			<p class="familypedia-person__actions">
-				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
-					<a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Edit facts', 'family-wiki' ); ?></a>
+			<nav id="person-actions" class="familypedia-person__actions" aria-label="<?php esc_attr_e( 'Page actions', 'family-wiki' ); ?>">
+				<details class="familypedia-action-menu" name="person-actions">
+					<summary><?php esc_html_e( 'Edit', 'family-wiki' ); ?></summary>
+					<ul>
+						<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
+							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
+						<?php endif; ?>
+						<li><a href="<?php echo esc_url( get_edit_post_link( $familypedia_person->ID, '' ) ); ?>"><?php esc_html_e( 'Page text', 'family-wiki' ); ?></a></li>
+					</ul>
+				</details>
+				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && ( Editor::can_create() || Related_Page::can_create( $familypedia_person->ID ) ) ) : ?>
+					<details class="familypedia-action-menu" name="person-actions">
+						<summary><?php esc_html_e( 'Add', 'family-wiki' ); ?></summary>
+						<ul>
+							<?php if ( Editor::can_create() ) : ?>
+								<li><a href="#add-family-member"><?php esc_html_e( 'Family member', 'family-wiki' ); ?></a></li>
+							<?php endif; ?>
+							<?php if ( Related_Page::can_create( $familypedia_person->ID ) ) : ?>
+								<li><a href="<?php echo esc_url( Related_Page::add_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Related page', 'family-wiki' ); ?></a></li>
+							<?php endif; ?>
+						</ul>
+					</details>
 				<?php endif; ?>
-				<a href="<?php echo esc_url( get_edit_post_link( $familypedia_person->ID, '' ) ); ?>"><?php esc_html_e( 'Edit', 'family-wiki' ); ?></a>
-				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Related_Page::can_create( $familypedia_person->ID ) ) : ?>
-					<a href="<?php echo esc_url( Related_Page::add_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Add a related page', 'family-wiki' ); ?></a>
-				<?php endif; ?>
-			</p>
+			</nav>
 		<?php endif; ?>
 	</header>
+
+	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Person::field( 'is_stub', $familypedia_person->ID ) ) : ?>
+		<p class="familypedia-person__stub"><?php esc_html_e( 'Stub — this person needs more information. Uncheck the stub box under Edit → Facts when complete.', 'family-wiki' ); ?></p>
+	<?php endif; ?>
+	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Editor::can_edit( $familypedia_person->ID ) && Editor::can_create() ) : ?>
+		<?php require __DIR__ . '/partials/add-relative.php'; ?>
+	<?php endif; ?>
 
 	<?php
 	if ( $familypedia_facts_id ) {
