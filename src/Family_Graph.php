@@ -7,7 +7,7 @@
 namespace Family_Wiki;
 
 class Family_Graph {
-	/** Render one person's parents, siblings and children as connected cards. */
+	/** Render one person's parents, spouses, siblings and children as connected cards. */
 	public static function render( $id, $editable = false, $show_dates = true ) {
 		$person = Person::to_post( $id );
 		if ( ! $person || 'publish' !== $person->post_status || Wiki_Page::is_page( $person ) ) {

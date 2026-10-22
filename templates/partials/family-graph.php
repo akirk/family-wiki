@@ -11,13 +11,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 $familypedia_graph_groups = array(
 	'parents' => __( 'Parents', 'family-wiki' ),
+	'spouses' => __( 'Spouses', 'family-wiki' ),
 	'siblings' => __( 'Siblings', 'family-wiki' ),
 	'children' => __( 'Children', 'family-wiki' ),
 );
 ?>
 <div class="familypedia-family-graph">
 	<?php foreach ( $familypedia_graph_groups as $familypedia_group => $familypedia_group_label ) : ?>
-		<?php if ( 'siblings' === $familypedia_group ) : ?>
+		<?php if ( 'spouses' === $familypedia_group ) : ?>
 			<div class="familypedia-family-focus">
 				<?php echo Family_Graph::card( $familypedia_graph_id, $familypedia_graph_dates ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in card(). ?>
 			</div>
@@ -26,7 +27,15 @@ $familypedia_graph_groups = array(
 			<h3><?php echo esc_html( $familypedia_group_label ); ?></h3>
 			<div class="familypedia-family-cards" data-family-cards>
 				<?php
-				if ( 'siblings' === $familypedia_group ) {
+				if ( 'spouses' === $familypedia_group ) {
+					$familypedia_graph_ids = Person::to_ids( Person::field( 'spouse', $familypedia_graph_id ) );
+					foreach ( Person::field( 'marriages', $familypedia_graph_id ) as $familypedia_marriage ) {
+						if ( ! empty( $familypedia_marriage['spouse'] ) ) {
+							$familypedia_graph_ids[] = (int) $familypedia_marriage['spouse'];
+						}
+					}
+					$familypedia_graph_ids = array_unique( $familypedia_graph_ids );
+				} elseif ( 'siblings' === $familypedia_group ) {
 					$familypedia_graph_ids = Person::to_ids( array_merge( Relationships::siblings( $familypedia_graph_id ), Relationships::siblings( $familypedia_graph_id, true ) ) );
 				} else {
 					$familypedia_graph_ids = $familypedia_graph_people[ $familypedia_graph_id ][ $familypedia_group ] ?? array();
@@ -46,6 +55,8 @@ $familypedia_graph_groups = array(
 						<label><?php esc_html_e( 'Years', 'family-wiki' ); ?><input type="text" data-family-field="years" placeholder="1923 or 1923-2000" pattern="[0-9]{4}( *(-|–) *[0-9]{4})?" /></label>
 						<?php if ( 'siblings' === $familypedia_group ) : ?>
 							<input type="hidden" data-family-field="relationship" value="sibling" />
+						<?php elseif ( 'spouses' === $familypedia_group ) : ?>
+							<input type="hidden" data-family-field="relationship" value="spouse" />
 						<?php elseif ( 'children' === $familypedia_group && in_array( Person::field( 'sex', $familypedia_graph_id ), array( 'Male', 'Female' ), true ) ) : ?>
 							<input type="hidden" data-family-field="relationship" value="child" />
 						<?php else : ?>

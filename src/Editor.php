@@ -98,12 +98,15 @@ class Editor {
 			}
 		}
 		$name = trim( sanitize_text_field( $name ) );
-		if ( ! $links || '' === $name ) {
+		if ( ( ! $links && 'spouse' !== $relationship ) || '' === $name ) {
 			return new \WP_Error( 'relative', __( 'Enter a name and relationship. To add a sibling, record a shared parent first.', 'family-wiki' ) );
 		}
 		$relative = self::resolve_person( $name, $id );
 		if ( self::name_key( $name ) === self::name_key( get_the_title( $id ) ) || ( $relative && Wiki_Page::is_page( get_post( $relative ) ) ) ) {
 			return new \WP_Error( 'relative', __( 'Choose a different person.', 'family-wiki' ) );
+		}
+		if ( 'spouse' === $relationship && ( ! self::can_edit( $id ) || ( $relative && ! self::can_edit( $relative ) ) ) ) {
+			return new \WP_Error( 'relative', __( 'You cannot edit both spouses.', 'family-wiki' ) );
 		}
 		if ( $relative ) {
 			foreach ( $dates as $event => $year ) {
@@ -152,6 +155,9 @@ class Editor {
 			list( $child, $field, $parent ) = $link;
 			$child = $child ?: $relative;
 			$parent = $parent ?: $relative;
+			if ( ! in_array( Person::field( 'sex', $parent ), array( 'Male', 'Female' ), true ) ) {
+				Person::update( 'sex', 'father' === $field ? 'Male' : 'Female', $parent );
+			}
 			Person::update( $field, $parent, $child );
 			Person::update( $field . '_name', '', $child );
 			$children = Person::to_ids( Person::field( 'children', $parent ) );
@@ -159,6 +165,11 @@ class Editor {
 			Person::update( 'children', $children, $parent );
 			Main::flush_family_data_cache( $child );
 			Main::flush_family_data_cache( $parent );
+		}
+		if ( 'spouse' === $relationship ) {
+			self::record_spouse( $id, $relative );
+			self::record_spouse( $relative, $id );
+			Main::flush_family_data_cache( $id );
 		}
 		foreach ( $dates as $event => $year ) {
 			if ( ! Person::field( $event . '_date', $relative ) ) {
@@ -171,6 +182,34 @@ class Editor {
 		}
 		Main::flush_family_data_cache( $relative );
 		return $relative;
+	}
+
+	/** Add a marriage without replacing details or hiding older spouse records. */
+	private static function record_spouse( $id, $spouse ) {
+		$rows = Person::field( 'marriages', $id );
+		$known = array();
+		$names = array();
+		foreach ( $rows as $row ) {
+			if ( ! empty( $row['spouse'] ) ) {
+				$known[] = (int) $row['spouse'];
+			} elseif ( ! empty( $row['spouse_name'] ) ) {
+				$names[] = $row['spouse_name'];
+			}
+		}
+		foreach ( Person::field( 'spouse', $id ) as $legacy ) {
+			if ( ! in_array( (int) $legacy->ID, $known, true ) ) {
+				$rows[] = array( 'spouse' => $legacy->ID, 'marriage_date' => Person::field( 'marriage_date', $id ), 'marriage_place' => Person::field( 'marriage_place', $id ) );
+				$known[] = (int) $legacy->ID;
+			}
+		}
+		$legacy_name = Person::field( 'spouse_name', $id );
+		if ( $legacy_name && ! in_array( $legacy_name, $names, true ) ) {
+			$rows[] = array( 'spouse_name' => $legacy_name, 'marriage_date' => Person::field( 'marriage_date', $id ), 'marriage_place' => Person::field( 'marriage_place', $id ) );
+		}
+		if ( ! in_array( (int) $spouse, $known, true ) ) {
+			$rows[] = array( 'spouse' => $spouse );
+		}
+		Person::update( 'marriages', $rows, $id );
 	}
 
 	/** Accept a birth year or a birth–death year range without inventing exact dates. */

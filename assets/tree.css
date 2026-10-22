@@ -181,3 +181,7 @@
 		left: 50%;
 	}
 }
+
+.familypedia-family-generation--siblings {
+	grid-column: 1 / -1;
+}

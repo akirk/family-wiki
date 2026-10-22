@@ -45,7 +45,7 @@
 		return el( components.ComboboxControl, {
 			label: __( 'Start from', 'family-wiki' ),
 			help: props.view === 'cards'
-				? __( 'Center the cards on this person, with their parents, siblings and children.', 'family-wiki' )
+				? __( 'Center the cards on this person, with their parents, spouses, siblings and children.', 'family-wiki' )
 				: __( 'The person this branch descends from. Their partner is added automatically.', 'family-wiki' ),
 			value: props.value || null,
 			options: options,
@@ -80,7 +80,7 @@
 							value: attributes.view || 'outline',
 							options: [
 								{ label: __( 'Descendant outline', 'family-wiki' ), value: 'outline' },
-								{ label: __( 'Family cards — parents, siblings and children', 'family-wiki' ), value: 'cards' }
+								{ label: __( 'Family cards — parents, spouses, siblings and children', 'family-wiki' ), value: 'cards' }
 							],
 							onChange: function ( value ) { setAttributes( { view: value } ); },
 							__nextHasNoMarginBottom: true

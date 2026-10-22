@@ -108,13 +108,37 @@ namespace {
 	}
 	check( Editor::parse_relative_years( '1923–2000' ) === array( 'birth' => '1923', 'death' => '2000' ), 'En dash supported' );
 	check( Editor::parse_relative_years( '' ) === array(), 'Years optional' );
+
+	check( Person::field( 'sex', $parent ) === 'Male', 'New father gets male sex' );
+	check( Person::field( 'sex', $id ) === 'Female', 'A recorded sex is not overwritten by a different parent role' );
+	Person::update( 'sex', 'Unknown', $parent );
+	Editor::add_relative( $id, 'father', 'Pat' );
+	check( Person::field( 'sex', $parent ) === 'Male', 'Linking an existing unknown father fills sex' );
+	$spouse = Editor::add_relative( $id, 'spouse', 'Avery', '1920-1990' );
+	check( ! is_wp_error( $spouse ) && Person::field( 'is_stub', $spouse ), 'New spouse is a stub' );
+	check( Person::field( 'marriages', $id )[0]['spouse'] === $spouse, 'Person links spouse' );
+	check( Person::field( 'marriages', $spouse )[0]['spouse'] === $id, 'Spouse links back to person' );
+	$marriages = Person::field( 'marriages', $id );
+	$marriages[0]['marriage_date'] = '1940-06-07';
+	Person::update( 'marriages', $marriages, $id );
+	Editor::add_relative( $id, 'spouse', 'Avery' );
+	check( count( Person::field( 'marriages', $id ) ) === 1, 'Retry does not duplicate spouse' );
+	check( Person::field( 'marriages', $id )[0]['marriage_date'] === '1940-06-07', 'Marriage details preserved' );
+	check( is_wp_error( Editor::add_relative( $id, 'spouse', 'Alex' ) ), 'Self marriage rejected' );
+	$legacy_spouse = wp_insert_post( array( 'post_title' => 'Legacy spouse' ) );
+	Person::update( 'spouse', array( $legacy_spouse ), $spouse );
+	Person::update( 'marriage_date', '1960-01-02', $spouse );
+	Editor::add_relative( $id, 'spouse', 'Avery' );
+	check( count( Person::field( 'marriages', $spouse ) ) === 2, 'Legacy spouse remains visible with modern marriages' );
+	check( Person::field( 'marriages', $spouse )[1]['marriage_date'] === '1960-01-02', 'Legacy marriage date preserved' );
 	define( 'ABSPATH', __DIR__ . '/' );
 	require __DIR__ . '/../src/Family_Graph.php';
 	$editable_graph = Family_Wiki\Family_Graph::render( $id, true );
-	check( substr_count( $editable_graph, 'data-family-add' ) === 3, 'One plus control for each family group' );
+	check( substr_count( $editable_graph, 'data-family-add' ) === 4, 'One plus control for each family group' );
 	check( strpos( $editable_graph, '1923–2000' ) !== false, 'Saved years appear in graph' );
 	$readonly_graph = Family_Wiki\Family_Graph::render( $id, false, false );
 	check( strpos( $readonly_graph, 'data-family-add' ) === false, 'Block display has no editing controls' );
+	check( strpos( $readonly_graph, 'Avery' ) !== false, 'Spouse visible in shared graph' );
 	check( strpos( $readonly_graph, '1923' ) === false, 'Show dates setting respected' );
 	check( strpos( $readonly_graph, 'Sam' ) !== false, 'Sibling appears in shared graph' );
 
@@ -131,6 +155,10 @@ namespace {
 		check( strpos( Family_Wiki\Family_Graph::render( $id, true ), 'value="child_father"' ) !== false, 'Unknown sex shows child role selector' );
 	}
 
+
+	Person::update( 'sex', 'Unknown', $id );
+	$another_child = Editor::add_relative( $id, 'child_mother', 'Another child' );
+	check( Person::field( 'sex', $id ) === 'Female', 'Unknown sex filled when linking an existing person as mother' );
 	$_POST = array(
 		'familypedia_action' => 'familypedia_add_relative',
 		'familypedia_ajax' => '1',
@@ -150,7 +178,7 @@ namespace {
 		check( $response->data['tree'] === '<ul data-root="' . $id . '"><li>Updated descendants</li></ul>', 'Tree-page batch response includes the updated root outline' );
 		check( $GLOBALS['nonce_action'] === 'familypedia_add_relative_' . $id, 'Batch nonce tied to person' );
 		check( count( $response->data['results'] ) === 3, 'Every batch row has a result' );
-		check( substr_count( $response->data['graph'], 'data-family-add' ) === 2, 'Parents plus disappears after both parents are saved; siblings and children remain available' );
+		check( substr_count( $response->data['graph'], 'data-family-add' ) === 3, 'Parents plus disappears after both parents are saved; siblings and children remain available' );
 		check( array_column( $response->data['results'], 'saved' ) === array( true, true, false ), 'Batch reports individual failures' );
 		check( array_column( $response->data['results'], 'key' ) === array( '7', '8', '9' ), 'Client row keys preserved' );
 		check( strpos( $response->data['graph'], 'Dana' ) !== false && strpos( $response->data['graph'], 'Lee' ) !== false, 'Response graph includes saved family' );
