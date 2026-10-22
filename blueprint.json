@@ -1,29 +1,29 @@
 {
-  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "meta": {
-    "title": "Familypedia",
-    "description": "Keep your family history in a wiki hosted on WordPress.",
-    "author": "Alex Kirk",
-    "categories": [
-      "Apps",
-      "Family"
-    ]
-  },
-  "steps": [
-    {
-      "step": "installPlugin",
-      "pluginData": {
-        "resource": "git:directory",
-        "url": "https://github.com/akirk/family-wiki",
-        "ref": "dist/main",
-        "refType": "branch"
-      },
-      "options": {
-        "activate": true,
-        "targetFolderName": "family-wiki"
-      }
-    }
-  ],
-  "landingPage": "/familypedia/",
-  "login": true
+    "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+    "meta": {
+        "title": "Familypedia",
+        "description": "Keep your family history in a wiki hosted on WordPress.",
+        "author": "Alex Kirk",
+        "categories": [
+            "Apps",
+            "Family"
+        ]
+    },
+    "steps": [
+        {
+            "step": "installPlugin",
+            "pluginData": {
+                "resource": "git:directory",
+                "url": "https://github.com/akirk/family-wiki",
+                "ref": "dist/stub-management",
+                "refType": "branch"
+            },
+            "options": {
+                "activate": true,
+                "targetFolderName": "family-wiki"
+            }
+        }
+    ],
+    "landingPage": "/familypedia/",
+    "login": true
 }
