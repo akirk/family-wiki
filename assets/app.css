@@ -28,6 +28,11 @@ body.familypedia {
 	margin: 0;
 }
 
+/* Use one link color for all history states; semantic link classes can override it. */
+:where(.familypedia-page a) {
+	color: var(--familypedia-primary);
+}
+
 .familypedia-page {
 	box-sizing: border-box;
 	margin: 0 auto;
