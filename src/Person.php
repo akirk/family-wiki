@@ -30,6 +30,7 @@ class Person {
 	 * Every meta key the plugin writes, with the sanitizer for its value.
 	 */
 	const FIELDS = array(
+		'is_stub'                  => 'bool',
 		'alive'                    => 'bool',
 		'sex'                      => 'sex',
 		'born_as'                  => 'text',

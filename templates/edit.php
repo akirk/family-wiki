@@ -107,6 +107,8 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 	<input type="hidden" name="person_id" value="<?php echo esc_attr( $familypedia_id ); ?>" />
 	<?php wp_nonce_field( Editor::ACTION . '_' . $familypedia_id ); ?>
 
+	<p><label><input type="checkbox" name="is_stub" value="1" <?php checked( (bool) Person::field( 'is_stub', $familypedia_id ) ); ?> /> <?php esc_html_e( 'Stub — this person needs more information', 'family-wiki' ); ?></label></p>
+
 	<fieldset>
 		<legend><?php esc_html_e( 'Identity', 'family-wiki' ); ?></legend>
 

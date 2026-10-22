@@ -44,7 +44,9 @@
 
 		return el( components.ComboboxControl, {
 			label: __( 'Start from', 'family-wiki' ),
-			help: __( 'The person this branch descends from. Their partner is added automatically.', 'family-wiki' ),
+			help: props.view === 'cards'
+				? __( 'Center the cards on this person, with their parents, siblings and children.', 'family-wiki' )
+				: __( 'The person this branch descends from. Their partner is added automatically.', 'family-wiki' ),
 			value: props.value || null,
 			options: options,
 			onChange: props.onChange,
@@ -54,7 +56,7 @@
 
 	blocks.registerBlockType( 'family-wiki/tree', {
 		title: __( 'Family Tree', 'family-wiki' ),
-		description: __( 'A descendant outline starting from one person.', 'family-wiki' ),
+		description: __( 'A descendant outline or family cards centered on one person.', 'family-wiki' ),
 		icon: 'networking',
 		category: 'widgets',
 
@@ -68,11 +70,22 @@
 					el( components.PanelBody, { title: __( 'Branch', 'family-wiki' ) },
 						el( PersonPicker, {
 							value: attributes.root,
+							view: attributes.view,
 							onChange: function ( value ) {
 								setAttributes( { root: value ? parseInt( value, 10 ) : 0 } );
 							}
 						} ),
-						el( components.RangeControl, {
+						el( components.SelectControl, {
+							label: __( 'View', 'family-wiki' ),
+							value: attributes.view || 'outline',
+							options: [
+								{ label: __( 'Descendant outline', 'family-wiki' ), value: 'outline' },
+								{ label: __( 'Family cards — parents, siblings and children', 'family-wiki' ), value: 'cards' }
+							],
+							onChange: function ( value ) { setAttributes( { view: value } ); },
+							__nextHasNoMarginBottom: true
+						} ),
+						attributes.view !== 'cards' && el( components.RangeControl, {
 							label: __( 'Maximum depth', 'family-wiki' ),
 							help: __( 'Generations to show. 0 shows all of them; deeper people get a link instead.', 'family-wiki' ),
 							value: attributes.maxDepth,
@@ -91,7 +104,7 @@
 							},
 							__nextHasNoMarginBottom: true
 						} ),
-						el( components.ToggleControl, {
+						attributes.view !== 'cards' && el( components.ToggleControl, {
 							label: __( 'Expand fully', 'family-wiki' ),
 							help: __( 'Repeat people already shown by an earlier tree on this page instead of linking back to them.', 'family-wiki' ),
 							checked: !! attributes.expandFully,

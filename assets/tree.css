@@ -34,3 +34,150 @@
 	padding: 1em;
 	text-align: center;
 }
+
+/* The immediate-family diagram is shared by the block and family entry. */
+.familypedia-family-graph {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 1.5rem;
+	padding: 1rem 0;
+}
+
+.familypedia-family-generation--parents,
+.familypedia-family-generation--children {
+	grid-column: 1 / -1;
+	text-align: center;
+}
+
+.familypedia-family-generation--parents {
+	border-bottom: 2px solid var(--familypedia-border, #ccc);
+	padding-bottom: 1.5rem;
+}
+
+.familypedia-family-generation--children {
+	border-top: 2px solid var(--familypedia-border, #ccc);
+	padding-top: 1.5rem;
+}
+
+.familypedia-family-generation {
+	text-align: center;
+}
+
+.familypedia-family-generation h3 {
+	font-size: 0.85em;
+	font-weight: 600;
+	margin: 0 0 0.75rem;
+}
+
+.familypedia-family-cards {
+	align-items: flex-start;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	justify-content: center;
+}
+
+.familypedia-family-card {
+	background: var(--familypedia-surface, #fff);
+	border: 1px solid var(--familypedia-border, #ccc);
+	border-radius: 8px;
+	box-sizing: border-box;
+	padding: 0.85rem;
+	text-align: left;
+	width: 13rem;
+	max-width: 100%;
+}
+
+.familypedia-family-card > a,
+.familypedia-family-card small {
+	display: block;
+}
+
+.familypedia-family-card small {
+	opacity: 0.7;
+}
+
+.familypedia-family-focus {
+	align-self: center;
+	justify-self: center;
+}
+
+.familypedia-family-focus .familypedia-family-card {
+	border: 2px solid var(--familypedia-primary, #3858e9);
+}
+
+.familypedia-family-card label {
+	display: block;
+	font-size: 0.85em;
+	margin-bottom: 0.5rem;
+}
+
+.familypedia-family-card input,
+.familypedia-family-card select {
+	display: block;
+	width: 100%;
+}
+
+.familypedia-family-plus {
+	background: var(--familypedia-surface, #fff);
+	border: 1px dashed var(--familypedia-primary, #3858e9);
+	border-radius: 50%;
+	color: var(--familypedia-primary, #3858e9);
+	cursor: pointer;
+	font-size: 1.5rem;
+	height: 2.5rem;
+	line-height: 1;
+	margin-top: 0.75rem;
+	width: 2.5rem;
+}
+
+.familypedia-family-remove {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+
+.familypedia-family-row-status {
+	color: var(--familypedia-error, #b32d2e);
+	font-size: 0.85em;
+}
+
+@media (max-width: 480px) {
+	.familypedia-family-graph {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.familypedia-family-generation--parents,
+.familypedia-family-generation--children,
+.familypedia-family-focus {
+	position: relative;
+}
+
+.familypedia-family-generation--parents::after {
+	border-left: 2px solid var(--familypedia-border, #ccc);
+	bottom: -1.5rem;
+	content: "";
+	height: 1.5rem;
+	left: 25%;
+	position: absolute;
+}
+
+.familypedia-family-generation--children::before {
+	border-left: 2px solid var(--familypedia-border, #ccc);
+	top: -1.5rem;
+	content: "";
+	height: 1.5rem;
+	left: 25%;
+	position: absolute;
+}
+
+@media (max-width: 480px) {
+	.familypedia-family-generation--parents::after,
+	.familypedia-family-generation--children::before {
+		left: 50%;
+	}
+}
