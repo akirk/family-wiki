@@ -81,6 +81,7 @@ class App extends BaseApp {
 	protected function setup_routes(): void {
 		$this->app->route( '', 'index.php' );
 		$this->app->route( 'all', 'all.php' );
+		$this->app->route( 'stubs', 'stubs.php' );
 		$this->app->route( 'new', 'edit.php' );
 		$this->app->route( 'new-page', 'edit-page.php' );
 		$this->app->route( 'tree', 'tree.php' );
@@ -109,6 +110,10 @@ class App extends BaseApp {
 
 	protected function setup_menu(): void {
 		$this->app->add_menu_item( 'all', __( 'All Pages', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/all/' ) );
+
+		if ( Editor::can_edit() ) {
+			$this->app->add_menu_item( 'stubs', __( 'Stubs', 'family-wiki' ), Stubs::url() );
+		}
 
 		if ( Calendar::is_calendar_enabled() ) {
 			$this->app->add_menu_item( 'calendar', __( 'Calendar', 'family-wiki' ), Calendar::get_calendar_url() );

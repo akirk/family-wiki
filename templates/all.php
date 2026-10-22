@@ -53,6 +53,9 @@ ksort( $familypedia_groups );
 ?>
 
 <h1><?php echo esc_html( $familypedia_page_title ); ?></h1>
+<?php if ( Editor::can_edit() ) : ?>
+	<p><a href="<?php echo esc_url( Stubs::url() ); ?>"><?php esc_html_e( 'Manage stubs', 'family-wiki' ); ?></a></p>
+<?php endif; ?>
 
 <p><a href="<?php echo esc_url( add_query_arg( 'stubs', $familypedia_stubs ? false : '1' ) ); ?>"><?php echo $familypedia_stubs ? esc_html__( 'Show all pages', 'family-wiki' ) : esc_html__( 'Show stubs needing information', 'family-wiki' ); ?></a></p>
 <?php if ( empty( $familypedia_people ) ) : ?>

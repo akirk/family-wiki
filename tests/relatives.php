@@ -6,6 +6,7 @@ namespace Family_Wiki {
 		public static function reset_expanded() { $GLOBALS['tree_reset'] = true; }
 		public static function render_list( $id ) { return '<ul data-root="' . $id . '"><li>Updated descendants</li></ul>'; }
 		public static function get_people() {
+			if ( isset( $GLOBALS['fixture_tree'] ) ) { return $GLOBALS['fixture_tree']; }
 			$people = array();
 			foreach ( $GLOBALS['people'] as $id => $person ) {
 				$people[ $id ] = array( 'parents' => array(), 'children' => Person::to_ids( Person::field( 'children', $id ) ) );
@@ -18,7 +19,7 @@ namespace Family_Wiki {
 		}
 	}
 	class Main { public static function flush_family_data_cache( $id ) {} }
-	class Wiki_Page { public static function is_page( $post ) { return false; } }
+	class Wiki_Page { public static function is_page( $post ) { return (bool) get_post_meta( get_post( $post )->ID, '_familypedia_page', true ); } }
 	class Links { public static function path_index() { return array(); } }
 }
 namespace {
@@ -26,6 +27,7 @@ namespace {
 		public $ID;
 		public $post_type = 'familypedia_person';
 		public $post_title;
+		public $post_content = '';
 		public $post_status = 'publish';
 		public $post_parent = 0;
 		public $post_name;
@@ -57,7 +59,13 @@ namespace {
 	function current_user_can( $cap, $id = 0 ) { return 99 !== $id; }
 	function get_post( $id ) { return $id instanceof WP_Post ? $id : ( $GLOBALS['people'][ $id ] ?? null ); }
 	function get_the_title( $id ) { return get_post( $id )->post_title; }
-	function get_posts( $args ) { return array_values( $GLOBALS['people'] ); }
+	function get_posts( $args ) {
+		return array_values( array_filter( $GLOBALS['people'], function ( $post ) use ( $args ) {
+			if ( ! empty( $args['s'] ) && false === stripos( $post->post_title . ' ' . $post->post_content, $args['s'] ) ) { return false; }
+			if ( isset( $args['meta_key'] ) && (string) get_post_meta( $post->ID, $args['meta_key'], true ) !== (string) $args['meta_value'] ) { return false; }
+			return true;
+		} ) );
+	}
 	function get_post_meta( $id, $key, $single ) { return $GLOBALS['meta'][ $id ][ $key ] ?? ''; }
 	function update_post_meta( $id, $key, $value ) { $GLOBALS['meta'][ $id ][ $key ] = $value; }
 	function delete_post_meta( $id, $key ) { unset( $GLOBALS['meta'][ $id ][ $key ] ); }

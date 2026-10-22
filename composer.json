@@ -29,6 +29,7 @@
             "@lint",
             "php tests/upgrade.php",
             "php tests/relatives.php",
+            "php tests/stubs.php",
             "@phpcs"
         ]
     },
