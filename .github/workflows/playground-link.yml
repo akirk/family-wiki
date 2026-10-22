@@ -36,10 +36,8 @@ jobs:
             const pull_number = context.issue.number;
             const headRef = `dist/${process.env.HEAD_REF}`;
             const currentBody = context.payload.pull_request.body || '';
-            // The blueprint declares the complete git ref, including any slashes.
-            // A GitHub tree URL is ambiguous to the step-library URL parser.
-            const blueprintUrl = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${headRef}/blueprint.json`;
-            const playgroundUrl = `https://playground.wordpress.net/?blueprint-url=${encodeURIComponent(blueprintUrl)}`;
+            // An explicit empty directory keeps slashes inside the branch name.
+            const playgroundUrl = `https://akirk.github.io/playground-step-library/?redir=1&step[0]=installPlugin&url[0]=github.com/${owner}/${repo}/tree/${headRef}//&step[1]=setLandingPage&landingPage[1]=/familypedia/`;
             const playgroundSection = [
               markerStart,
               '## Test this PR in WordPress Playground',
