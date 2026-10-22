@@ -20,6 +20,7 @@ class Main {
 		new Related_Page();
 		new Settings();
 		new Static_Archive();
+		new Stubs();
 		new Tree();
 		new Wiki_Page();
 

@@ -36,7 +36,7 @@ class Family_Graph {
 			$out .= '<small>' . esc_html( $birth . ( $death ? '–' . $death : '' ) ) . '</small>';
 		}
 		if ( Person::field( 'is_stub', $id ) ) {
-			$out .= '<small>' . esc_html__( 'Stub', 'family-wiki' ) . '</small>';
+			$out .= '<span class="familypedia-stub-badge">' . esc_html__( 'Stub', 'family-wiki' ) . '</span>';
 		}
 		return $out . '</div>';
 	}

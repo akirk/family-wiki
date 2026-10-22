@@ -1,0 +1,6 @@
+/* Separate the browsing, creation and management links without heading rows. */
+#wpadminbar .familypedia-menu-section-start {
+	border-top: 1px solid rgba(127, 127, 127, 0.3);
+	margin-top: 0.4rem;
+	padding-top: 0.4rem;
+}

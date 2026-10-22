@@ -79,7 +79,7 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 	</header>
 
 	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Person::field( 'is_stub', $familypedia_person->ID ) ) : ?>
-		<p class="familypedia-person__stub"><?php esc_html_e( 'Stub — this person needs more information. Uncheck the stub box under Edit → Facts when complete.', 'family-wiki' ); ?></p>
+		<p class="familypedia-person__stub"><span class="familypedia-stub-badge"><?php esc_html_e( 'Stub', 'family-wiki' ); ?></span> <?php esc_html_e( 'This person needs more information. Uncheck the stub box under Edit → Facts when complete.', 'family-wiki' ); ?></p>
 	<?php endif; ?>
 	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Editor::can_edit( $familypedia_person->ID ) && Editor::can_create() ) : ?>
 		<?php require __DIR__ . '/partials/add-relative.php'; ?>

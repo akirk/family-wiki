@@ -185,3 +185,22 @@
 .familypedia-family-generation--siblings {
 	grid-column: 1 / -1;
 }
+
+/* Shared status badge for app pages, tree blocks and static exports. */
+.familypedia-stub-badge {
+	background: #fff4d6;
+	border: 1px solid #d8ba69;
+	border-radius: 999px;
+	color: #684b09;
+	display: inline-flex;
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1.5;
+	padding: 0.05em 0.55em;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+
+.familypedia-family-card .familypedia-stub-badge {
+	margin-top: 0.35rem;
+}
