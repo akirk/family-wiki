@@ -34,7 +34,7 @@ jobs:
             const markerPattern = /<!-- (?:[a-z0-9-]+-)?playground-link:start -->[\s\S]*?<!-- (?:[a-z0-9-]+-)?playground-link:end -->/;
             const { owner, repo } = context.repo;
             const pull_number = context.issue.number;
-            const headRef = process.env.HEAD_REF;
+            const headRef = `dist/${process.env.HEAD_REF}`;
             const currentBody = context.payload.pull_request.body || '';
             const playgroundUrl = `https://akirk.github.io/playground-step-library/?redir=1&step[0]=installPlugin&url[0]=github.com/${owner}/${repo}/tree/${headRef}&step[1]=setLandingPage&landingPage[1]=/familypedia/`;
             const playgroundSection = [
