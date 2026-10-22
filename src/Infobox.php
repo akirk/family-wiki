@@ -121,7 +121,7 @@ class Infobox {
 			array( __( 'Mother', 'family-wiki' ), $this->person_link( 'mother', 'mother_name' ) ),
 			array( __( 'Siblings', 'family-wiki' ), $this->siblings_links( false ) ),
 			array( __( 'Half-siblings', 'family-wiki' ), $this->siblings_links( true ) ),
-			array( __( 'Spouse', 'family-wiki' ), $this->spouse_value() ),
+			array( __( 'Spouse / Partner', 'family-wiki' ), $this->spouse_value() ),
 			array( __( 'Children', 'family-wiki' ), $this->children_links() ),
 			array( __( 'Citizenship', 'family-wiki' ), $this->citizenships_value() ),
 		);
@@ -470,16 +470,19 @@ class Infobox {
 		}
 
 		$details = array();
+		if ( isset( $marriage['relationship_type'] ) && 'partnership' === $marriage['relationship_type'] ) {
+			$details[] = __( 'Unmarried partnership', 'family-wiki' );
+		}
 		if ( ! empty( $marriage['marriage_date'] ) ) {
 			$details[] = sprintf(
 				// translators: %s is a marriage date.
-				__( 'married %s', 'family-wiki' ),
+				( isset( $marriage['relationship_type'] ) && 'partnership' === $marriage['relationship_type'] ? __( 'together since %s', 'family-wiki' ) : __( 'married %s', 'family-wiki' ) ),
 				self::linked_date( new \DateTime( Person::normalize_date( $marriage['marriage_date'] ) ) )
 			);
 		} elseif ( ! empty( $marriage['marriage_year'] ) ) {
 			$details[] = sprintf(
 				// translators: %s is a marriage year.
-				__( 'married %s', 'family-wiki' ),
+				( isset( $marriage['relationship_type'] ) && 'partnership' === $marriage['relationship_type'] ? __( 'together since %s', 'family-wiki' ) : __( 'married %s', 'family-wiki' ) ),
 				esc_html( $marriage['marriage_year'] )
 			);
 		}
