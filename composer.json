@@ -5,7 +5,7 @@
     "license": "GPL-2.0-or-later",
     "require": {
         "php": ">=7.4",
-        "akirk/wp-app": "^1.9"
+        "akirk/wp-app": "^2.0"
     },
     "require-dev": {
         "squizlabs/php_codesniffer": "^3.7",
@@ -29,12 +29,6 @@
             "@lint",
             "php tests/upgrade.php",
             "@phpcs"
-        ],
-        "post-install-cmd": [
-            "@php bin/patch-wp-app.php"
-        ],
-        "post-update-cmd": [
-            "@php bin/patch-wp-app.php"
         ]
     },
     "config": {

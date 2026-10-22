@@ -30,7 +30,7 @@ In Settings → Familypedia, enable “Show the wiki at the homepage for signed-
 
 ### Development
 
-Runtime dependencies are bundled in `vendor/`. To rebuild them, run `composer install --no-dev`. For development checks, run `composer install` followed by `composer test`. Composer applies a small PHP 8 compatibility patch to wp-app 1.9’s asset helper signatures. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
+Runtime dependencies are bundled in `vendor/`. To rebuild them, run `composer install --no-dev`. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
 
 ### Temporary save diagnostics
 

@@ -20,9 +20,9 @@
             'dev_requirement' => false,
         ),
         'akirk/wp-app' => array(
-            'pretty_version' => 'v1.9.0',
-            'version' => '1.9.0.0',
-            'reference' => '811535d62bedd9e91d4bfbd74abba82ea12d2041',
+            'pretty_version' => 'v2.0.0',
+            'version' => '2.0.0.0',
+            'reference' => '7e1fbe7c39b305198464b228159945c7ac069388',
             'type' => 'library',
             'install_path' => __DIR__ . '/../akirk/wp-app',
             'aliases' => array(),

@@ -2,17 +2,17 @@
     "packages": [
         {
             "name": "akirk/wp-app",
-            "version": "v1.9.0",
-            "version_normalized": "1.9.0.0",
+            "version": "v2.0.0",
+            "version_normalized": "2.0.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/akirk/wp-app.git",
-                "reference": "811535d62bedd9e91d4bfbd74abba82ea12d2041"
+                "reference": "7e1fbe7c39b305198464b228159945c7ac069388"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/akirk/wp-app/zipball/811535d62bedd9e91d4bfbd74abba82ea12d2041",
-                "reference": "811535d62bedd9e91d4bfbd74abba82ea12d2041",
+                "url": "https://api.github.com/repos/akirk/wp-app/zipball/7e1fbe7c39b305198464b228159945c7ac069388",
+                "reference": "7e1fbe7c39b305198464b228159945c7ac069388",
                 "shasum": ""
             },
             "require": {
@@ -23,17 +23,19 @@
                 "squizlabs/php_codesniffer": "^3.7",
                 "wp-coding-standards/wpcs": "^3.0"
             },
-            "time": "2026-09-11T10:40:04+00:00",
+            "time": "2026-10-07T11:49:46+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
                 "files": [
+                    "src/bootstrap.php",
                     "src/class-openstation.php",
                     "src/class-registry.php",
                     "src/class-settings.php",
                     "src/class-pwa.php",
                     "src/class-router.php",
                     "src/class-masterbar.php",
+                    "src/class-themes.php",
                     "src/class-wpapp.php",
                     "src/class-client-encrypted-fields.php",
                     "src/BaseStorage.php",
@@ -54,7 +56,7 @@
             "description": "A framework to build frontend apps on WordPress with routing, admin bar integration, and theme isolation",
             "support": {
                 "issues": "https://github.com/akirk/wp-app/issues",
-                "source": "https://github.com/akirk/wp-app/tree/v1.9.0"
+                "source": "https://github.com/akirk/wp-app/tree/v2.0.0"
             },
             "install-path": "../akirk/wp-app"
         }

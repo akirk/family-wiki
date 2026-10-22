@@ -14,7 +14,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 }
 
 if ( ! defined( 'WP_APP_VERSION' ) ) {
-    define( 'WP_APP_VERSION', '1.9.0' );
+    define( 'WP_APP_VERSION', '2.0.0' );
 }
 
 if ( ! function_exists( 'wp_app_is_app_request' ) ) {
@@ -449,11 +449,7 @@ if ( ! function_exists( 'wp_app_enqueue_style' ) ) {
     /**
      * Enqueue a style for app pages
      */
-    function wp_app_enqueue_style( $handle, $src = '', $deps = [], $ver = false, $scope = null ) {
-        if ( null === $scope ) {
-            wp_app_warn_missing_asset_scope( __FUNCTION__ );
-        }
-
+    function wp_app_enqueue_style( $handle, $src, $deps, $ver, $scope ) {
         add_action(
             wp_app_get_scoped_hook_name( 'wp_app_head_styles', $scope ),
             function () use ( $handle, $src, $deps, $ver ) {
@@ -473,11 +469,7 @@ if ( ! function_exists( 'wp_app_enqueue_script' ) ) {
     /**
      * Enqueue a script for app pages
      */
-    function wp_app_enqueue_script( $handle, $src = '', $deps = [], $ver = false, $in_footer = true, $scope = null ) {
-        if ( null === $scope ) {
-            wp_app_warn_missing_asset_scope( __FUNCTION__ );
-        }
-
+    function wp_app_enqueue_script( $handle, $src, $deps, $ver, $in_footer, $scope ) {
         if ( function_exists( 'wp_register_script' ) ) {
             wp_register_script( $handle, $src, $deps, $ver, $in_footer );
         }
@@ -547,7 +539,8 @@ if ( ! function_exists( 'wp_app_get_asset_url' ) ) {
         $path = ltrim( (string) $path, '/' );
 
         if ( defined( 'WP_PLUGIN_DIR' ) && defined( 'WP_PLUGIN_URL' ) ) {
-            $plugin_dir = rtrim( str_replace( '\\', '/', WP_PLUGIN_DIR ), '/' );
+            $package_dir = realpath( defined( 'WP_APP_DIR' ) ? WP_APP_DIR : dirname( __DIR__ ) );
+            $plugin_dir  = rtrim( str_replace( '\\', '/', WP_PLUGIN_DIR ), '/' );
 
             foreach ( get_included_files() as $included_file ) {
                 $included_file = str_replace( '\\', '/', $included_file );
@@ -556,9 +549,27 @@ if ( ! function_exists( 'wp_app_get_asset_url' ) ) {
                     continue;
                 }
 
-                $candidate = dirname( $included_file ) . '/akirk/wp-app/assets/' . $path;
+                $candidate_dir = dirname( $included_file ) . '/akirk/wp-app';
+
+                if ( ! $package_dir || realpath( $candidate_dir ) !== $package_dir ) {
+                    continue;
+                }
+
+                $candidate = str_replace( '\\', '/', $candidate_dir . '/assets/' . $path );
 
                 if ( file_exists( $candidate ) && 0 === strpos( $candidate, $plugin_dir . '/' ) ) {
+                    return rtrim( WP_PLUGIN_URL, '/' ) . substr( $candidate, strlen( $plugin_dir ) );
+                }
+            }
+
+            foreach ( (array) glob( $plugin_dir . '/*/vendor/akirk/wp-app', GLOB_ONLYDIR ) as $candidate_dir ) {
+                if ( ! $package_dir || realpath( $candidate_dir ) !== $package_dir ) {
+                    continue;
+                }
+
+                $candidate = str_replace( '\\', '/', $candidate_dir . '/assets/' . $path );
+
+                if ( file_exists( $candidate ) ) {
                     return rtrim( WP_PLUGIN_URL, '/' ) . substr( $candidate, strlen( $plugin_dir ) );
                 }
             }

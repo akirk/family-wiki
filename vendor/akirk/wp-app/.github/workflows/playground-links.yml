@@ -42,7 +42,7 @@ jobs:
             // vendor/akirk/wp-app, which is then written over with this branch.
             const apps = {
               cookbook: { url: 'https://github.com/akirk/cookbook', ref: 'dist/main', file: 'cookbook.php' },
-              traveler: { url: 'https://github.com/akirk/traveler', ref: 'dist/main', file: 'traveler.php' },
+              'travel-app': { url: 'https://github.com/akirk/travel-app', ref: 'dist/main', file: 'travel-app.php' },
             };
             const branch = { resource: 'git:directory', url: `https://github.com/${ owner }/${ repo }`, ref: headRef, refType: 'branch', path: 'src' };
 
@@ -123,20 +123,20 @@ jobs:
               },
               {
                 label: 'Two apps',
-                names: [ 'cookbook', 'traveler' ],
+                names: [ 'cookbook', 'travel-app' ],
                 landingPage: '/wp-admin/',
                 note: 'Inactive apps collapse into the Apps overflow menu.',
               },
               {
                 label: 'Two apps and My Apps',
-                names: [ 'cookbook', 'traveler' ],
+                names: [ 'cookbook', 'travel-app' ],
                 launchers: [ 'my-apps' ],
                 landingPage: '/my-apps/',
                 note: 'The My Apps launcher, which the apps announce themselves to.',
               },
               {
                 label: 'Two apps and OpenStation',
-                names: [ 'cookbook', 'traveler' ],
+                names: [ 'cookbook', 'travel-app' ],
                 launchers: [ 'openstation' ],
                 landingPage: '/wp-admin/index.php?desktop_mode_portal=1',
                 note: 'The OpenStation portal, which the apps register an icon with.',
