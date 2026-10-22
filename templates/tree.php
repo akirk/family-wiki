@@ -31,10 +31,20 @@ Tree::reset_expanded();
 <h1><?php echo esc_html( $familypedia_page_title ); ?></h1>
 
 <?php if ( $familypedia_root && isset( $familypedia_people[ $familypedia_root->ID ] ) ) : ?>
-	<p class="familypedia-tree__intro">
+	<p id="person-actions" class="familypedia-tree__intro">
 		<a href="<?php echo esc_url( Person::url( $familypedia_root ) ); ?>"><?php esc_html_e( 'Back to this person', 'family-wiki' ); ?></a>
+		<?php if ( Editor::can_edit( $familypedia_root->ID ) && Editor::can_create() ) : ?>
+			<a href="#add-family-member"><?php esc_html_e( 'Add family members', 'family-wiki' ); ?></a>
+		<?php endif; ?>
 	</p>
-	<div class="familypedia-tree">
+	<?php if ( Editor::can_edit( $familypedia_root->ID ) && Editor::can_create() ) : ?>
+		<?php
+		$familypedia_person = $familypedia_root;
+		$familypedia_tree_entry = true;
+		require __DIR__ . '/partials/add-relative.php';
+		?>
+	<?php endif; ?>
+	<div class="familypedia-tree" data-family-descendants>
 		<?php
 		// Built from escaped parts.
 		echo Tree::render_list( $familypedia_root->ID ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

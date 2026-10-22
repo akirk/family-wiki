@@ -1,6 +1,6 @@
 <?php
 /**
- * Visual family entry on a person page.
+ * Visual family entry shared by person and descendant-tree pages.
  *
  * @package Familypedia
  */
@@ -17,6 +17,9 @@ wp_app_enqueue_script( 'familypedia-family-entry', Assets::url( 'family-entry.js
 	<form method="post" class="familypedia-form" data-family-entry data-saving="<?php esc_attr_e( 'Saving…', 'family-wiki' ); ?>" data-failed="<?php esc_attr_e( 'Could not confirm the save. Your entries are still here; retry to link any people already created.', 'family-wiki' ); ?>" data-saved="<?php esc_attr_e( 'Saved. New people are marked as stubs.', 'family-wiki' ); ?>" data-partial="<?php esc_attr_e( 'Review the highlighted cards, then save again. Saved people are already in the tree.', 'family-wiki' ); ?>" data-empty="<?php esc_attr_e( 'Use + to add a family member first.', 'family-wiki' ); ?>">
 		<?php wp_nonce_field( 'familypedia_add_relative_' . $familypedia_person->ID ); ?>
 		<input type="hidden" name="familypedia_action" value="familypedia_add_relative" />
+		<?php if ( ! empty( $familypedia_tree_entry ) ) : ?>
+			<input type="hidden" name="familypedia_tree" value="1" />
+		<?php endif; ?>
 		<input type="hidden" name="person_id" value="<?php echo esc_attr( $familypedia_person->ID ); ?>" />
 		<datalist id="relative-people">
 			<?php foreach ( Editor::person_labels() as $familypedia_label ) : ?>

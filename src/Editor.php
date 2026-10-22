@@ -59,7 +59,12 @@ class Editor {
 			);
 		}
 		if ( '1' === self::post_text( 'familypedia_ajax' ) ) {
-			wp_send_json_success( array( 'results' => $results, 'graph' => Family_Graph::render( $id, true ) ) );
+			$response = array( 'results' => $results, 'graph' => Family_Graph::render( $id, true ) );
+			if ( '1' === self::post_text( 'familypedia_tree' ) ) {
+				Tree::reset_expanded();
+				$response['tree'] = Tree::render_list( $id );
+			}
+			wp_send_json_success( $response );
 		}
 		self::set_notice( __( 'Family entries processed. Review the family links before adding more.', 'family-wiki' ) );
 		wp_safe_redirect( Person::url( $id ) );

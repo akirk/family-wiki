@@ -71,6 +71,10 @@
 					graph.querySelector('[data-family-group="' + failure.group + '"] [data-family-cards]').appendChild(failure.row);
 				});
 				form.querySelector('.familypedia-family-graph').replaceWith(graph);
+				var descendants = document.querySelector('[data-family-descendants]');
+				if (descendants && typeof result.data.tree === 'string') {
+					descendants.innerHTML = result.data.tree;
+				}
 				status.textContent = failures.length ? form.dataset.partial : (saved ? form.dataset.saved : form.dataset.empty);
 				if (failures.length) { firstFailure = failures[0].row.querySelector('input'); }
 			} catch (error) {

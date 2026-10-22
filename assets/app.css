@@ -679,3 +679,9 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 .familypedia-add-relative .familypedia-form {
 	max-width: none;
 }
+
+.familypedia-tree__intro {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+}

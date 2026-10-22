@@ -3,6 +3,8 @@
 namespace Family_Wiki {
 	class App { const URL_PATH = 'familypedia'; }
 	class Tree {
+		public static function reset_expanded() { $GLOBALS['tree_reset'] = true; }
+		public static function render_list( $id ) { return '<ul data-root="' . $id . '"><li>Updated descendants</li></ul>'; }
 		public static function get_people() {
 			$people = array();
 			foreach ( $GLOBALS['people'] as $id => $person ) {
@@ -132,6 +134,7 @@ namespace {
 	$_POST = array(
 		'familypedia_action' => 'familypedia_add_relative',
 		'familypedia_ajax' => '1',
+		'familypedia_tree' => '1',
 		'person_id' => $id,
 		'relatives' => array(
 			'7' => array( 'relationship' => 'mother', 'name' => 'Dana', 'years' => '1900-1980' ),
@@ -143,6 +146,8 @@ namespace {
 		( new Editor() )->maybe_add_relative();
 		throw new Exception( 'Expected AJAX response' );
 	} catch ( Json_Response $response ) {
+		check( ! empty( $GLOBALS['tree_reset'] ), 'Descendant rendering starts with a fresh expansion state' );
+		check( $response->data['tree'] === '<ul data-root="' . $id . '"><li>Updated descendants</li></ul>', 'Tree-page batch response includes the updated root outline' );
 		check( $GLOBALS['nonce_action'] === 'familypedia_add_relative_' . $id, 'Batch nonce tied to person' );
 		check( count( $response->data['results'] ) === 3, 'Every batch row has a result' );
 		check( substr_count( $response->data['graph'], 'data-family-add' ) === 2, 'Parents plus disappears after both parents are saved; siblings and children remain available' );
