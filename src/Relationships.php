@@ -1,9 +1,8 @@
 <?php
 /**
- * Relationships that are not stored directly but derived from the ones that are.
+ * Family relationships, derived from parents or recorded directly.
  *
- * Siblings, for example, are never recorded on a person: they fall out of the
- * children recorded on their parents.
+ * Siblings can be recorded directly when their shared parents are unknown.
  *
  * @package Familypedia
  */
@@ -47,6 +46,13 @@ class Relationships {
 		if ( ! Person::field( 'father', $post_id ) || ! Person::field( 'mother', $post_id ) ) {
 			$siblings = $half;
 			$half     = array();
+		}
+
+		// Explicit siblings have unspecified parentage; do not infer full or half.
+		foreach ( Person::field( 'siblings', $post_id ) as $sibling ) {
+			if ( (int) $sibling->ID !== (int) $post_id && ! isset( $half[ $sibling->ID ] ) ) {
+				$siblings[ $sibling->ID ] = $sibling;
+			}
 		}
 
 		return array_values( $half_siblings ? $half : $siblings );

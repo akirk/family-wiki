@@ -24,7 +24,7 @@ class Person {
 	/**
 	 * Fields holding several related people, stored as an array of post IDs.
 	 */
-	const MULTI_PERSON_FIELDS = array( 'children', 'spouse' );
+	const MULTI_PERSON_FIELDS = array( 'children', 'spouse', 'siblings' );
 
 	/**
 	 * Every meta key the plugin writes, with the sanitizer for its value.
@@ -46,6 +46,7 @@ class Person {
 		'mother'                   => 'person',
 		'mother_name'              => 'text',
 		'children'                 => 'people',
+		'siblings'                 => 'people',
 		'marriages'                => 'marriages',
 		'spouse'                   => 'people',
 		'spouse_name'              => 'text',
@@ -517,7 +518,7 @@ class Person {
 	 * if they get an infobox or appear in an export.
 	 */
 	public static function has_data( $post_id ) {
-		foreach ( array( 'born_as', 'citizenships', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'father_name', 'mother', 'mother_name', 'children', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
+		foreach ( array( 'born_as', 'citizenships', 'birth_date', 'birth_place', 'death_date', 'death_place', 'father', 'father_name', 'mother', 'mother_name', 'children', 'siblings', 'marriages', 'spouse', 'spouse_name', 'marriage_date', 'marriage_place' ) as $field ) {
 			if ( get_post_meta( $post_id, $field, true ) ) {
 				return true;
 			}

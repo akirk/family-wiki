@@ -89,6 +89,9 @@ class Stubs {
 				$groups[ $group ][ 'name:' . $name ] = array( 'id' => 0, 'name' => $name );
 			}
 		};
+		foreach ( Person::to_ids( Person::field( 'siblings', $id ) ) as $sibling ) {
+			$add( 'siblings', $sibling );
+		}
 		foreach ( $person['parents'] ?? array() as $parent ) {
 			$add( 'parents', $parent );
 			foreach ( $people[ $parent ]['children'] ?? array() as $sibling ) {

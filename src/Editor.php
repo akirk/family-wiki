@@ -97,9 +97,10 @@ class Editor {
 				}
 			}
 		}
+		$direct_sibling = 'sibling' === $relationship && ! $links;
 		$name = trim( sanitize_text_field( $name ) );
-		if ( ( ! $links && 'spouse' !== $relationship ) || '' === $name ) {
-			return new \WP_Error( 'relative', __( 'Enter a name and relationship. To add a sibling, record a shared parent first.', 'family-wiki' ) );
+		if ( ( ! $links && 'spouse' !== $relationship && ! $direct_sibling ) || '' === $name ) {
+			return new \WP_Error( 'relative', __( 'Enter a name and relationship.', 'family-wiki' ) );
 		}
 		$relative = self::resolve_person( $name, $id );
 		if ( self::name_key( $name ) === self::name_key( get_the_title( $id ) ) || ( $relative && Wiki_Page::is_page( get_post( $relative ) ) ) ) {
@@ -107,6 +108,32 @@ class Editor {
 		}
 		if ( 'spouse' === $relationship && ( ! self::can_edit( $id ) || ( $relative && ! self::can_edit( $relative ) ) ) ) {
 			return new \WP_Error( 'relative', __( 'You cannot edit both spouses.', 'family-wiki' ) );
+		}
+		if ( $direct_sibling ) {
+			if ( ! self::can_edit( $id ) || ( $relative && ! self::can_edit( $relative ) ) ) {
+				return new \WP_Error( 'relative', __( 'You cannot edit both siblings.', 'family-wiki' ) );
+			}
+			// A direct sibling must not already be an ancestor or descendant.
+			foreach ( array( array( $id, $relative ), array( $relative, $id ) ) as $pair ) {
+				$pending = $pair[0] ? array( $pair[0] ) : array();
+				$seen = array();
+				while ( $pending ) {
+					$ancestor = array_pop( $pending );
+					if ( $pair[1] && (int) $ancestor === (int) $pair[1] ) {
+						return new \WP_Error( 'relative', __( 'An ancestor or descendant cannot be added as a sibling.', 'family-wiki' ) );
+					}
+					if ( isset( $seen[ $ancestor ] ) ) {
+						continue;
+					}
+					$seen[ $ancestor ] = true;
+					foreach ( Person::SINGLE_PERSON_FIELDS as $field ) {
+						$parent = Person::field( $field, $ancestor );
+						if ( $parent ) {
+							$pending[] = $parent->ID;
+						}
+					}
+				}
+			}
 		}
 		if ( $relative ) {
 			foreach ( $dates as $event => $year ) {
@@ -165,6 +192,14 @@ class Editor {
 			Person::update( 'children', $children, $parent );
 			Main::flush_family_data_cache( $child );
 			Main::flush_family_data_cache( $parent );
+		}
+		if ( $direct_sibling ) {
+			foreach ( array( array( $id, $relative ), array( $relative, $id ) ) as $pair ) {
+				$siblings = Person::to_ids( Person::field( 'siblings', $pair[0] ) );
+				$siblings[] = $pair[1];
+				Person::update( 'siblings', $siblings, $pair[0] );
+				Main::flush_family_data_cache( $pair[0] );
+			}
 		}
 		if ( 'spouse' === $relationship ) {
 			self::record_spouse( $id, $relative );
