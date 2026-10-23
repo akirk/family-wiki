@@ -14,7 +14,7 @@ Keep your family history in a private wiki app hosted on WordPress.
 
 Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator or Editor account. Advanced Custom Fields is no longer required.
 
-Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Existing Wiki User and Wiki Editor accounts migrate automatically to Editor, and the legacy roles are removed. Editor permissions apply across the WordPress site, including deletion; former Wiki Users gain those permissions. Existing additional roles are preserved, and accounts that already have wiki access through another role keep that role without adding Editor. If a retired role was the default for new accounts, the default becomes Subscriber. The existing whole-site privacy setting in Settings → Reading remains supported; app content requires wiki access even on a public site.
+Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. The existing whole-site privacy setting in Settings → Reading remains supported; app content requires wiki access even on a public site.
 
 ### Upgrading from Family Wiki 1.x
 
