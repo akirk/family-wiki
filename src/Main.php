@@ -1,7 +1,7 @@
 <?php
 /**
  * Wiring that is not specific to one feature: the feature objects, the caches
- * they share, and the roles that let people edit.
+ * they share, and plugin activation.
  *
  * @package Familypedia
  */
@@ -100,79 +100,10 @@ class Main {
 
 	public static function setup() {
 		Upgrade::record_previous_install();
-		self::setup_roles();
 		Person::register_post_type();
 		Front_Page::register_post_type();
 		Front_Page::ensure_post();
 		flush_rewrite_rules();
 	}
 
-	/**
-	 * The people post type uses the page capabilities, so these roles give the
-	 * same access to people that Family Wiki's roles gave to wiki pages, and
-	 * WordPress's own Editor role works without any further setup.
-	 */
-	public static function setup_roles() {
-		$default_roles = array(
-			'wiki-user'   => _x( 'Wiki User', 'User role', 'family-wiki' ),
-			'wiki-editor' => _x( 'Wiki Editor', 'User role', 'family-wiki' ),
-		);
-
-		$roles = new \WP_Roles();
-
-		foreach ( $default_roles as $type => $name ) {
-			$role = false;
-			foreach ( $roles->roles as $slug => $data ) {
-				if ( isset( $data['capabilities'][ $type ] ) ) {
-					$role = get_role( $slug );
-					break;
-				}
-			}
-
-			if ( ! $role ) {
-				add_role( $type, $name, self::get_role_capabilities( $type ) );
-				continue;
-			}
-
-			// This might add capabilities a previous version did not grant.
-			foreach ( array_keys( self::get_role_capabilities( $type ) ) as $cap ) {
-				$role->add_cap( $cap );
-			}
-		}
-	}
-
-	public static function get_role_capabilities( $role ) {
-		$capabilities = array();
-
-		$capabilities['wiki-user'] = array(
-			'edit_pages'           => true,
-			'edit_others_pages'    => true,
-			'edit_published_pages' => true,
-			'publish_pages'        => true,
-			'edit_files'           => true,
-			'upload_files'         => true,
-			'read'                 => true,
-		);
-
-		$capabilities['wiki-editor'] = array_merge(
-			$capabilities['wiki-user'],
-			array(
-				'delete_pages'           => true,
-				'delete_others_pages'    => true,
-				'delete_published_pages' => true,
-			)
-		);
-
-		// All roles belonging to this plugin have the familypedia capability.
-		foreach ( array_keys( $capabilities ) as $type ) {
-			$capabilities[ $type ][ $type ]  = true;
-			$capabilities[ $type ]['family-wiki'] = true;
-		}
-
-		if ( ! isset( $capabilities[ $role ] ) ) {
-			return array();
-		}
-
-		return $capabilities[ $role ];
-	}
 }

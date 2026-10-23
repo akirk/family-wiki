@@ -15,7 +15,7 @@ class Upgrade {
 		add_action( 'init', array( $this, 'setup' ), 100 );
 	}
 
-	/** Capture old-install evidence before the new version creates its own roles. */
+	/** Capture old-install evidence before legacy roles are removed. */
 	public static function record_previous_install() {
 		if ( null !== get_option( self::PREVIOUS_INSTALL, null ) ) {
 			return;
@@ -47,10 +47,58 @@ class Upgrade {
 
 	public function setup() {
 		self::record_previous_install();
+		self::migrate_legacy_roles();
 		if ( '2.0.0' !== get_option( 'family_wiki_app_version' ) ) {
 			Main::setup();
 			update_option( 'family_wiki_app_version', '2.0.0' );
 		}
+	}
+
+	/**
+	 * Replace legacy wiki roles with the standard Editor role on this site.
+	 * Preserve other roles, especially Administrator, on multi-role accounts.
+	 */
+	public static function migrate_legacy_roles() {
+		if ( get_option( 'family_wiki_standard_roles' ) || ! get_role( 'editor' ) ) {
+			return;
+		}
+
+		self::record_previous_install();
+		$legacy_roles = array( 'wiki-user', 'wiki-editor' );
+		foreach ( wp_roles()->roles as $slug => $role ) {
+			if ( ! empty( $role['capabilities']['wiki-user'] ) || ! empty( $role['capabilities']['wiki-editor'] ) ) {
+				$legacy_roles[] = $slug;
+			}
+		}
+		$legacy_roles = array_unique( $legacy_roles );
+
+		foreach ( $legacy_roles as $slug ) {
+			// Fetch successive batches from the shrinking set of legacy members.
+			do {
+				$users = get_users( array( 'role' => $slug, 'number' => 100, 'orderby' => 'ID' ) );
+				foreach ( $users as $user ) {
+					$has_access = false;
+					foreach ( array_diff( $user->roles, $legacy_roles ) as $remaining_role ) {
+						$role = get_role( $remaining_role );
+						if ( $role && $role->has_cap( 'edit_others_pages' ) ) {
+							$has_access = true;
+							break;
+						}
+					}
+					if ( ! $has_access ) {
+						$user->add_role( 'editor' );
+					}
+					$user->remove_role( $slug );
+				}
+			} while ( count( $users ) === 100 );
+
+			if ( $slug === get_option( 'default_role' ) ) {
+				update_option( 'default_role', 'subscriber' );
+			}
+			remove_role( $slug );
+		}
+
+		update_option( 'family_wiki_standard_roles', 1 );
 	}
 
 	/** All pages remain selectable: a person need not have any facts yet. */
