@@ -1,7 +1,7 @@
 <?php
 /**
  * Wiring that is not specific to one feature: the feature objects, the caches
- * they share, and the roles that let people edit.
+ * they share, and plugin activation.
  *
  * @package Familypedia
  */
@@ -100,57 +100,10 @@ class Main {
 
 	public static function setup() {
 		Upgrade::record_previous_install();
-		self::setup_roles();
 		Person::register_post_type();
 		Front_Page::register_post_type();
 		Front_Page::ensure_post();
 		flush_rewrite_rules();
 	}
 
-	/**
-	 * Replace legacy wiki roles with the standard Editor role on this site.
-	 * Preserve other roles, especially Administrator, on multi-role accounts.
-	 */
-	public static function setup_roles() {
-		if ( get_option( 'family_wiki_standard_roles' ) || ! get_role( 'editor' ) ) {
-			return;
-		}
-
-		Upgrade::record_previous_install();
-		$legacy_roles = array( 'wiki-user', 'wiki-editor' );
-		foreach ( wp_roles()->roles as $slug => $role ) {
-			if ( ! empty( $role['capabilities']['wiki-user'] ) || ! empty( $role['capabilities']['wiki-editor'] ) ) {
-				$legacy_roles[] = $slug;
-			}
-		}
-		$legacy_roles = array_unique( $legacy_roles );
-
-		foreach ( $legacy_roles as $slug ) {
-			// Fetch successive batches from the shrinking set of legacy members.
-			do {
-				$users = get_users( array( 'role' => $slug, 'number' => 100, 'orderby' => 'ID' ) );
-				foreach ( $users as $user ) {
-					$has_access = false;
-					foreach ( array_diff( $user->roles, $legacy_roles ) as $remaining_role ) {
-						$role = get_role( $remaining_role );
-						if ( $role && $role->has_cap( 'edit_others_pages' ) ) {
-							$has_access = true;
-							break;
-						}
-					}
-					if ( ! $has_access ) {
-						$user->add_role( 'editor' );
-					}
-					$user->remove_role( $slug );
-				}
-			} while ( count( $users ) === 100 );
-
-			if ( $slug === get_option( 'default_role' ) ) {
-				update_option( 'default_role', 'subscriber' );
-			}
-			remove_role( $slug );
-		}
-
-		update_option( 'family_wiki_standard_roles', 1 );
-	}
 }

@@ -1,6 +1,5 @@
 <?php
 /** Run with php tests/roles.php; isolated legacy role migration fixture. */
-require __DIR__ . '/../src/Main.php';
 
 class Role_Fixture {
 	public $capabilities;
@@ -41,7 +40,7 @@ $cases = array(
 $GLOBALS['users'] = array();
 foreach ( $cases as $case ) { $GLOBALS['users'][] = new User_Fixture( $case[0] ); }
 for ( $i = 0; $i < 205; ++$i ) { $GLOBALS['users'][] = new User_Fixture( array( 'wiki-user' ) ); }
-Family_Wiki\Main::setup_roles();
+Family_Wiki\Upgrade::migrate_legacy_roles();
 foreach ( $GLOBALS['users'] as $i => $user ) {
 	$expected = isset( $cases[ $i ] ) ? $cases[ $i ][1] : array( 'editor' );
 	if ( $user->roles !== $expected ) { throw new RuntimeException( 'Incorrect migrated roles for user ' . $i ); }
@@ -49,5 +48,5 @@ foreach ( $GLOBALS['users'] as $i => $user ) {
 if ( get_role( 'wiki-user' ) || get_role( 'wiki-editor' ) || get_role( 'renamed-wiki' ) || 'subscriber' !== get_option( 'default_role' ) ) {
 	throw new RuntimeException( 'Legacy role cleanup failed' );
 }
-Family_Wiki\Main::setup_roles();
+Family_Wiki\Upgrade::migrate_legacy_roles();
 echo "Role migration, batching, multiple roles and repeat-run checks passed.\n";
