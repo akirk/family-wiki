@@ -38,7 +38,7 @@ Use **Customize questions** to edit your personal library and import or export J
 
 Record audio directly in an interview over HTTPS after allowing microphone access. Ask the speaker before recording. Pause/resume as needed, then stop, review and save the clip. Recording continues across question changes. If saving fails, retry or download the local copy before closing the page. Clips stop automatically around 20 MB; server upload limits may be lower. External audio-file uploads and transcription are not included.
 
-Recordings require PHP OpenSSL and Fileinfo. Audio is encrypted in `uploads/familypedia-recordings` and served through interview permission checks, rather than exposed as public Media Library files. Back up that directory and the WordPress database together; the database holds the recording encryption key. Playback currently loads complete clips rather than supporting byte-range streaming.
+Recordings use standard WordPress Media Library attachments parented to their interview posts, with a cryptographically random 192-bit filename suffix. Anyone with a direct file URL can play or download the recording. WpApp versions supporting attachment access restrictions limit REST discovery through the parent app-owned post; this does not restrict direct file URLs. Back up recordings with the normal WordPress uploads directory and database. PHP Fileinfo is used to validate recording formats.
 
 Select saved interviews to create an attributed biography outline. Edit and save the draft, then explicitly review it before adding its text after the existing biography. Interview sources remain linked and unchanged. This version collects typed notes and creates outlines without an external text-generation service.
 
