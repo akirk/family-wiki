@@ -833,3 +833,62 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	gap: 0.75rem;
 	margin: 1rem 0;
 }
+
+/* Interview notebook */
+.familypedia-interview__toolbar {
+	display: grid;
+	grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 2fr);
+	gap: 1rem;
+}
+.familypedia-interview textarea,
+.familypedia-interview select,
+[data-draft-form] textarea {
+	width: 100%;
+	box-sizing: border-box;
+}
+.familypedia-interview textarea,
+[data-draft-form] textarea {
+	font: inherit;
+	line-height: 1.65;
+	padding: .8rem;
+	resize: vertical;
+}
+.familypedia-interview__question[hidden],
+.familypedia-interview__navigation[hidden] { display: none; }
+.familypedia-interview__hint { color: var(--familypedia-muted); }
+.familypedia-interview__panel {
+	margin: 1.5rem 0;
+	padding: 1.25rem;
+	border: 1px solid var(--familypedia-border);
+	border-radius: .5rem;
+}
+.familypedia-interview__panel > summary { cursor: pointer; font-weight: 600; }
+.familypedia-interview__fact {
+	margin: 1.25rem 0;
+	padding: 1rem;
+	border: 1px solid var(--familypedia-border);
+}
+.familypedia-interview__fact legend { font-weight: 600; }
+.familypedia-interview__save {
+	position: sticky;
+	bottom: 0;
+	padding: 1rem;
+	background: var(--familypedia-surface);
+	border-top: 1px solid var(--familypedia-border);
+	box-shadow: 0 -3px 12px #0000000a;
+}
+.familypedia-interview__save p { margin-bottom: 0; }
+.familypedia-interview__list { list-style: none; padding: 0; }
+.familypedia-interview__list li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
+	padding: 1rem 0;
+	border-bottom: 1px solid var(--familypedia-border);
+}
+.familypedia-interview__list label { flex: 1 1 16rem; }
+@media (max-width: 600px) {
+	.familypedia-interview__toolbar { grid-template-columns: 1fr; gap: 0; }
+	.familypedia-interview__save { position: static; }
+}

@@ -38,6 +38,9 @@ setup_postdata( $post );
 Tree::reset_expanded();
 
 $familypedia_content = $familypedia_person->post_content;
+if ( Interview::is_session( $familypedia_person ) ) {
+	$familypedia_content = Interview::transcript( get_post_meta( $familypedia_person->ID, Interview::META, true ) );
+}
 if ( $familypedia_facts_id ) {
 	// The infobox already carries these facts, so the shortcode is left as
 	// just the name rather than repeating them in prose.
@@ -52,13 +55,18 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 		<h1><?php echo esc_html( $familypedia_title ); ?></h1>
 		<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
 			<nav id="person-actions" class="familypedia-person__actions" aria-label="<?php esc_attr_e( 'Page actions', 'family-wiki' ); ?>">
+				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
+					<a class="familypedia-button" href="<?php echo esc_url( Interview::url( $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Interviews', 'family-wiki' ); ?></a>
+				<?php elseif ( Interview::is_session( $familypedia_person ) ) : ?>
+					<a class="familypedia-button" href="<?php echo esc_url( Interview::url( $familypedia_person->post_parent, $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Continue interview', 'family-wiki' ); ?></a>
+				<?php endif; ?>
 				<details class="familypedia-action-menu" name="person-actions">
 					<summary><?php esc_html_e( 'Edit', 'family-wiki' ); ?></summary>
 					<ul>
 						<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
 							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
 						<?php endif; ?>
-						<li><a href="<?php echo esc_url( get_edit_post_link( $familypedia_person->ID, '' ) ); ?>"><?php esc_html_e( 'Page text', 'family-wiki' ); ?></a></li>
+						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Page text', 'family-wiki' ); ?></a></li>
 					</ul>
 				</details>
 				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && ( Editor::can_create() || Related_Page::can_create( $familypedia_person->ID ) ) ) : ?>
