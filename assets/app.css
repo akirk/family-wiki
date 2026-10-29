@@ -892,3 +892,9 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	.familypedia-interview__toolbar { grid-template-columns: 1fr; gap: 0; }
 	.familypedia-interview__save { position: static; }
 }
+
+[data-library-rows] fieldset { margin: 1rem 0; padding: 1rem; border: 1px solid var(--familypedia-border); }
+[data-library-rows] label { display: block; margin-bottom: .75rem; }
+[data-library-rows] input,
+[data-library-rows] textarea { display: block; width: 100%; box-sizing: border-box; }
+[data-library-rows] button { margin-right: .5rem; }

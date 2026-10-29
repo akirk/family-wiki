@@ -34,6 +34,12 @@ Choose **Add → Interview** on a person's page to start a conversation or resum
 
 Each interview is a separate draft related page containing the source notes. The fact review keeps the values recorded when the interview began, the speaker's account and any uncertainty. Applying a proposed fact is a separate action; year-only dates retain their approximate precision, and changed facts require review on the person's facts page.
 
+Use **Customize questions** to edit your personal library and import or export JSON question sets. Untouched starter questions, topics and hints use WordPress translations; edited fields and custom questions keep your wording. Exports retain starter IDs and explicit overrides so untouched fields translate when imported elsewhere. Existing text-only libraries remain custom text. Saved interviews retain the wording used when they were started.
+
+Record audio directly in an interview over HTTPS after allowing microphone access. Ask the speaker before recording. Pause/resume as needed, then stop, review and save the clip. Recording continues across question changes. If saving fails, retry or download the local copy before closing the page. Clips stop automatically around 20 MB; server upload limits may be lower. External audio-file uploads and transcription are not included.
+
+Recordings require PHP OpenSSL and Fileinfo. Audio is encrypted in `uploads/familypedia-recordings` and served through interview permission checks, rather than exposed as public Media Library files. Back up that directory and the WordPress database together; the database holds the recording encryption key. Playback currently loads complete clips rather than supporting byte-range streaming.
+
 Select saved interviews to create an attributed biography outline. Edit and save the draft, then explicitly review it before adding its text after the existing biography. Interview sources remain linked and unchanged. This version collects typed notes and creates outlines without an external text-generation service.
 
 ### Development

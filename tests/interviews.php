@@ -15,6 +15,7 @@ namespace {
 	define( 'OBJECT', 'OBJECT' );
 	define( 'HOUR_IN_SECONDS', 3600 );
 	define( 'MINUTE_IN_SECONDS', 60 );
+	define( 'MB_IN_BYTES', 1048576 );
 	class WP_Post {
 		public $ID;
 		public $post_type = 'familypedia_person';
@@ -31,6 +32,7 @@ namespace {
 		public function get_error_message() { return $this->message; }
 		public function get_error_code() { return $this->code; }
 	}
+	class Interview_Denied extends \Exception {}
 	class Interview_Redirect extends \Exception {}
 	class Interview_Json extends \Exception {
 		public $payload;
@@ -42,10 +44,15 @@ namespace {
 	$GLOBALS['interview_transients'] = array();
 	$GLOBALS['interview_denied'] = array();
 	$GLOBALS['interview_caps'] = array();
+	function wp_die( $message, $title = '', $args = array() ) { throw new Interview_Denied( $message, $args['response'] ?? 0 ); }
+	function get_option( $name ) { return $GLOBALS['interview_options'][ $name ] ?? false; }
+	function add_option( $name, $value, $deprecated = '', $autoload = false ) { $GLOBALS['interview_options'][ $name ] = $value; }
+	function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
+	function wp_upload_dir() { return array( 'basedir' => '/tmp/familypedia-audio-tests' ); }
 	function add_action( ...$args ) {}
 	function remove_action( ...$args ) {}
 	function absint( $value ) { return abs( (int) $value ); }
-	function __( $value, $domain ) { return $value; }
+	function __( $value, $domain ) { return $GLOBALS['interview_translations'][ $value ] ?? $value; }
 	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
 	function esc_attr( $value ) { return esc_html( $value ); }
 	function esc_textarea( $value ) { return esc_html( $value ); }
@@ -62,7 +69,7 @@ namespace {
 	function wp_slash( $value ) { return is_array( $value ) ? array_map( 'wp_slash', $value ) : ( is_string( $value ) ? addslashes( $value ) : $value ); }
 	function wp_unslash( $value ) { return is_array( $value ) ? array_map( 'wp_unslash', $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value ); }
 	function get_post( $value ) { return $value instanceof WP_Post ? $value : ( $GLOBALS['interview_posts'][ $value ] ?? null ); }
-	function get_post_meta( $id, $key, $single = true ) { return $GLOBALS['interview_meta'][ $id ][ $key ] ?? ''; }
+	function get_post_meta( $id, $key, $single = true ) { return $GLOBALS['interview_meta'][ $id ][ $key ] ?? ( $single ? '' : array() ); }
 	function update_post_meta( $id, $key, $value, $previous = null ) {
 		if ( ! empty( $GLOBALS['interview_fail_meta'] ) ) { return false; }
 		if ( null !== $previous && get_post_meta( $id, $key ) !== $previous ) { return false; }
@@ -107,7 +114,10 @@ namespace {
 	function plugins_url( $path, $file ) { return '/plugin/' . $path; }
 	function get_edit_post_link( $id, $context ) { return '/wp-admin/post.php?post=' . $id; }
 	function add_query_arg( $key, $value, $url ) { return $url . '?' . urlencode( $key ) . '=' . urlencode( $value ); }
+	function wp_json_encode( $value, $flags = 0 ) { return json_encode( $value, $flags ); }
 	function get_current_user_id() { return 1; }
+	function get_user_meta( $id, $key, $single = true ) { return $GLOBALS['interview_user_meta'][ $id ][ $key ] ?? ''; }
+	function update_user_meta( $id, $key, $value ) { $GLOBALS['interview_user_meta'][ $id ][ $key ] = $value; }
 	function set_transient( $key, $value, $expiry ) { $GLOBALS['interview_transients'][ $key ] = $value; }
 	function get_transient( $key ) { return $GLOBALS['interview_transients'][ $key ] ?? false; }
 	function delete_transient( $key ) { unset( $GLOBALS['interview_transients'][ $key ] ); }
@@ -135,6 +145,7 @@ namespace {
 	require __DIR__ . '/../src/Editor.php';
 	require __DIR__ . '/../src/Wiki_Page.php';
 	require __DIR__ . '/../src/Assets.php';
+	require __DIR__ . '/../src/Interview_Audio.php';
 	require __DIR__ . '/../src/Interview.php';
 	use Family_Wiki\Interview;
 	use Family_Wiki\Person;
@@ -248,6 +259,60 @@ namespace {
 	unset( $_POST['autosave'] );
 	try { ( new Interview() )->maybe_save(); throw new \Exception( 'Expected redirect' ); }
 	catch ( Interview_Redirect $response ) { check( strpos( get_transient( 'familypedia_interview_recovery_1_' . $person ), "Dad's shop" ) !== false, 'Regular form failures retain submitted words for recovery' ); }
+	$_POST = array();
+
+	$before_library = get_post_meta( $session, Interview::META )['catalogue'];
+	check( is_wp_error( Interview::save_questions( array( 'question_library' => '[{"topic":"","question":"Missing topic"}]' ) ) ), 'Reject invalid library without writing it' );
+	check( true === Interview::save_questions( array( 'question_library' => '[{"topic":"Stories","question":"Tell me about that day","hint":"Who was there?"}]' ) ), 'Save personal library' );
+	$custom_session = Interview::create( $person, array( 'speaker' => 'Storyteller', 'date' => '2026-10-29' ) );
+	$custom_data = get_post_meta( $custom_session, Interview::META );
+	check( $custom_data['catalogue'] === Interview::catalogue(), 'New interviews snapshot personal library' );
+	Interview::save_questions( array( 'question_library' => '[{"topic":"Changed","question":"Another question"}]' ) );
+	check( get_post_meta( $custom_session, Interview::META )['catalogue'] === $custom_data['catalogue'], 'Library edits preserve interview questions' );
+	check( get_post_meta( $session, Interview::META )['catalogue'] === $before_library, 'Original interview remains unchanged' );
+	unset( $GLOBALS['interview_user_meta'] );
+
+	$starter_rows = Interview::question_rows();
+	check( $starter_rows[0] === array( 'starter' => 'home' ), 'Untouched starter library stores references only' );
+	check( true === Interview::save_questions( array( 'question_library' => json_encode( $starter_rows ) ) ), 'Starter reference export can be imported unchanged' );
+	$source_defaults = Interview::question_defaults();
+	$localized_session = Interview::create( $person, array( 'speaker' => 'Before locale switch', 'date' => '2026-10-29' ) );
+	$GLOBALS['interview_translations'] = array(
+		$source_defaults['home']['topic'] => 'Kindheit',
+		$source_defaults['home']['question'] => 'Erzähle von einem Moment zu Hause.',
+		$source_defaults['home']['hint'] => 'Wer war dabei?',
+	);
+	$localized = Interview::catalogue();
+	$first = reset( $localized );
+	check( $first['label'] === 'Kindheit' && $first['questions']['custom_0'] === array( 'Erzähle von einem Moment zu Hause.', 'Wer war dabei?' ), 'Unmodified topic, prompt and hint follow WordPress locale' );
+	check( get_post_meta( $localized_session, Interview::META )['catalogue'] !== $localized, 'Existing interview retains wording after locale switch' );
+	$starter_rows[0]['question'] = 'My own wording';
+	Interview::save_questions( array( 'question_library' => json_encode( $starter_rows ) ) );
+	$localized = Interview::catalogue();
+	$first = reset( $localized );
+	check( $first['questions']['custom_0'] === array( 'My own wording', 'Wer war dabei?' ), 'Question override preserves translated hint' );
+	$other = Interview::catalogue( true );
+	$first_other = reset( $other );
+	check( $first_other['questions']['custom_0'][0] === 'My own wording' && $first_other['questions']['custom_0'][1] !== 'Wer war dabei?', 'Unmodified hint follows interview perspective' );
+	$stored = Interview::question_rows();
+	check( ! isset( $stored[0]['topic'] ) && ! isset( $stored[0]['hint'] ), 'Saving preserves absent translation overrides' );
+	check( is_wp_error( Interview::save_questions( array( 'question_library' => '[{"starter":"unknown"}]' ) ) ) && Interview::question_rows() === $stored, 'Unknown starter IDs rejected without replacing library' );
+	check( is_wp_error( Interview::save_questions( array( 'question_library' => '[{"starter":"home","hint":[]}]' ) ) ), 'Invalid override types rejected' );
+	unset( $GLOBALS['interview_translations'], $GLOBALS['interview_user_meta'] );
+
+	$audio_handler = new \Family_Wiki\Interview_Audio();
+	$_GET = array( 'familypedia_audio' => 'test-clip', 'person_id' => wp_insert_post( array( 'post_title' => 'Different subject' ) ), 'session' => $session );
+	try { $audio_handler->request(); throw new \Exception( 'Expected audio denial' ); }
+	catch ( Interview_Denied $error ) { check( 403 === $error->getCode(), 'Audio cannot be read through a different subject' ); }
+	$_GET = array();
+	$_POST = array( 'familypedia_recording' => 1, 'person_id' => $person, 'session_id' => $session );
+	$GLOBALS['interview_denied'] = array( $session );
+	try { $audio_handler->request(); throw new \Exception( 'Expected audio write denial' ); }
+	catch ( Interview_Denied $error ) { check( 403 === $error->getCode(), 'Audio writes require interview edit permission' ); }
+	$GLOBALS['interview_denied'] = array();
+	try { $audio_handler->request(); throw new \Exception( 'Expected missing recording failure' ); }
+	catch ( Interview_Json $response ) { check( ! $response->payload['success'] && 400 === $response->status, 'Missing recording fails without storage writes' ); }
+	check( $GLOBALS['interview_nonce'] === Interview::ACTION . '_' . $person, 'Recording upload verifies subject nonce' );
 	$_POST = array();
 
 	if ( in_array( '--render', $argv, true ) ) {
