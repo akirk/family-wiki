@@ -52,7 +52,7 @@ $familypedia_graph_groups = array(
 				<template data-family-template>
 					<div class="familypedia-family-card familypedia-family-card--entry" data-family-row>
 						<label><?php esc_html_e( 'Name', 'family-wiki' ); ?><input type="text" data-family-field="name" list="relative-people" required autocomplete="off" /></label>
-						<label><?php esc_html_e( 'Years', 'family-wiki' ); ?><input type="text" data-family-field="years" placeholder="1923 or 1923-2000" pattern="[0-9]{4}( *(-|–) *[0-9]{4})?" /></label>
+						<label><?php esc_html_e( 'Dates', 'family-wiki' ); ?><input type="text" data-family-field="years" placeholder="1923 or 1923-05-06" /></label>
 						<?php if ( 'siblings' === $familypedia_group ) : ?>
 							<input type="hidden" data-family-field="relationship" value="sibling" />
 						<?php elseif ( 'spouses' === $familypedia_group ) : ?>
