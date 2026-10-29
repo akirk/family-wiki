@@ -68,7 +68,7 @@ class App extends BaseApp {
 			$person = self::routed_person();
 			if ( $person && in_array( $person->post_status, array( 'publish', 'private', 'draft' ), true ) && Editor::can_edit( $person->ID ) ) {
 				if ( Wiki_Page::is_page( $person ) ) {
-					$url = get_edit_post_link( $person->ID, 'raw' );
+					$url = Interview::edit_url( $person );
 				} else {
 					$title = __( 'Edit Person', 'family-wiki' );
 					$url   = Person::edit_url( $person );
@@ -144,6 +144,7 @@ class App extends BaseApp {
 		// A person, optionally with a related page beneath them, and the form
 		// for editing either one's facts.
 		$this->app->route( '(?P<person>.+)/add-page', 'edit-related.php', array( 'person' ) );
+		$this->app->route( '(?P<person>.+)/interviews', 'interviews.php', array( 'person' ) );
 		$this->app->route( '(?P<person>.+)/(?P<related>[^/]+)/edit', 'edit.php', array( 'person', 'related' ) );
 		$this->app->route( '(?P<person>.+)/edit', 'edit.php', array( 'person' ) );
 		$this->app->route( '(?P<person>.+)/(?P<related>[^/]+)', 'person.php', array( 'person', 'related' ) );
