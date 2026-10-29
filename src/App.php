@@ -124,6 +124,7 @@ class App extends BaseApp {
 		$this->app->route( '', 'index.php' );
 		$this->app->route( 'all', 'all.php' );
 		$this->app->route( 'stubs', 'stubs.php' );
+		$this->app->route( 'interviews', 'interview-index.php' );
 		$this->app->route( 'new', 'edit.php' );
 		$this->app->route( 'new-page', 'edit-page.php' );
 		$this->app->route( 'tree', 'tree.php' );
@@ -160,6 +161,10 @@ class App extends BaseApp {
 		}
 		if ( Calendar::is_birthdays_enabled() ) {
 			$this->app->add_menu_item( 'birthdays', __( 'Birthdays', 'family-wiki' ), Calendar::get_birthdays_url() );
+		}
+
+		if ( current_user_can( 'edit_others_pages' ) ) {
+			$this->app->add_menu_item( 'interviews', __( 'Interviews', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/interviews/' ) );
 		}
 
 		if ( Editor::can_create() ) {

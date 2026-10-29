@@ -1,6 +1,80 @@
 /* Guided questions and serialized autosave; ordinary forms also work without JS. */
 (function () {
 	'use strict';
+	var library = document.querySelector('[data-question-library]');
+	if (library) {
+		if (window.location.hash === '#customize-questions') { library.open = true; }
+		var json = library.querySelector('[name="question_library"]');
+		var rows = library.querySelector('[data-library-rows]');
+		var message = library.querySelector('[data-library-status]');
+		var add = library.querySelector('[data-add-question]');
+		var exporting = library.querySelector('[data-export-questions]');
+		var questions = JSON.parse(json.value);
+		var defaults = JSON.parse(library.querySelector('[data-question-defaults]').textContent);
+		function syncLibrary() { json.value = JSON.stringify(questions, null, 2); }
+		function renderLibrary() {
+			rows.replaceChildren();
+			questions.forEach(function (item, index) {
+				var card = document.createElement('fieldset');
+				['topic', 'question', 'hint'].forEach(function (key) {
+					var label = document.createElement('label');
+					label.textContent = library.dataset[key];
+					var field = document.createElement(key === 'topic' ? 'input' : 'textarea');
+					var baseline = defaults[item.starter] || {};
+					field.value = Object.prototype.hasOwnProperty.call(item, key) ? item[key] : (baseline[key] || '');
+					field.required = key !== 'hint';
+					field.addEventListener('input', function () { if (item.starter && field.value === baseline[key]) { delete item[key]; } else { item[key] = field.value; } syncLibrary(); });
+					label.appendChild(field);
+					card.appendChild(label);
+				});
+				['up', 'down', 'remove'].forEach(function (action) {
+					var button = document.createElement('button');
+					button.type = 'button';
+					button.textContent = library.dataset[action];
+					button.disabled = (action === 'up' && index === 0) || (action === 'down' && index === questions.length - 1);
+					button.addEventListener('click', function () {
+						if (action === 'remove') { questions.splice(index, 1); }
+						else { var target = index + (action === 'up' ? -1 : 1); questions.splice(target, 0, questions.splice(index, 1)[0]); }
+						syncLibrary(); renderLibrary();
+					});
+					card.appendChild(button);
+				});
+				rows.appendChild(card);
+			});
+		}
+		json.hidden = true;
+		json.required = false;
+		library.querySelector('label[for="question-library"]').hidden = true;
+		add.hidden = false;
+		exporting.hidden = false;
+		add.addEventListener('click', function () { questions.push({ topic: '', question: '', hint: '' }); syncLibrary(); renderLibrary(); rows.lastChild.querySelector('input').focus(); });
+		library.querySelector('[data-import-questions]').addEventListener('change', async function (event) {
+			try {
+				var file = event.target.files[0];
+				if (!file) { return; }
+				if (file.size > 1048576) { throw new Error(); }
+				var imported = JSON.parse(await file.text());
+				if (!Array.isArray(imported) || !imported.length || imported.length + questions.length > 200 || imported.some(function (item) {
+					if (!item || typeof item !== 'object' || Array.isArray(item) || (item.starter !== undefined && (typeof item.starter !== 'string' || !Object.prototype.hasOwnProperty.call(defaults, item.starter)))) { return true; }
+					var resolved = Object.assign({}, defaults[item.starter] || {}, item);
+					return typeof resolved.topic !== 'string' || !resolved.topic.trim() || typeof resolved.question !== 'string' || !resolved.question.trim() || (resolved.hint !== undefined && typeof resolved.hint !== 'string');
+				})) { throw new Error(); }
+				questions = questions.concat(imported.map(function (item) {
+					var row = {};
+					['starter', 'topic', 'question', 'hint'].forEach(function (key) { if (Object.prototype.hasOwnProperty.call(item, key)) { row[key] = item[key]; } });
+					return row;
+				}));
+				syncLibrary(); renderLibrary(); message.textContent = library.dataset.imported;
+			} catch (error) { message.textContent = library.dataset.invalid; }
+			event.target.value = '';
+		});
+		exporting.addEventListener('click', function () {
+			var url = URL.createObjectURL(new Blob([json.value], { type: 'application/json' }));
+			var link = document.createElement('a'); link.href = url; link.download = 'interview-questions.json'; link.click();
+			setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+		});
+		renderLibrary();
+	}
 	var form = document.querySelector('[data-interview-form]');
 	var draft = document.querySelector('[data-draft-form]');
 	if (draft) {

@@ -14,6 +14,7 @@ class Interview {
 
 	public function __construct() {
 		add_action( 'wp_loaded', array( $this, 'maybe_save' ) );
+		new Interview_Audio();
 	}
 
 	public static function url( $person_id, $session_id = 0 ) {
@@ -79,7 +80,184 @@ class Interview {
 	}
 
 	/** Stable question IDs keep saved answers intact when wording changes. */
-	public static function catalogue( $about_other = false ) {
+	public static function catalogue( $about_other = false, $starter = false ) {
+		if ( ! $starter && function_exists( 'get_user_meta' ) ) {
+			$library = get_user_meta( get_current_user_id(), 'familypedia_questions', true );
+			if ( is_array( $library ) && $library ) {
+				return isset( $library['version'] ) ? self::resolve_questions( $library['rows'], $about_other ) : $library;
+			}
+		}
+		$catalogue = array(
+			'childhood'     => array(
+				'label'     => __( 'Childhood', 'family-wiki' ),
+				'questions' => array(
+					'home'         => array( __( 'Take me back to one moment in your childhood home.', 'family-wiki' ), __( 'Who lived there? What could you see from your window? Did you move during childhood?', 'family-wiki' ) ),
+					'early_memory' => array( __( 'What is one of your earliest memories?', 'family-wiki' ), __( 'Who was with you? What do you remember seeing, hearing or smelling?', 'family-wiki' ) ),
+					'parents'      => array( __( 'Tell me about a time a parent or grandparent surprised you.', 'family-wiki' ), __( 'What did they do every day? What sayings or habits do you remember?', 'family-wiki' ) ),
+				),
+			),
+			'school'        => array(
+				'label'     => __( 'School and growing up', 'family-wiki' ),
+				'questions' => array(
+					'school_career' => array( __( 'Could you walk me through your school career, from your first school to when you finished your education?', 'family-wiki' ), __( 'Which schools did you attend, where were they, and roughly when? Include further education, training or qualifications if relevant. What do you remember about starting a new school, changing direction or leaving?', 'family-wiki' ) ),
+					'school_days'   => array( __( 'Tell me about a school day you still remember.', 'family-wiki' ), __( 'How did you get there? Who were your friends? Was there a teacher you remember?', 'family-wiki' ) ),
+					'free_time'     => array( __( 'Tell me about an adventure you had with friends when you were young.', 'family-wiki' ), __( 'Where did you go? What music, games or hobbies mattered to you?', 'family-wiki' ) ),
+					'leaving_home'  => array( __( 'What do you remember about the day you left home or first felt independent?', 'family-wiki' ), __( 'When did you leave home? What did you hope your life would be like?', 'family-wiki' ) ),
+				),
+			),
+			'work'          => array(
+				'label'     => __( 'Work', 'family-wiki' ),
+				'questions' => array(
+					'first_job'    => array( __( 'How did you find your first job?', 'family-wiki' ), __( 'What did you do? Who helped you learn? What did you spend your first pay on?', 'family-wiki' ) ),
+					'working_life' => array( __( 'Tell me about a day at work that you still talk about.', 'family-wiki' ), __( 'What were you proud of? Who did you work with? Did your work take you somewhere new?', 'family-wiki' ) ),
+					'changes'      => array( __( 'Take me back to a moment when you decided to change direction.', 'family-wiki' ), __( 'What prompted the change? What was difficult? What happened next?', 'family-wiki' ) ),
+				),
+			),
+			'relationships' => array(
+				'label'     => __( 'Relationships and family', 'family-wiki' ),
+				'questions' => array(
+					'important_people' => array( __( 'Tell me about the first time you met someone who became important to you.', 'family-wiki' ), __( 'How did you meet? What did you enjoy doing together?', 'family-wiki' ) ),
+					'family_life'      => array( __( 'Tell me about a family gathering when something unexpected happened.', 'family-wiki' ), __( 'Think of celebrations, raising children, visits, friendships or ordinary days together.', 'family-wiki' ) ),
+					'traditions'       => array( __( 'Which family traditions or stories were passed down to you?', 'family-wiki' ), __( 'Who told you the story? Did you experience it yourself, or hear it from someone else?', 'family-wiki' ) ),
+				),
+			),
+			'everyday'      => array(
+				'label'     => __( 'Everyday life', 'family-wiki' ),
+				'questions' => array(
+					'sunday'    => array( __( 'Take me through one Sunday you can still picture.', 'family-wiki' ), __( 'What did you eat? Who visited? How did this change over the years?', 'family-wiki' ) ),
+					'places'    => array( __( 'Tell me about a moment when a new place began to feel like home.', 'family-wiki' ), __( 'What brought you there? What were the neighbours and surroundings like?', 'family-wiki' ) ),
+					'enjoyment' => array( __( 'Tell me about a small moment that still makes you smile.', 'family-wiki' ), __( 'Are there recipes, songs, journeys, pets or small routines you want us to remember?', 'family-wiki' ) ),
+				),
+			),
+			'memories'      => array(
+				'label'     => __( 'Particular memories', 'family-wiki' ),
+				'questions' => array(
+					'turning_point' => array( __( 'Take me back to the day you learned news that changed your life.', 'family-wiki' ), __( 'How did you experience them? What helped you through? An approximate year is enough.', 'family-wiki' ) ),
+					'photo_story'   => array( __( 'Is there a photograph or object with a story you would like to tell?', 'family-wiki' ), __( 'Who is pictured? Where and roughly when was it? Why have you kept it?', 'family-wiki' ) ),
+					'remember'      => array( __( 'What else would you like the family to know or remember?', 'family-wiki' ), __( 'Is there a story we have not asked about, or someone we should speak to next?', 'family-wiki' ) ),
+				),
+			),
+		);
+		if ( ! $about_other ) {
+			return $catalogue;
+		}
+		$other_questions = array(
+			'home'             => array( __( 'Tell me a story about something that happened in their childhood home.', 'family-wiki' ), __( 'Who lived there? What was the neighbourhood like? Did they move during childhood?', 'family-wiki' ) ),
+			'early_memory'     => array( __( 'What is one of your earliest memories of them?', 'family-wiki' ), __( 'Where were you? What did they say or do? What stands out about that moment?', 'family-wiki' ) ),
+			'parents'          => array( __( 'Tell me a story that shows what their parents or grandparents were like.', 'family-wiki' ), __( 'What did they do every day? Which stories about them were passed down?', 'family-wiki' ) ),
+			'school_career'    => array( __( 'Could you walk me through their school career, from their first school to when they finished their education?', 'family-wiki' ), __( 'Which schools did they attend, where were they, and roughly when? Include further education, training or qualifications if relevant. What did they tell you about starting a new school, changing direction or leaving?', 'family-wiki' ) ),
+			'school_days'      => array( __( 'What story did they tell about a particular day at school?', 'family-wiki' ), __( 'Where did they go to school? Who were their friends? Did they tell any stories about it?', 'family-wiki' ) ),
+			'free_time'        => array( __( 'Tell me about an adventure they had when they were young.', 'family-wiki' ), __( 'What music, games or hobbies mattered to them? Who spent time with them?', 'family-wiki' ) ),
+			'leaving_home'     => array( __( 'What story did they tell about leaving home or first feeling independent?', 'family-wiki' ), __( 'When did they leave home? What plans or hopes did they talk about?', 'family-wiki' ) ),
+			'first_job'        => array( __( 'What do you know about their first job?', 'family-wiki' ), __( 'How did they find it? What did they do? Who helped them learn?', 'family-wiki' ) ),
+			'working_life'     => array( __( 'Tell me about a particular day at work they remembered.', 'family-wiki' ), __( 'What were they proud of? Who did they work with? Where did their work take them?', 'family-wiki' ) ),
+			'changes'          => array( __( 'Tell me about a moment when they decided to change direction.', 'family-wiki' ), __( 'What prompted the change? What was difficult? What happened next?', 'family-wiki' ) ),
+			'important_people' => array( __( 'Tell me the story of how they met someone important to them.', 'family-wiki' ), __( 'How did they meet? What did they enjoy doing together?', 'family-wiki' ) ),
+			'family_life'      => array( __( 'Tell me about a family gathering with them when something unexpected happened.', 'family-wiki' ), __( 'Think of celebrations, raising children, visits, friendships or ordinary days together.', 'family-wiki' ) ),
+			'traditions'       => array( __( 'Which traditions or stories did they pass down?', 'family-wiki' ), __( 'Did you hear these stories from them, or from someone else? Who else might remember?', 'family-wiki' ) ),
+			'sunday'           => array( __( 'Take me through one Sunday with them that you can still picture.', 'family-wiki' ), __( 'What did they eat? Who visited? How did this change over the years?', 'family-wiki' ) ),
+			'places'           => array( __( 'Tell me a story about a place where they felt at home.', 'family-wiki' ), __( 'What brought them there? What were the neighbours and surroundings like?', 'family-wiki' ) ),
+			'enjoyment'        => array( __( 'Tell me about a small moment when you saw them happy.', 'family-wiki' ), __( 'Are there recipes, songs, journeys, pets or small routines that remind you of them?', 'family-wiki' ) ),
+			'turning_point'    => array( __( 'Tell me about the day they learned news that changed their life.', 'family-wiki' ), __( 'How did they experience them? What helped them through? An approximate year is enough.', 'family-wiki' ) ),
+			'photo_story'      => array( __( 'Is there a photograph or object that tells a story about them?', 'family-wiki' ), __( 'Who is pictured? Where and roughly when was it? Why was it kept?', 'family-wiki' ) ),
+			'remember'         => array( __( 'What else would you like the family to remember about them?', 'family-wiki' ), __( 'Is there a story we have not asked about, or someone we should speak to next?', 'family-wiki' ) ),
+		);
+		foreach ( $catalogue as &$group ) {
+			foreach ( $group['questions'] as $key => &$prompt ) {
+				$prompt = $other_questions[ $key ];
+			}
+		}
+		return $catalogue;
+	}
+
+	/** Portable starter references and explicit wording overrides. */
+	public static function question_rows() {
+		$library = get_user_meta( get_current_user_id(), 'familypedia_questions', true );
+		if ( isset( $library['version'] ) ) {
+			return $library['rows'];
+		}
+		$rows = array();
+		foreach ( ( $library ?: self::catalogue( false, true ) ) as $group ) {
+			foreach ( $group['questions'] as $id => $prompt ) {
+				$rows[] = $library ? array(
+					'topic'    => $group['label'],
+					'question' => $prompt[0],
+					'hint'     => $prompt[1],
+				) : array( 'starter' => $id );
+			}
+		}
+		return $rows;
+	}
+
+	/** Resolve starter text in the current WordPress locale and perspective. */
+	public static function question_defaults( $about_other = false ) {
+		$defaults = array();
+		foreach ( self::catalogue( $about_other, true ) as $group ) {
+			foreach ( $group['questions'] as $id => $prompt ) {
+				$defaults[ $id ] = array(
+					'topic'    => $group['label'],
+					'question' => $prompt[0],
+					'hint'     => $prompt[1],
+				);
+			}
+		}
+		return $defaults;
+	}
+
+	/** Resolve portable rows into the catalogue used by interview snapshots. */
+	public static function resolve_questions( $rows, $about_other = false ) {
+		$defaults = self::question_defaults( $about_other );
+		$catalogue = array();
+		foreach ( $rows as $index => $row ) {
+			$resolved = array_merge( $defaults[ $row['starter'] ?? '' ] ?? array(), $row );
+			$key = 'topic_' . md5( $resolved['topic'] );
+			$catalogue[ $key ]['label'] = $resolved['topic'];
+			$catalogue[ $key ]['questions'][ 'custom_' . $index ] = array( $resolved['question'], $resolved['hint'] ?? '' );
+		}
+		return $catalogue;
+	}
+
+	/** Validate the complete personal question library before replacing it. */
+	public static function save_questions( $input ) {
+		// Decode before sanitizing individual fields so JSON escapes remain intact.
+		$rows = isset( $input['question_library'] ) && is_string( $input['question_library'] ) ? json_decode( $input['question_library'], true ) : null;
+		if ( ! is_array( $rows ) || ! $rows || count( $rows ) > 200 ) {
+			return new \WP_Error( 'questions', __( 'Provide between 1 and 200 questions.', 'family-wiki' ) );
+		}
+		$defaults = self::question_defaults();
+		$clean = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || ( isset( $row['starter'] ) && ( ! is_string( $row['starter'] ) || ! isset( $defaults[ $row['starter'] ] ) ) ) ) {
+				return new \WP_Error( 'questions', __( 'Unknown starter question or invalid question data.', 'family-wiki' ) );
+			}
+			$item = isset( $row['starter'] ) ? array( 'starter' => $row['starter'] ) : array();
+			foreach ( array( 'topic', 'question', 'hint' ) as $field ) {
+				if ( array_key_exists( $field, $row ) ) {
+					if ( ! is_string( $row[ $field ] ) ) {
+						return new \WP_Error( 'questions', __( 'Question fields must be text.', 'family-wiki' ) );
+					}
+					$item[ $field ] = self::text( $row, $field, 'hint' === $field );
+				}
+			}
+			$resolved = array_merge( $defaults[ $item['starter'] ?? '' ] ?? array(), $item );
+			if ( empty( $resolved['topic'] ) || empty( $resolved['question'] ) ) {
+				return new \WP_Error( 'questions', __( 'Each question needs a topic and question text.', 'family-wiki' ) );
+			}
+			$clean[] = $item;
+		}
+		update_user_meta(
+			get_current_user_id(),
+			'familypedia_questions',
+			array(
+				'version' => 2,
+				'rows'    => $clean,
+			)
+		);
+		return true;
+	}
+
+	/** Original wording for interviews created before question snapshots. */
+	public static function legacy_catalogue( $about_other = false ) {
 		$catalogue = array(
 			'childhood'     => array(
 				'label'     => __( 'Childhood', 'family-wiki' ),
@@ -215,6 +393,9 @@ class Interview {
 			'version'     => 1,
 			'reviews'     => array(),
 		);
+		$data['catalogue'] = self::catalogue( $data['about_other'] );
+		$data['topic'] = array_key_first( $data['catalogue'] );
+		$data['question'] = array_key_first( $data['catalogue'][ $data['topic'] ]['questions'] );
 		foreach ( self::fact_labels() as $field => $label ) {
 			$data['reviews'][ $field ] = array(
 				'original' => self::fact_value( $person_id, $field ),
@@ -266,7 +447,8 @@ class Interview {
 		if ( isset( $input['perspective'] ) ) {
 			$data['about_other'] = 'other' === self::text( $input, 'perspective' );
 		}
-		$catalogue = self::catalogue();
+		$catalogue = $old['catalogue'] ?? self::legacy_catalogue( ! empty( $old['about_other'] ) );
+		$data['catalogue'] = $catalogue;
 		$topic = self::text( $input, 'topic' );
 		$question = self::text( $input, 'question' );
 		if ( isset( $catalogue[ $topic ]['questions'][ $question ] ) ) {
@@ -359,7 +541,7 @@ class Interview {
 
 	public static function transcript( $data ) {
 		$html = '<p>' . esc_html( $data['speaker'] . ' — ' . $data['date'] ) . '</p>';
-		foreach ( self::catalogue( ! empty( $data['about_other'] ) ) as $group ) {
+		foreach ( ( $data['catalogue'] ?? self::legacy_catalogue( ! empty( $data['about_other'] ) ) ) as $group ) {
 			foreach ( $group['questions'] as $key => $prompt ) {
 				if ( ! empty( $data['answers'][ $key ] ) ) {
 					$html .= '<h2>' . esc_html( $prompt[0] ) . '</h2>' . wpautop( esc_html( $data['answers'][ $key ] ) );
@@ -432,7 +614,7 @@ class Interview {
 		foreach ( $sessions as $session ) {
 			$data = get_post_meta( $session->ID, self::META, true );
 			$parts[] = $data['speaker'] . ' — ' . $data['date'];
-			foreach ( self::catalogue() as $group ) {
+			foreach ( ( $data['catalogue'] ?? self::legacy_catalogue( ! empty( $data['about_other'] ) ) ) as $group ) {
 				$notes = array();
 				foreach ( $group['questions'] as $key => $prompt ) {
 					if ( ! empty( $data['answers'][ $key ] ) ) {
@@ -578,7 +760,9 @@ class Interview {
 		$result = new \WP_Error( 'action', __( 'This interview action is unavailable.', 'family-wiki' ) );
 		$url = self::url( $person_id, $session_id );
 		if ( self::can_manage( $person_id ) ) {
-			if ( 'start' === $op ) {
+			if ( 'questions' === $op ) {
+				$result = self::save_questions( $input );
+			} elseif ( 'start' === $op ) {
 				$result = self::create( $person_id, $input );
 				if ( ! is_wp_error( $result ) ) {
 					$url = self::url( $person_id, $result );

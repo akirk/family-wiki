@@ -32,6 +32,7 @@ if ( ( $familypedia_session_id && ! $familypedia_session ) || ( $familypedia_dra
 // translators: %s is the subject's name.
 $familypedia_page_title = sprintf( __( 'Interviews about %s', 'family-wiki' ), get_the_title( $familypedia_person ) );
 wp_app_enqueue_script( 'familypedia-interviews', Assets::url( 'interviews.js' ), array(), Assets::version( 'interviews.js' ), true, App::URL_PATH );
+wp_app_enqueue_script( 'familypedia-interview-audio', Assets::url( 'interview-audio.js' ), array(), Assets::version( 'interview-audio.js' ), true, App::URL_PATH );
 $familypedia_form_fields = function () use ( $familypedia_person_id, $familypedia_session_id, $familypedia_draft_id ) {
 	?>
 	<input type="hidden" name="familypedia_action" value="<?php echo esc_attr( Interview::ACTION ); ?>" />
@@ -65,10 +66,42 @@ if ( $familypedia_recovery ) :
 <?php if ( $familypedia_session ) : ?>
 	<?php
 	$familypedia_data = get_post_meta( $familypedia_session_id, Interview::META, true );
-	$familypedia_catalogue = Interview::catalogue( ! empty( $familypedia_data['about_other'] ) );
+	$familypedia_catalogue = $familypedia_data['catalogue'] ?? Interview::legacy_catalogue( ! empty( $familypedia_data['about_other'] ) );
 	?>
 	<p><?php echo esc_html( $familypedia_data['speaker'] . ' — ' . $familypedia_data['date'] ); ?> · <a href="<?php echo esc_url( Person::url( $familypedia_session ) ); ?>"><?php esc_html_e( 'Read source notes', 'family-wiki' ); ?></a></p>
 	<p><?php esc_html_e( 'Follow the conversation in any order. Skip questions freely and keep approximate dates in the speaker’s own words.', 'family-wiki' ); ?></p>
+	<p><a href="<?php echo esc_url( Interview::url( $familypedia_person_id ) . '#customize-questions' ); ?>"><?php esc_html_e( 'Customize questions', 'family-wiki' ); ?></a></p>
+	<section class="familypedia-interview__panel" data-recorder
+		data-recording="<?php esc_attr_e( 'Recording…', 'family-wiki' ); ?>" data-paused="<?php esc_attr_e( 'Paused', 'family-wiki' ); ?>"
+		data-saving="<?php esc_attr_e( 'Saving recording…', 'family-wiki' ); ?>" data-saved="<?php esc_attr_e( 'Recording saved', 'family-wiki' ); ?>"
+		data-error="<?php esc_attr_e( 'Could not save. Download the recording or retry before leaving.', 'family-wiki' ); ?>"
+		data-unavailable="<?php esc_attr_e( 'Recording is unavailable. Use HTTPS and allow microphone access.', 'family-wiki' ); ?>">
+		<h2><?php esc_html_e( 'Audio recordings', 'family-wiki' ); ?></h2>
+		<p><?php esc_html_e( 'Ask the speaker before recording. You can keep recording as you move between questions. Stop to review and save each clip; keep this page open until it is saved.', 'family-wiki' ); ?></p>
+		<noscript><?php esc_html_e( 'Enable JavaScript to record audio.', 'family-wiki' ); ?></noscript>
+		<div data-recording-controls hidden>
+			<button type="button" data-record><?php esc_html_e( 'Record', 'family-wiki' ); ?></button>
+			<button type="button" data-pause disabled><?php esc_html_e( 'Pause', 'family-wiki' ); ?></button>
+			<button type="button" data-resume disabled><?php esc_html_e( 'Resume', 'family-wiki' ); ?></button>
+			<button type="button" data-stop disabled><?php esc_html_e( 'Stop', 'family-wiki' ); ?></button>
+			<output data-recording-time>0:00</output>
+		</div>
+		<p role="status" data-recording-status></p>
+		<div data-recording-preview hidden>
+			<audio controls data-local-audio></audio>
+			<p><a data-local-download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a></p>
+			<button type="button" data-save-recording><?php esc_html_e( 'Save recording', 'family-wiki' ); ?></button>
+		</div>
+		<ul data-saved-recordings>
+			<?php foreach ( get_post_meta( $familypedia_session_id, Interview_Audio::META, false ) as $familypedia_clip ) : ?>
+				<li>
+					<?php echo esc_html( $familypedia_clip['date'] ); ?>
+					<audio controls preload="none" src="<?php echo esc_url( add_query_arg( 'person_id', $familypedia_person_id, Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ) ); ?>"></audio>
+					<a href="<?php echo esc_url( add_query_arg( 'person_id', $familypedia_person_id, Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ) ); ?>" download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+	</section>
 	<form method="post" action="<?php echo esc_url( Interview::url( $familypedia_person_id, $familypedia_session_id ) ); ?>" class="familypedia-form familypedia-interview" data-interview-form
 		data-saving="<?php esc_attr_e( 'Saving…', 'family-wiki' ); ?>" data-saved="<?php esc_attr_e( 'All changes saved', 'family-wiki' ); ?>"
 		data-error="<?php esc_attr_e( 'Could not save. Keep this page open, copy your notes, and retry Save.', 'family-wiki' ); ?>"
@@ -207,6 +240,29 @@ if ( $familypedia_recovery ) :
 	<?php endif; ?>
 <?php else : ?>
 	<p><?php esc_html_e( 'Collect memories over several conversations. Each interview keeps its own speaker, date and source notes, separate from the biography.', 'family-wiki' ); ?></p>
+	<details id="customize-questions" class="familypedia-interview__panel" data-question-library
+		data-topic="<?php esc_attr_e( 'Topic', 'family-wiki' ); ?>" data-question="<?php esc_attr_e( 'Question', 'family-wiki' ); ?>" data-hint="<?php esc_attr_e( 'Follow-up prompts', 'family-wiki' ); ?>"
+		data-up="<?php esc_attr_e( 'Move up', 'family-wiki' ); ?>" data-down="<?php esc_attr_e( 'Move down', 'family-wiki' ); ?>" data-remove="<?php esc_attr_e( 'Remove', 'family-wiki' ); ?>"
+		data-imported="<?php esc_attr_e( 'Questions added for review. Save to keep them.', 'family-wiki' ); ?>" data-invalid="<?php esc_attr_e( 'Import a JSON list with topic, question and optional hint fields (maximum 200 questions and 1 MB).', 'family-wiki' ); ?>">
+		<summary><?php esc_html_e( 'My question library', 'family-wiki' ); ?></summary>
+		<p><?php esc_html_e( 'Ask for one scene: where were you, who was there, what happened next? Follow the story before moving on. Your library applies to new interviews; saved interviews keep their questions. Custom wording is used for both perspectives.', 'family-wiki' ); ?></p>
+		<form method="post" action="<?php echo esc_url( Interview::url( $familypedia_person_id ) ); ?>">
+			<?php $familypedia_form_fields(); ?>
+			<?php
+			$familypedia_rows = Interview::question_rows();
+			?>
+			<script type="application/json" data-question-defaults><?php echo wp_json_encode( Interview::question_defaults(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?></script>
+			<div data-library-rows></div>
+			<p><button type="button" data-add-question hidden><?php esc_html_e( 'Add question', 'family-wiki' ); ?></button></p>
+			<label for="question-library"><?php esc_html_e( 'Question set (JSON)', 'family-wiki' ); ?></label>
+			<p><?php esc_html_e( 'Import adds questions for review. Edit or reorder the list, then save to replace your personal library.', 'family-wiki' ); ?></p>
+			<textarea id="question-library" name="question_library" rows="12" style="width:100%" required><?php echo esc_textarea( wp_json_encode( $familypedia_rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
+			<p><input type="file" accept=".json,application/json" data-import-questions aria-label="<?php esc_attr_e( 'Import questions', 'family-wiki' ); ?>" />
+			<button type="button" data-export-questions hidden><?php esc_html_e( 'Export questions', 'family-wiki' ); ?></button></p>
+			<p role="status" data-library-status></p>
+			<button type="submit" name="op" value="questions" class="familypedia-button"><?php esc_html_e( 'Save my question library', 'family-wiki' ); ?></button>
+		</form>
+	</details>
 	<section class="familypedia-interview__panel">
 		<h2><?php esc_html_e( 'Start an interview', 'family-wiki' ); ?></h2>
 		<form method="post" class="familypedia-form" action="<?php echo esc_url( Interview::url( $familypedia_person_id ) ); ?>">
