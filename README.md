@@ -30,7 +30,7 @@ In Settings → Familypedia, enable “Show the wiki at the homepage for signed-
 
 ### Family interviews
 
-Open a person's **Interviews** page to start a conversation or resume saved notes. Record the speaker and interview date, and choose whether they are describing their own life or someone else's. Six topics offer optional questions and follow-ups; notes save automatically and can also be saved with the Save interview button. Without JavaScript, all questions appear together and saving is manual.
+Choose **Add → Interview** on a person's page to start a conversation or resume saved notes. Record the speaker and interview date, and choose whether they are describing their own life or someone else's. Six topics offer optional questions and follow-ups; notes save automatically and can also be saved with the Save interview button. Without JavaScript, all questions appear together and saving is manual.
 
 Each interview is a separate draft related page containing the source notes. The fact review keeps the values recorded when the interview began, the speaker's account and any uncertainty. Applying a proposed fact is a separate action; year-only dates retain their approximate precision, and changed facts require review on the person's facts page.
 

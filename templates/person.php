@@ -55,18 +55,13 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 		<h1><?php echo esc_html( $familypedia_title ); ?></h1>
 		<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
 			<nav id="person-actions" class="familypedia-person__actions" aria-label="<?php esc_attr_e( 'Page actions', 'family-wiki' ); ?>">
-				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
-					<a class="familypedia-button" href="<?php echo esc_url( Interview::url( $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Interviews', 'family-wiki' ); ?></a>
-				<?php elseif ( Interview::is_session( $familypedia_person ) ) : ?>
-					<a class="familypedia-button" href="<?php echo esc_url( Interview::url( $familypedia_person->post_parent, $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Continue interview', 'family-wiki' ); ?></a>
-				<?php endif; ?>
 				<details class="familypedia-action-menu" name="person-actions">
 					<summary><?php esc_html_e( 'Edit', 'family-wiki' ); ?></summary>
 					<ul>
 						<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
 							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
 						<?php endif; ?>
-						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Page text', 'family-wiki' ); ?></a></li>
+						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php echo esc_html( Interview::is_session( $familypedia_person ) ? __( 'Continue interview', 'family-wiki' ) : __( 'Page text', 'family-wiki' ) ); ?></a></li>
 					</ul>
 				</details>
 				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && ( Editor::can_create() || Related_Page::can_create( $familypedia_person->ID ) ) ) : ?>
@@ -78,6 +73,9 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 							<?php endif; ?>
 							<?php if ( Related_Page::can_create( $familypedia_person->ID ) ) : ?>
 								<li><a href="<?php echo esc_url( Related_Page::add_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Related page', 'family-wiki' ); ?></a></li>
+							<?php endif; ?>
+							<?php if ( Interview::can_manage( $familypedia_person->ID ) ) : ?>
+								<li><a href="<?php echo esc_url( Interview::url( $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Interview', 'family-wiki' ); ?></a></li>
 							<?php endif; ?>
 						</ul>
 					</details>
