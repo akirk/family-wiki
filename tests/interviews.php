@@ -45,8 +45,7 @@ namespace {
 	$GLOBALS['interview_denied'] = array();
 	$GLOBALS['interview_caps'] = array();
 	function wp_die( $message, $title = '', $args = array() ) { throw new Interview_Denied( $message, $args['response'] ?? 0 ); }
-	function get_option( $name ) { return $GLOBALS['interview_options'][ $name ] ?? false; }
-	function add_option( $name, $value, $deprecated = '', $autoload = false ) { $GLOBALS['interview_options'][ $name ] = $value; }
+	function wp_get_attachment_url( $id ) { return 'https://example.test/uploads/interview-random-' . $id . '.webm'; }
 	function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
 	function wp_upload_dir() { return array( 'basedir' => '/tmp/familypedia-audio-tests' ); }
 	function add_action( ...$args ) {}
@@ -300,11 +299,11 @@ namespace {
 	check( is_wp_error( Interview::save_questions( array( 'question_library' => '[{"starter":"home","hint":[]}]' ) ) ), 'Invalid override types rejected' );
 	unset( $GLOBALS['interview_translations'], $GLOBALS['interview_user_meta'] );
 
+	$attachment_id = wp_insert_post( array( 'post_type' => 'attachment', 'post_parent' => $session ) );
+	check( \Family_Wiki\Interview_Audio::url( $person, $session, $attachment_id ) === wp_get_attachment_url( $attachment_id ), 'Recording playback uses standard attachment URL' );
+	check( '' === \Family_Wiki\Interview_Audio::url( $person, $session + 10000, $attachment_id ), 'Unrelated attachment is not listed as an interview clip' );
 	$audio_handler = new \Family_Wiki\Interview_Audio();
-	$_GET = array( 'familypedia_audio' => 'test-clip', 'person_id' => wp_insert_post( array( 'post_title' => 'Different subject' ) ), 'session' => $session );
-	try { $audio_handler->request(); throw new \Exception( 'Expected audio denial' ); }
-	catch ( Interview_Denied $error ) { check( 403 === $error->getCode(), 'Audio cannot be read through a different subject' ); }
-	$_GET = array();
+
 	$_POST = array( 'familypedia_recording' => 1, 'person_id' => $person, 'session_id' => $session );
 	$GLOBALS['interview_denied'] = array( $session );
 	try { $audio_handler->request(); throw new \Exception( 'Expected audio write denial' ); }

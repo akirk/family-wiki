@@ -96,8 +96,8 @@ if ( $familypedia_recovery ) :
 			<?php foreach ( get_post_meta( $familypedia_session_id, Interview_Audio::META, false ) as $familypedia_clip ) : ?>
 				<li>
 					<?php echo esc_html( $familypedia_clip['date'] ); ?>
-					<audio controls preload="none" src="<?php echo esc_url( add_query_arg( 'person_id', $familypedia_person_id, Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ) ); ?>"></audio>
-					<a href="<?php echo esc_url( add_query_arg( 'person_id', $familypedia_person_id, Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ) ); ?>" download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a>
+					<audio controls preload="none" src="<?php echo esc_url( Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ); ?>"></audio>
+					<a href="<?php echo esc_url( Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ); ?>" download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a>
 				</li>
 			<?php endforeach; ?>
 		</ul>
