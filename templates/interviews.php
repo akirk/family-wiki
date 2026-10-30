@@ -72,6 +72,9 @@ if ( $familypedia_recovery ) :
 	<p><?php esc_html_e( 'Follow the conversation in any order. Skip questions freely and keep approximate dates in the speaker’s own words.', 'family-wiki' ); ?></p>
 	<p><a href="<?php echo esc_url( Interview::url( $familypedia_person_id ) . '#customize-questions' ); ?>"><?php esc_html_e( 'Customize questions', 'family-wiki' ); ?></a></p>
 	<section class="familypedia-interview__panel" data-recorder
+		data-name="<?php esc_attr_e( 'Recording name', 'family-wiki' ); ?>" data-rename="<?php esc_attr_e( 'Save name', 'family-wiki' ); ?>" data-delete="<?php esc_attr_e( 'Delete recording', 'family-wiki' ); ?>"
+		data-confirm-delete="<?php esc_attr_e( 'Permanently delete this recording and its audio file?', 'family-wiki' ); ?>" data-managed="<?php esc_attr_e( 'Recording updated.', 'family-wiki' ); ?>" data-manage-error="<?php esc_attr_e( 'Could not update the recording. Please retry.', 'family-wiki' ); ?>"
+		data-ready="<?php esc_attr_e( 'Ready to review and save.', 'family-wiki' ); ?>"
 		data-recording="<?php esc_attr_e( 'Recording…', 'family-wiki' ); ?>" data-paused="<?php esc_attr_e( 'Paused', 'family-wiki' ); ?>"
 		data-saving="<?php esc_attr_e( 'Saving recording…', 'family-wiki' ); ?>" data-saved="<?php esc_attr_e( 'Recording saved', 'family-wiki' ); ?>"
 		data-error="<?php esc_attr_e( 'Could not save. Download the recording or retry before leaving.', 'family-wiki' ); ?>"
@@ -79,25 +82,39 @@ if ( $familypedia_recovery ) :
 		<h2><?php esc_html_e( 'Audio recordings', 'family-wiki' ); ?></h2>
 		<p><?php esc_html_e( 'Ask the speaker before recording. You can keep recording as you move between questions. Stop to review and save each clip; keep this page open until it is saved.', 'family-wiki' ); ?></p>
 		<noscript><?php esc_html_e( 'Enable JavaScript to record audio.', 'family-wiki' ); ?></noscript>
+		<div data-audio-dock>
+		<h3><?php esc_html_e( 'Interview recorder', 'family-wiki' ); ?></h3>
 		<div data-recording-controls hidden>
-			<button type="button" data-record><?php esc_html_e( 'Record', 'family-wiki' ); ?></button>
-			<button type="button" data-pause disabled><?php esc_html_e( 'Pause', 'family-wiki' ); ?></button>
-			<button type="button" data-resume disabled><?php esc_html_e( 'Resume', 'family-wiki' ); ?></button>
-			<button type="button" data-stop disabled><?php esc_html_e( 'Stop', 'family-wiki' ); ?></button>
+			<button class="familypedia-button familypedia-button--primary" type="button" data-record><?php esc_html_e( 'Record', 'family-wiki' ); ?></button>
+			<button class="familypedia-button" type="button" data-pause disabled><?php esc_html_e( 'Pause', 'family-wiki' ); ?></button>
+			<button class="familypedia-button" type="button" data-resume disabled><?php esc_html_e( 'Resume', 'family-wiki' ); ?></button>
+			<button class="familypedia-button" type="button" data-stop disabled><?php esc_html_e( 'Stop', 'family-wiki' ); ?></button>
 			<output data-recording-time>0:00</output>
 		</div>
 		<p role="status" data-recording-status></p>
 		<div data-recording-preview hidden>
+			<p><label for="recording-name"><?php esc_html_e( 'Recording name', 'family-wiki' ); ?></label> <input id="recording-name" type="text" data-recording-name /></p>
 			<audio controls data-local-audio></audio>
 			<p><a data-local-download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a></p>
-			<button type="button" data-save-recording><?php esc_html_e( 'Save recording', 'family-wiki' ); ?></button>
+			<button class="familypedia-button familypedia-button--primary" type="button" data-save-recording><?php esc_html_e( 'Save recording', 'family-wiki' ); ?></button>
+		</div>
+		<ol data-live-markers aria-label="<?php esc_attr_e( 'Question timeline', 'family-wiki' ); ?>"></ol>
+		<p class="familypedia-recording__timeline-hint"><?php esc_html_e( 'Question changes add timestamps automatically while recording.', 'family-wiki' ); ?></p>
 		</div>
 		<ul data-saved-recordings>
 			<?php foreach ( get_post_meta( $familypedia_session_id, Interview_Audio::META, false ) as $familypedia_clip ) : ?>
-				<li>
-					<?php echo esc_html( $familypedia_clip['date'] ); ?>
+				<li data-recording-id="<?php echo esc_attr( $familypedia_clip['id'] ); ?>">
+					<label><?php esc_html_e( 'Recording name', 'family-wiki' ); ?> <input type="text" data-clip-name value="<?php echo esc_attr( get_the_title( $familypedia_clip['id'] ) ); ?>" /></label>
+					<button class="familypedia-button" type="button" data-rename-recording><?php esc_html_e( 'Save name', 'family-wiki' ); ?></button>
+					<button class="familypedia-button" type="button" data-delete-recording><?php esc_html_e( 'Delete recording', 'family-wiki' ); ?></button>
+					<span class="familypedia-recording__date"><?php echo esc_html( $familypedia_clip['date'] ); ?></span>
 					<audio controls preload="none" src="<?php echo esc_url( Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ); ?>"></audio>
 					<a href="<?php echo esc_url( Interview_Audio::url( $familypedia_person_id, $familypedia_session_id, $familypedia_clip['id'] ) ); ?>" download><?php esc_html_e( 'Download recording', 'family-wiki' ); ?></a>
+					<ol class="familypedia-recording__markers">
+						<?php foreach ( $familypedia_clip['markers'] ?? array() as $familypedia_marker ) : ?>
+							<li><button type="button" class="familypedia-button" data-seek="<?php echo esc_attr( $familypedia_marker['time'] ); ?>"><?php echo esc_html( sprintf( '%d:%02d', floor( $familypedia_marker['time'] / 60 ), floor( $familypedia_marker['time'] ) % 60 ) . ' · ' . $familypedia_marker['label'] ); ?></button></li>
+						<?php endforeach; ?>
+					</ol>
 				</li>
 			<?php endforeach; ?>
 		</ul>
@@ -109,6 +126,11 @@ if ( $familypedia_recovery ) :
 		<?php $familypedia_form_fields(); ?>
 		<button type="submit" name="op" value="save" hidden><?php esc_html_e( 'Save interview', 'family-wiki' ); ?></button>
 		<input type="hidden" name="version" value="<?php echo esc_attr( $familypedia_data['version'] ); ?>" />
+		<div data-question-picker hidden data-visited="<?php esc_attr_e( 'Visited', 'family-wiki' ); ?>">
+			<p class="familypedia-interview__hint"><?php esc_html_e( 'Choose a topic, then pick whichever question fits the conversation.', 'family-wiki' ); ?></p>
+			<div class="familypedia-interview__topics" role="group" aria-label="<?php esc_attr_e( 'Topics', 'family-wiki' ); ?>" data-topic-chips></div>
+			<div class="familypedia-interview__cards" data-question-cards></div>
+		</div>
 		<div class="familypedia-interview__toolbar">
 			<p class="familypedia-field"><label for="interview-topic"><?php esc_html_e( 'Topic', 'family-wiki' ); ?></label>
 				<select name="topic" id="interview-topic">
@@ -134,14 +156,13 @@ if ( $familypedia_recovery ) :
 				<section class="familypedia-interview__question" data-question="<?php echo esc_attr( $familypedia_question_id ); ?>">
 					<h2><label for="answer-<?php echo esc_attr( $familypedia_question_id ); ?>"><?php echo esc_html( $familypedia_prompt[0] ); ?></label></h2>
 					<p id="hint-<?php echo esc_attr( $familypedia_question_id ); ?>" class="familypedia-interview__hint"><?php echo esc_html( $familypedia_prompt[1] ); ?></p>
-					<textarea id="answer-<?php echo esc_attr( $familypedia_question_id ); ?>" aria-describedby="hint-<?php echo esc_attr( $familypedia_question_id ); ?>" name="answers[<?php echo esc_attr( $familypedia_question_id ); ?>]" rows="9"><?php echo esc_textarea( $familypedia_data['answers'][ $familypedia_question_id ] ?? '' ); ?></textarea>
+					<details class="familypedia-interview__notes"><summary><?php esc_html_e( 'Add written notes', 'family-wiki' ); ?></summary>
+					<textarea id="answer-<?php echo esc_attr( $familypedia_question_id ); ?>" aria-label="<?php echo esc_attr( $familypedia_prompt[0] ); ?>" aria-describedby="hint-<?php echo esc_attr( $familypedia_question_id ); ?>" name="answers[<?php echo esc_attr( $familypedia_question_id ); ?>]" rows="5"><?php echo esc_textarea( $familypedia_data['answers'][ $familypedia_question_id ] ?? '' ); ?></textarea>
+					</details>
 				</section>
 			<?php endforeach; ?>
 		<?php endforeach; ?>
-		<p class="familypedia-interview__navigation" hidden data-question-navigation>
-			<button type="button" class="familypedia-button" data-previous><?php esc_html_e( 'Previous question', 'family-wiki' ); ?></button>
-			<button type="button" class="familypedia-button" data-next><?php esc_html_e( 'Next / skip', 'family-wiki' ); ?></button>
-		</p>
+
 		<details class="familypedia-interview__panel">
 			<summary><?php esc_html_e( 'Interview details', 'family-wiki' ); ?></summary>
 			<p class="familypedia-field"><label for="session-speaker"><?php esc_html_e( 'Speaker', 'family-wiki' ); ?></label>

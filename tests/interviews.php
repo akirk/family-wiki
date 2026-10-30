@@ -75,7 +75,11 @@ namespace {
 		$GLOBALS['interview_meta'][ $id ][ $key ] = wp_unslash( $value );
 		return true;
 	}
-	function delete_post_meta( $id, $key ) { unset( $GLOBALS['interview_meta'][ $id ][ $key ] ); }
+	function delete_post_meta( $id, $key, $value = null ) {
+		if ( null === $value ) { unset( $GLOBALS['interview_meta'][ $id ][ $key ] ); }
+		else { $GLOBALS['interview_meta'][ $id ][ $key ] = array_values( array_filter( $GLOBALS['interview_meta'][ $id ][ $key ], function ( $row ) use ( $value ) { return $row !== $value; } ) ); }
+	}
+	function wp_delete_attachment( $id, $force = false ) { if ( ! get_post( $id ) ) { return false; } $post = get_post( $id ); unset( $GLOBALS['interview_posts'][ $id ] ); return $post; }
 	function wp_insert_post( $data, $error = false ) {
 		$data = wp_unslash( $data );
 		$post = new WP_Post();
@@ -302,6 +306,23 @@ namespace {
 	$attachment_id = wp_insert_post( array( 'post_type' => 'attachment', 'post_parent' => $session ) );
 	check( \Family_Wiki\Interview_Audio::url( $person, $session, $attachment_id ) === wp_get_attachment_url( $attachment_id ), 'Recording playback uses standard attachment URL' );
 	check( '' === \Family_Wiki\Interview_Audio::url( $person, $session + 10000, $attachment_id ), 'Unrelated attachment is not listed as an interview clip' );
+	$clip_row = array( 'id' => $attachment_id, 'mime' => 'audio/webm' );
+	$GLOBALS['interview_meta'][ $session ][ \Family_Wiki\Interview_Audio::META ] = array( $clip_row, array( 'id' => 99999 ) );
+	check( ! is_wp_error( \Family_Wiki\Interview_Audio::manage( $person, $session, $attachment_id, 'rename', 'School stories' ) ) && get_the_title( $attachment_id ) === 'School stories', 'Rename updates attachment title' );
+	check( is_wp_error( \Family_Wiki\Interview_Audio::manage( $person, $session, $attachment_id, 'rename', '' ) ), 'Empty recording names rejected' );
+	$GLOBALS['interview_denied'] = array( $attachment_id );
+	check( is_wp_error( \Family_Wiki\Interview_Audio::manage( $person, $session, $attachment_id, 'delete' ) ) && get_post( $attachment_id ), 'Attachment delete permissions enforced' );
+	$GLOBALS['interview_denied'] = array();
+	$unrelated_clip = wp_insert_post( array( 'post_type' => 'attachment', 'post_parent' => $person ) );
+	check( is_wp_error( \Family_Wiki\Interview_Audio::manage( $person, $session, $unrelated_clip, 'delete' ) ) && get_post( $unrelated_clip ), 'Cannot delete another record attachment' );
+	check( true === \Family_Wiki\Interview_Audio::manage( $person, $session, $attachment_id, 'delete' ) && ! get_post( $attachment_id ), 'Delete removes recording attachment' );
+	check( get_post_meta( $session, \Family_Wiki\Interview_Audio::META, false ) === array( array( 'id' => 99999 ) ), 'Delete removes only matching clip metadata' );
+	unset( $GLOBALS['interview_meta'][ $session ][ \Family_Wiki\Interview_Audio::META ] );
+	$timeline = \Family_Wiki\Interview_Audio::markers( $session, '[{"question":"home","time":0,"label":"Untrusted label"},{"question":"school_days","time":65.5}]' );
+	check( ! is_wp_error( $timeline ) && $timeline[1]['time'] === 65.5 && $timeline[0]['label'] === get_post_meta( $session, Interview::META )['catalogue']['childhood']['questions']['home'][0], 'Timeline uses interview question wording and preserves fractional audio offsets' );
+	foreach ( array( '[{"question":"missing","time":0}]', '[{"question":"home","time":-1}]', '[{"question":"home","time":3},{"question":"school_days","time":1}]', '[{"question":"home","time":"no"}]', 'invalid' ) as $invalid_timeline ) {
+		check( is_wp_error( \Family_Wiki\Interview_Audio::markers( $session, $invalid_timeline ) ), 'Reject invalid timeline without storing audio' );
+	}
 	$audio_handler = new \Family_Wiki\Interview_Audio();
 
 	$_POST = array( 'familypedia_recording' => 1, 'person_id' => $person, 'session_id' => $session );
