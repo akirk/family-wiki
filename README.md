@@ -28,6 +28,20 @@ Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. E
 
 In Settings → Familypedia, enable “Show the wiki at the homepage for signed-in wiki members.” Authorized members then see the app homepage at `/`. Person pages and tools remain under `/familypedia/`. Anonymous visitors and accounts without wiki access keep the normal WordPress homepage, subject to the site's privacy setting. The option defaults off.
 
+### Family interviews
+
+Choose **Add → Interview** on a person's page to start a conversation or resume saved notes. Record the speaker and interview date, and choose whether they are describing their own life or someone else's. Topic chips let you browse optional question cards in any order. Selecting a card opens its follow-ups and an optional written-notes area; notes save automatically and can also be saved with the Save interview button. Without JavaScript, all questions appear together with expandable written notes and saving is manual.
+
+Each interview is a separate draft related page containing the source notes. The fact review keeps the values recorded when the interview began, the speaker's account and any uncertainty. Applying a proposed fact is a separate action; year-only dates retain their approximate precision, and changed facts require review on the person's facts page.
+
+Use **Customize questions** to edit your personal library and import or export JSON question sets. Untouched starter questions, topics and hints use WordPress translations; edited fields and custom questions keep your wording. Exports retain starter IDs and explicit overrides so untouched fields translate when imported elsewhere. Existing text-only libraries remain custom text. Saved interviews retain the wording used when they were started.
+
+Record audio directly in an interview over HTTPS after allowing microphone access. Ask the speaker before recording. Pause/resume as needed, then stop, review, name and save the clip. Saved recordings can be renamed or permanently deleted (including the audio file) from the interview. The recorder floats at the bottom of the interview and continues across question changes. Switching questions automatically adds a timestamp (excluding paused time); the timeline is saved with the clip and its entries jump to that moment during playback. If saving fails, retry or download the local copy before closing the page. Clips stop automatically around 20 MB; server upload limits may be lower. External audio-file uploads and transcription are not included.
+
+Recordings use standard WordPress Media Library attachments parented to their interview posts, with a cryptographically random 192-bit filename suffix. Anyone with a direct file URL can play or download the recording. WpApp versions supporting attachment access restrictions limit REST discovery through the parent app-owned post; this does not restrict direct file URLs. Back up recordings with the normal WordPress uploads directory and database. PHP Fileinfo is used to validate recording formats.
+
+Select saved interviews to create an attributed biography outline. Edit and save the draft, then explicitly review it before adding its text after the existing biography. Interview sources remain linked and unchanged. This version collects typed notes and creates outlines without an external text-generation service.
+
 ### Development
 
 Development happens on `main`. Dependencies in `vendor/` are ignored by Git; run `composer install --no-dev` before using a source checkout. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.

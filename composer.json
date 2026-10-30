@@ -31,6 +31,7 @@
             "php tests/roles.php",
             "php tests/relatives.php",
             "php tests/stubs.php",
+            "php tests/interviews.php",
             "@phpcs"
         ]
     },
