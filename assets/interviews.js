@@ -104,6 +104,25 @@
 	var browsing = topic.value;
 	var visited = new Set(options.filter(function (option) { return form.elements['answers[' + option.value + ']'].value.trim(); }).map(function (option) { return option.value; }));
 	var cardButtons = [];
+	var covered = new Set(Array.from(document.querySelectorAll('[data-saved-recordings] [data-marker-question]')).map(function (button) { return button.dataset.markerQuestion; }));
+	// Resume at an uncovered topic on load; leave live topic navigation to the interviewer.
+	var topicIds = Array.from(topic.options).map(function (option) { return option.value; });
+	var topicIndex = topicIds.indexOf(browsing);
+	function uncoveredQuestions(topicId) {
+		return options.filter(function (option) { return option.parentElement.dataset.topic === topicId && !covered.has(option.value); });
+	}
+	if (!uncoveredQuestions(browsing).length) {
+		for (var offset = 1; offset < topicIds.length; offset++) {
+			var nextTopic = topicIds[(topicIndex + offset) % topicIds.length];
+			var remaining = uncoveredQuestions(nextTopic);
+			if (remaining.length) {
+				browsing = nextTopic;
+				question.value = remaining[0].value;
+				break;
+			}
+		}
+	}
+
 	Array.from(topic.options).forEach(function (option) {
 		var chip = document.createElement('button');
 		chip.type = 'button'; chip.className = 'familypedia-button'; chip.textContent = option.textContent; chip.dataset.topicChip = option.value;
@@ -117,6 +136,7 @@
 		button.setAttribute('aria-controls', 'question-panel-' + option.value);
 		panel.id = 'question-panel-' + option.value;
 		var title = document.createElement('span'); title.textContent = option.textContent; button.appendChild(title);
+		var check = document.createElement('span'); check.className = 'familypedia-interview__covered'; check.textContent = '✓'; check.setAttribute('role', 'img'); check.setAttribute('aria-label', picker.dataset.covered); check.title = picker.dataset.covered; button.appendChild(check);
 		var badge = document.createElement('span'); badge.className = 'familypedia-interview__visited'; badge.textContent = picker.dataset.visited; button.appendChild(badge);
 		button.addEventListener('click', function () {
 			question.value = option.value;
@@ -125,7 +145,7 @@
 		});
 		card.appendChild(button); card.appendChild(panel); cards.appendChild(card);
 		panel.querySelector('h2').hidden = true;
-		cardButtons.push({ card: card, button: button, badge: badge, value: option.value });
+		cardButtons.push({ card: card, button: button, badge: badge, check: check, value: option.value });
 	});
 	function displayQuestion() {
 		var selected = question.selectedOptions[0];
@@ -135,11 +155,13 @@
 			item.card.hidden = item.card.dataset.topic !== browsing;
 			var active = item.value === question.value;
 			item.button.setAttribute('aria-expanded', String(active));
-			item.badge.hidden = !visited.has(item.value);
+			item.badge.hidden = covered.has(item.value) || !visited.has(item.value);
+			item.check.hidden = !covered.has(item.value);
 			item.card.classList.toggle('is-selected', active);
 		});
 		panels.forEach(function (panel) { panel.hidden = panel.dataset.question !== question.value; });
 	}
+	form.addEventListener('recording-coverage', function (event) { covered = new Set(event.detail); displayQuestion(); });
 	question.addEventListener('change', function () { browsing = question.selectedOptions[0].parentElement.dataset.topic; displayQuestion(); });
 	form.querySelector('.familypedia-interview__toolbar').hidden = true;
 	picker.hidden = false;

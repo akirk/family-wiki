@@ -134,6 +134,17 @@ class Interview_Audio {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
+		if ( '' === $name ) {
+			$data = get_post_meta( $session_id, Interview::META, true );
+			$topics = array();
+			$question_ids = array_column( $markers, 'question' );
+			foreach ( $data['catalogue'] ?? Interview::legacy_catalogue() as $group ) {
+				if ( array_intersect( $question_ids, array_keys( $group['questions'] ) ) ) {
+					$topics[] = $group['label'];
+				}
+			}
+			$name = $topics ? implode( ', ', array_unique( $topics ) ) : $data['speaker'] . ' — ' . $data['date'];
+		}
 		$id = media_handle_upload( 'recording', $session_id, array( 'post_title' => $name ?: __( 'Interview recording', 'family-wiki' ) ) );
 		if ( is_wp_error( $id ) ) {
 			wp_send_json_error( array( 'message' => __( 'Could not store the recording. Download your local copy before leaving.', 'family-wiki' ) ), 500 );

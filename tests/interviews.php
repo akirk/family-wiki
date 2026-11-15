@@ -46,6 +46,8 @@ namespace {
 	$GLOBALS['interview_caps'] = array();
 	function wp_die( $message, $title = '', $args = array() ) { throw new Interview_Denied( $message, $args['response'] ?? 0 ); }
 	function wp_get_attachment_url( $id ) { return 'https://example.test/uploads/interview-random-' . $id . '.webm'; }
+	function sanitize_title( $value ) { return strtolower( trim( preg_replace( '/[^a-zA-Z0-9]+/', '-', $value ), '-' ) ); }
+	function get_attached_file( $id ) { return '/tmp/interview-' . $id . '.webm'; }
 	function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_-]/', '', strtolower( $value ) ); }
 	function wp_upload_dir() { return array( 'basedir' => '/tmp/familypedia-audio-tests' ); }
 	function add_action( ...$args ) {}

@@ -927,7 +927,6 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 [data-recording-time] { margin-left: auto; padding: .25rem .5rem; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 [data-recording-status] { color: var(--familypedia-muted); font-size: .9rem; }
 [data-recording-status]:empty { display: none; }
-[data-recording-preview]:not([hidden]),
 [data-saved-recordings] > li {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto auto;
@@ -938,6 +937,17 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	border-radius: .5rem;
 }
 [data-recording-preview] { margin-top: 1rem; background: var(--familypedia-surface-alt); }
+[data-recording-preview]:not([hidden]) {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: .5rem;
+	padding: 1rem;
+	border: 1px solid var(--familypedia-border);
+	border-radius: .5rem;
+}
+[data-recorder] [data-recording-preview] audio { height: 54px; margin-top: 0; }
+[data-recording-preview] [data-save-recording] { align-self: flex-start; }
 [data-saved-recordings] { display: grid; gap: 1rem; list-style: none; margin: 1rem 0 0; padding: 0; }
 [data-saved-recordings]:empty { display: none; }
 [data-recorder] label { display: block; font-size: .875rem; font-weight: 600; }
@@ -955,7 +965,8 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	border-radius: var(--familypedia-radius);
 }
 [data-recorder] :is(input, button, a, audio):focus-visible { outline: 2px solid var(--familypedia-focus); outline-offset: 3px; }
-[data-recorder] audio { grid-column: 1 / -1; display: block; width: 100%; min-width: 0; margin-top: .25rem; }
+[data-recorder] audio[controls] { height: 54px; }
+[data-recorder] audio { grid-column: 1 / -1; display: block; width: 100%; min-width: 0; margin-top: 0; }
 [data-recorder] [data-delete-recording] { color: var(--familypedia-error); background: transparent; border-color: transparent; }
 [data-recorder] [data-delete-recording]:hover { border-color: currentColor; }
 [data-recorder] a[download], [data-local-download] { font-size: .875rem; justify-self: start; }
@@ -1031,3 +1042,9 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 .familypedia-audio-level__blocks [data-level="4"].is-active { background: #d64545; }
 .familypedia-audio-level__hint { color: var(--familypedia-muted); font-size: .85rem; margin: .5rem 0; }
 .familypedia-audio-level__hint:empty { display: none; }
+
+.familypedia-recording__actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+[data-discard-recording] { color: var(--familypedia-error); }
+
+.familypedia-interview__covered { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 1.5rem; height: 1.5rem; margin-left: auto; border-radius: 50%; background: #26833c; color: #fff; font-size: 1rem; font-weight: 700; }
+.familypedia-interview__covered[hidden] { display: none; }
