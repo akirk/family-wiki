@@ -48,6 +48,7 @@ $familypedia_prefill = isset( $_GET['name'] ) ? sanitize_text_field( wp_unslash(
 $familypedia_prefill = trim( str_replace( array( '-', '_' ), ' ', $familypedia_prefill ) );
 
 $familypedia_title = $familypedia_id ? get_the_title( $familypedia_id ) : $familypedia_prefill;
+$familypedia_photo_id = $familypedia_id ? get_post_thumbnail_id( $familypedia_id ) : 0;
 
 $familypedia_page_title = $familypedia_id
 	? sprintf(
@@ -56,6 +57,10 @@ $familypedia_page_title = $familypedia_id
 		$familypedia_title
 	)
 	: __( 'Add Person', 'family-wiki' );
+
+if ( current_user_can( 'upload_files' ) ) {
+	wp_enqueue_media( $familypedia_id ? array( 'post' => $familypedia_id ) : array() );
+}
 
 require __DIR__ . '/partials/header.php';
 
@@ -116,6 +121,23 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 			<label for="familypedia-post-title"><?php esc_html_e( 'Name', 'family-wiki' ); ?></label>
 			<input id="familypedia-post-title" type="text" name="post_title" value="<?php echo esc_attr( $familypedia_title ); ?>" required />
 		</p>
+
+		<?php if ( current_user_can( 'upload_files' ) ) : ?>
+			<div class="familypedia-field familypedia-photo" data-familypedia-photo>
+				<p id="familypedia-photo-label"><?php esc_html_e( 'Photo', 'family-wiki' ); ?></p>
+				<input type="hidden" name="photo_id" value="<?php echo esc_attr( $familypedia_photo_id ); ?>" />
+				<div class="familypedia-photo__preview" data-photo-preview aria-live="polite">
+					<?php
+					if ( $familypedia_photo_id ) {
+						echo get_the_post_thumbnail( $familypedia_id, 'medium' );
+					}
+					?>
+				</div>
+				<button type="button" class="familypedia-button" data-photo-choose data-title="<?php esc_attr_e( 'Choose photo', 'family-wiki' ); ?>" data-select="<?php esc_attr_e( 'Use photo', 'family-wiki' ); ?>" data-change="<?php esc_attr_e( 'Change photo', 'family-wiki' ); ?>" aria-describedby="familypedia-photo-label"><?php echo $familypedia_photo_id ? esc_html__( 'Change photo', 'family-wiki' ) : esc_html__( 'Choose photo', 'family-wiki' ); ?></button>
+				<button type="button" class="familypedia-button" data-photo-remove <?php echo $familypedia_photo_id ? '' : 'hidden'; ?>><?php esc_html_e( 'Remove photo', 'family-wiki' ); ?></button>
+				<p class="familypedia-field__hint"><?php esc_html_e( 'Shown in the info box. Removing it here keeps the file in the media library.', 'family-wiki' ); ?></p>
+			</div>
+		<?php endif; ?>
 
 		<p class="familypedia-field">
 			<label for="familypedia-born-as"><?php esc_html_e( 'Born as', 'family-wiki' ); ?></label>
@@ -297,6 +319,6 @@ $familypedia_value = function ( $field ) use ( $familypedia_id ) {
 </form>
 
 <?php
-wp_app_enqueue_script( 'familypedia-form', Assets::url( 'form.js' ), array(), Assets::version( 'form.js' ), true, App::URL_PATH );
+wp_app_enqueue_script( 'familypedia-form', Assets::url( 'form.js' ), current_user_can( 'upload_files' ) ? array( 'media-views' ) : array(), Assets::version( 'form.js' ), true, App::URL_PATH );
 
 require __DIR__ . '/partials/footer.php';

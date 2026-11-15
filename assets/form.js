@@ -5,6 +5,52 @@
  * only has to exist once, in PHP.
  */
 (function () {
+	var photo = document.querySelector('[data-familypedia-photo]');
+	if (photo && window.wp && wp.media) {
+		var photoId = photo.querySelector('[name="photo_id"]');
+		var preview = photo.querySelector('[data-photo-preview]');
+		var choose = photo.querySelector('[data-photo-choose]');
+		var remove = photo.querySelector('[data-photo-remove]');
+		var frame;
+
+		choose.addEventListener('click', function () {
+			if (!frame) {
+				frame = wp.media({
+					title: choose.dataset.title,
+					button: { text: choose.dataset.select },
+					library: { type: 'image' },
+					multiple: false
+				});
+				frame.on('open', function () {
+					var selection = frame.state().get('selection');
+					selection.reset();
+					if (photoId.value) {
+						selection.add(wp.media.attachment(photoId.value));
+					}
+				});
+				frame.on('select', function () {
+					var attachment = frame.state().get('selection').first().toJSON();
+					var image = document.createElement('img');
+					image.src = attachment.sizes && attachment.sizes.medium ? attachment.sizes.medium.url : attachment.url;
+					image.alt = attachment.alt || '';
+					preview.replaceChildren(image);
+					photoId.value = attachment.id;
+					choose.textContent = choose.dataset.change;
+					remove.hidden = false;
+				});
+			}
+			frame.open();
+		});
+
+		remove.addEventListener('click', function () {
+			photoId.value = '0';
+			preview.replaceChildren();
+			choose.textContent = choose.dataset.title;
+			remove.hidden = true;
+			choose.focus();
+		});
+	}
+
 	var groups = Array.prototype.slice.call(document.querySelectorAll('[data-familypedia-repeat]'));
 
 	function renumber(group) {

@@ -833,3 +833,12 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	gap: 0.75rem;
 	margin: 1rem 0;
 }
+
+.familypedia-photo__preview img {
+	display: block;
+	max-width: 200px;
+	max-height: 240px;
+	width: auto;
+	height: auto;
+	margin-bottom: 0.75rem;
+}
