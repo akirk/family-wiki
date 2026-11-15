@@ -38,6 +38,9 @@ setup_postdata( $post );
 Tree::reset_expanded();
 
 $familypedia_content = $familypedia_person->post_content;
+if ( Interview::is_session( $familypedia_person ) ) {
+	$familypedia_content = Interview::transcript( get_post_meta( $familypedia_person->ID, Interview::META, true ) );
+}
 if ( $familypedia_facts_id ) {
 	// The infobox already carries these facts, so the shortcode is left as
 	// just the name rather than repeating them in prose.
@@ -58,7 +61,7 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 						<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
 							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
 						<?php endif; ?>
-						<li><a href="<?php echo esc_url( get_edit_post_link( $familypedia_person->ID, '' ) ); ?>"><?php esc_html_e( 'Page text', 'family-wiki' ); ?></a></li>
+						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php echo esc_html( Interview::is_session( $familypedia_person ) ? __( 'Continue interview', 'family-wiki' ) : __( 'Page text', 'family-wiki' ) ); ?></a></li>
 					</ul>
 				</details>
 				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && ( Editor::can_create() || Related_Page::can_create( $familypedia_person->ID ) ) ) : ?>
@@ -70,6 +73,9 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 							<?php endif; ?>
 							<?php if ( Related_Page::can_create( $familypedia_person->ID ) ) : ?>
 								<li><a href="<?php echo esc_url( Related_Page::add_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Related page', 'family-wiki' ); ?></a></li>
+							<?php endif; ?>
+							<?php if ( Interview::can_manage( $familypedia_person->ID ) ) : ?>
+								<li><a href="<?php echo esc_url( Interview::url( $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Interview', 'family-wiki' ); ?></a></li>
 							<?php endif; ?>
 						</ul>
 					</details>
