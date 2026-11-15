@@ -50,13 +50,87 @@
 	if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { status.textContent = panel.dataset.unavailable; return; }
 	panel.querySelector('[data-recording-controls]').hidden = false;
 	var record = panel.querySelector('[data-record]');
-	var pause = panel.querySelector('[data-pause]');
-	var resume = panel.querySelector('[data-resume]');
 	var stop = panel.querySelector('[data-stop]');
 	var save = panel.querySelector('[data-save-recording]');
 	var preview = panel.querySelector('[data-recording-preview]');
 	var download = panel.querySelector('[data-local-download]');
 	var recorder, stream, blob, localUrl, started, elapsed = 0, timer, question, extension;
+	var audioContext, source, analyser, meterTimer;
+	var level = panel.querySelector('[data-mic-level]');
+	function setLevel(value) {
+		level.setAttribute('aria-valuenow', String(value));
+		Array.from(level.children).forEach(function (block) { block.classList.toggle('is-active', Number(block.dataset.level) <= value); });
+	}
+	var micHint = panel.querySelector('[data-mic-hint]');
+	var lastSound = 0;
+	function stopMeter() {
+		clearInterval(meterTimer);
+		if (source) { source.disconnect(); source = null; }
+		if (audioContext) { audioContext.close().catch(function () {}); audioContext = null; }
+		setLevel(0); micHint.textContent = '';
+	}
+	async function startMeter() {
+		var AudioContext = window.AudioContext || window.webkitAudioContext;
+		if (!AudioContext) { return; }
+		try {
+			audioContext = new AudioContext();
+			source = audioContext.createMediaStreamSource(stream);
+			analyser = audioContext.createAnalyser(); analyser.fftSize = 2048;
+			source.connect(analyser);
+			var samples = new Float32Array(analyser.fftSize);
+			await audioContext.resume();
+			if (!recorder || recorder.state === 'inactive') { stopMeter(); return; }
+			panel.querySelector('[data-audio-level]').hidden = false;
+			lastSound = performance.now();
+			meterTimer = setInterval(function () {
+				var now = performance.now();
+				if (recorder.state !== 'recording') { setLevel(0); micHint.textContent = ''; lastSound = now; return; }
+				analyser.getFloatTimeDomainData(samples);
+				var sum = 0;
+				for (var i = 0; i < samples.length; i++) { sum += samples[i] * samples[i]; }
+				var db = Math.max(-60, Math.min(0, 20 * Math.log10(Math.sqrt(sum / samples.length) || 0.000001)));
+				setLevel(db > -6 ? 4 : db > -18 ? 3 : db > -35 ? 2 : db > -50 ? 1 : 0);
+				if (db > -50) { lastSound = now; }
+				var hint = now - lastSound > 6000 ? micHint.dataset.silent : '';
+				if (micHint.textContent !== hint) { micHint.textContent = hint; }
+			}, 100);
+		} catch (error) { stopMeter(); panel.querySelector('[data-audio-level]').hidden = true; }
+	}
+	var pausePreview = panel.querySelector('[data-pause-preview]');
+	var pauseAudio = panel.querySelector('[data-pause-audio]');
+	var pauseHint = panel.querySelector('[data-pause-hint]');
+	var recent = panel.querySelector('[data-play-recent]');
+	var checkRecordingLabel = recent.textContent;
+	var previewStart = 0, previewLength = 5;
+	function resetPlaybackLabel() { recent.textContent = checkRecordingLabel; }
+	function updatePlaybackLabel() {
+		if (!pauseAudio.paused && !pauseAudio.ended) {
+			var played = Math.min(previewLength, Math.max(0, Math.floor(pauseAudio.currentTime - previewStart)));
+			recent.textContent = recent.dataset.playing + ' ' + timestamp(played);
+		}
+	}
+	pauseAudio.addEventListener('playing', updatePlaybackLabel);
+	pauseAudio.addEventListener('timeupdate', updatePlaybackLabel);
+	pauseAudio.addEventListener('pause', resetPlaybackLabel);
+	pauseAudio.addEventListener('ended', resetPlaybackLabel);
+	pauseAudio.addEventListener('error', resetPlaybackLabel);
+
+	var pauseUrl, previewRequested = false;
+	function clearPausePreview() {
+		previewRequested = false; pauseAudio.pause(); resetPlaybackLabel(); pauseAudio.removeAttribute('src'); pauseAudio.load();
+		if (pauseUrl) { URL.revokeObjectURL(pauseUrl); pauseUrl = null; }
+		pausePreview.hidden = true; recent.hidden = true; pauseHint.textContent = '';
+	}
+	pauseAudio.addEventListener('error', function () { if (!pausePreview.hidden) { pauseHint.textContent = pauseHint.dataset.unavailable; recent.disabled = false; } });
+	recent.addEventListener('click', async function () {
+		try {
+			pauseHint.textContent = '';
+			previewStart = Math.max(0, seconds() - 5);
+			previewLength = Math.min(5, Math.ceil(seconds()));
+			pauseAudio.currentTime = previewStart;
+			await pauseAudio.play();
+		} catch (error) { pauseHint.textContent = pauseHint.dataset.unavailable; }
+	});
 	var unsaved = false;
 	var markers = [];
 	function seconds() { return (elapsed + (started != null ? performance.now() - started : 0)) / 1000; }
@@ -72,6 +146,22 @@
 		panel.querySelector('[data-recording-time]').textContent = timestamp(seconds());
 	}
 	record.addEventListener('click', async function () {
+		if (recorder && recorder.state === 'recording') {
+			elapsed += performance.now() - started; started = null; recorder.pause();
+			record.textContent = record.dataset.labelResume; stop.hidden = false;
+			status.textContent = ''; time();
+			clearPausePreview(); pausePreview.hidden = false; recent.hidden = false; recent.disabled = true; previewRequested = true; recorder.requestData();
+			return;
+		}
+		if (recorder && recorder.state === 'paused') {
+			clearPausePreview();
+			started = performance.now(); recorder.resume();
+			if (audioContext) { audioContext.resume().catch(function () {}); }
+			lastSound = performance.now(); record.textContent = record.dataset.labelPause; stop.hidden = true;
+			status.textContent = panel.dataset.recording; markQuestion();
+			return;
+		}
+
 		record.disabled = true;
 		try {
 			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -82,31 +172,37 @@
 			question = form.elements.question.value;
 			recorder.addEventListener('dataavailable', function (event) {
 				if (event.data.size) { chunks.push(event.data); size += event.data.size; }
+				if (previewRequested && recorder.state === 'paused') {
+					previewRequested = false;
+					pauseUrl = URL.createObjectURL(new Blob(chunks, { type: recorder.mimeType }));
+					pauseAudio.src = pauseUrl;
+					recent.disabled = false;
+				}
+
 				if (size >= 20 * 1024 * 1024 && recorder.state !== 'inactive') { recorder.stop(); }
 			});
 			recorder.addEventListener('stop', function () {
+				clearPausePreview();
 				if (started != null) { elapsed += performance.now() - started; started = null; } time();
-				clearInterval(timer); stream.getTracks().forEach(function (track) { track.stop(); });
+				stopMeter(); clearInterval(timer); stream.getTracks().forEach(function (track) { track.stop(); });
 				blob = new Blob(chunks, { type: recorder.mimeType });
 				if (localUrl) { URL.revokeObjectURL(localUrl); }
 				localUrl = URL.createObjectURL(blob);
 				panel.querySelector('[data-local-audio]').src = localUrl;
 				markerList(markers, panel.querySelector('[data-live-markers]'), panel.querySelector('[data-local-audio]'));
 				download.href = localUrl; download.download = 'interview.' + extension;
-				preview.hidden = false; save.disabled = false; pause.disabled = true; resume.disabled = true; stop.disabled = true;
+				preview.hidden = false; save.disabled = false; record.disabled = true; record.textContent = record.dataset.labelRecord; stop.hidden = true;
 				status.textContent = panel.dataset.ready;
 			});
 			recorder.addEventListener('error', function () { status.textContent = panel.dataset.error; if (recorder.state !== 'inactive') { recorder.stop(); } });
-			recorder.start(1000); unsaved = true; elapsed = 0; started = performance.now();
+			recorder.start(1000); startMeter(); unsaved = true; elapsed = 0; started = performance.now();
 			markers = []; markQuestion();
 			panel.querySelector('[data-recording-name]').value = '';
-			preview.hidden = true; pause.disabled = false; stop.disabled = false;
+			preview.hidden = true; record.disabled = false; record.textContent = record.dataset.labelPause; stop.hidden = true;
 			status.textContent = panel.dataset.recording; timer = setInterval(time, 500);
-		} catch (error) { if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); } record.disabled = false; status.textContent = panel.dataset.unavailable; }
+		} catch (error) { stopMeter(); if (stream) { stream.getTracks().forEach(function (track) { track.stop(); }); } record.disabled = false; status.textContent = panel.dataset.unavailable; }
 	});
-	pause.addEventListener('click', function () { elapsed += performance.now() - started; started = null; recorder.pause(); pause.disabled = true; resume.disabled = false; status.textContent = panel.dataset.paused; time(); });
-	resume.addEventListener('click', function () { started = performance.now(); recorder.resume(); pause.disabled = false; resume.disabled = true; status.textContent = panel.dataset.recording; markQuestion(); });
-	stop.addEventListener('click', function () { time(); recorder.stop(); });
+	stop.addEventListener('click', function () { if (recorder && recorder.state === 'paused') { stop.hidden = true; record.disabled = true; time(); recorder.stop(); } });
 	save.addEventListener('click', async function () {
 		save.disabled = true; status.textContent = panel.dataset.saving;
 		var data = new FormData();

@@ -258,6 +258,8 @@ body.familypedia ::placeholder {
 	white-space: nowrap;
 }
 
+.familypedia-button[hidden] { display: none; }
+
 .familypedia-button:hover,
 .familypedia-button:focus {
 	background: var(--familypedia-surface-alt);
@@ -1018,3 +1020,14 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 .familypedia-interview__card .familypedia-interview__hint { margin-top: 0; }
 .familypedia-interview__notes summary { cursor: pointer; color: var(--familypedia-primary); margin: .75rem 0; }
 .familypedia-interview__card[hidden], .familypedia-interview__toolbar[hidden] { display: none; }
+
+.familypedia-audio-level:not([hidden]) { display: flex; align-items: center; gap: .5rem; flex: 0 0 auto; }
+.familypedia-audio-level > span { font-size: .75rem; color: var(--familypedia-muted); }
+.familypedia-audio-level__blocks { display: grid; gap: 3px; width: 1.5rem; }
+.familypedia-audio-level__blocks span { height: 6px; border-radius: 2px; background: var(--familypedia-border); }
+.familypedia-audio-level__blocks [data-level="1"].is-active,
+.familypedia-audio-level__blocks [data-level="2"].is-active { background: #32964b; }
+.familypedia-audio-level__blocks [data-level="3"].is-active { background: #dbab20; }
+.familypedia-audio-level__blocks [data-level="4"].is-active { background: #d64545; }
+.familypedia-audio-level__hint { color: var(--familypedia-muted); font-size: .85rem; margin: .5rem 0; }
+.familypedia-audio-level__hint:empty { display: none; }

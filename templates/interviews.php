@@ -85,13 +85,26 @@ if ( $familypedia_recovery ) :
 		<div data-audio-dock>
 		<h3><?php esc_html_e( 'Interview recorder', 'family-wiki' ); ?></h3>
 		<div data-recording-controls hidden>
-			<button class="familypedia-button familypedia-button--primary" type="button" data-record><?php esc_html_e( 'Record', 'family-wiki' ); ?></button>
-			<button class="familypedia-button" type="button" data-pause disabled><?php esc_html_e( 'Pause', 'family-wiki' ); ?></button>
-			<button class="familypedia-button" type="button" data-resume disabled><?php esc_html_e( 'Resume', 'family-wiki' ); ?></button>
-			<button class="familypedia-button" type="button" data-stop disabled><?php esc_html_e( 'Stop', 'family-wiki' ); ?></button>
+			<button class="familypedia-button familypedia-button--primary" type="button" data-record data-label-record="<?php esc_attr_e( 'Record', 'family-wiki' ); ?>" data-label-pause="<?php esc_attr_e( 'Pause', 'family-wiki' ); ?>" data-label-resume="<?php esc_attr_e( 'Resume', 'family-wiki' ); ?>"><?php esc_html_e( 'Record', 'family-wiki' ); ?></button>
+			<button class="familypedia-button" type="button" data-stop hidden><?php esc_html_e( 'Stop', 'family-wiki' ); ?></button>
+			<button type="button" class="familypedia-button" data-play-recent data-playing="<?php esc_attr_e( 'Playing', 'family-wiki' ); ?>" hidden title="<?php esc_attr_e( 'Play the last 5 seconds', 'family-wiki' ); ?>"><?php esc_html_e( 'Check recording', 'family-wiki' ); ?></button>
+			<div class="familypedia-audio-level" data-audio-level hidden>
+				<span id="interview-mic-label"><?php esc_html_e( 'Microphone', 'family-wiki' ); ?></span>
+				<div class="familypedia-audio-level__blocks" role="meter" aria-labelledby="interview-mic-label" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0" data-mic-level>
+					<span data-level="4" aria-hidden="true"></span>
+					<span data-level="3" aria-hidden="true"></span>
+					<span data-level="2" aria-hidden="true"></span>
+					<span data-level="1" aria-hidden="true"></span>
+				</div>
+			</div>
 			<output data-recording-time>0:00</output>
 		</div>
+		<p role="status" class="familypedia-audio-level__hint" data-mic-hint data-silent="<?php esc_attr_e( 'No sound detected. Check your microphone.', 'family-wiki' ); ?>"></p>
 		<p role="status" data-recording-status></p>
+		<div data-pause-preview hidden>
+			<audio data-pause-audio preload="auto"></audio>
+			<p role="status" data-pause-hint data-unavailable="<?php esc_attr_e( 'Preview is not available yet in this browser. You can continue recording.', 'family-wiki' ); ?>"></p>
+		</div>
 		<div data-recording-preview hidden>
 			<p><label for="recording-name"><?php esc_html_e( 'Recording name', 'family-wiki' ); ?></label> <input id="recording-name" type="text" data-recording-name /></p>
 			<audio controls data-local-audio></audio>
