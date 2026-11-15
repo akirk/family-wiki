@@ -129,11 +129,20 @@ namespace {
 	check( ! is_wp_error( Editor::add_relative( $id, 'child_father', 'Taylor', '1923' ) ), 'Existing person linked again safely' );
 	check( Person::field( 'birth_date', $dated ) === '1923-05-06', 'Exact date preserved' );
 	check( is_wp_error( Editor::add_relative( $id, 'child_father', 'Taylor', '1924' ) ), 'Conflicting year rejected' );
-	foreach ( array( '2000-1923', '0000', '1923-0000', '23', '1923-05-06', 'nonsense' ) as $years ) {
+	foreach ( array( '2000-1923', '0000', '1923-0000', '23', '1923-02-29', '2000-13-01', '2000-05-06 – 2000-05-05', 'nonsense' ) as $years ) {
 		check( is_wp_error( Editor::parse_relative_years( $years ) ), 'Invalid years rejected: ' . $years );
 	}
 	check( Editor::parse_relative_years( '1923–2000' ) === array( 'birth' => '1923', 'death' => '2000' ), 'En dash supported' );
 	check( Editor::parse_relative_years( '' ) === array(), 'Years optional' );
+	check( Editor::parse_relative_years( '1923-05-06 – 2000-10-12' ) === array( 'birth' => '1923-05-06', 'death' => '2000-10-12' ), 'Exact date range supported' );
+	check( Editor::parse_relative_years( '1923-2000-10-12' ) === array( 'birth' => '1923', 'death' => '2000-10-12' ), 'Mixed precision supported' );
+	$exact = Editor::add_relative( $id, 'child_father', 'Exact dates', '1923-05-06 – 2000-10-12' );
+	check( Person::field( 'birth_date', $exact ) === '1923-05-06' && Person::field( 'death_date', $exact ) === '2000-10-12', 'Exact dates saved' );
+	check( ! Person::field( 'exact_birth_date_unknown', $exact ) && ! Person::field( 'exact_death_date_unknown', $exact ), 'Exact date flags saved' );
+	check( is_wp_error( Editor::add_relative( $id, 'child_father', 'Exact dates', '1923-05-07' ) ), 'Conflicting exact date rejected' );
+	check( ! is_wp_error( Editor::add_relative( $id, 'child_father', 'Taylor', '1923-05-06' ) ), 'Year-only date can gain precision' );
+	check( ! Person::field( 'exact_birth_date_unknown', $dated ), 'Adding precision clears unknown flag' );
+
 
 	check( Person::field( 'sex', $parent ) === 'Male', 'New father gets male sex' );
 	check( Person::field( 'sex', $id ) === 'Female', 'A recorded sex is not overwritten by a different parent role' );

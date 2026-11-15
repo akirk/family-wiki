@@ -136,10 +136,10 @@ class Editor {
 			}
 		}
 		if ( $relative ) {
-			foreach ( $dates as $event => $year ) {
+			foreach ( $dates as $event => $date ) {
 				$existing_date = Person::field( $event . '_date', $relative );
-				if ( $existing_date && substr( $existing_date, 0, 4 ) !== $year ) {
-					return new \WP_Error( 'years', __( 'These years conflict with recorded dates. Edit the person’s facts to change them.', 'family-wiki' ) );
+				if ( $existing_date && ( substr( $existing_date, 0, 4 ) !== substr( $date, 0, 4 ) || ( 10 === strlen( $date ) && ! Person::field( 'exact_' . $event . '_date_unknown', $relative ) && $existing_date !== $date ) ) ) {
+					return new \WP_Error( 'years', __( 'These dates conflict with recorded dates. Edit the person’s facts to change them.', 'family-wiki' ) );
 				}
 			}
 		}
@@ -206,10 +206,11 @@ class Editor {
 			self::record_spouse( $relative, $id );
 			Main::flush_family_data_cache( $id );
 		}
-		foreach ( $dates as $event => $year ) {
-			if ( ! Person::field( $event . '_date', $relative ) ) {
-				Person::update( $event . '_date', $year . '-01-01', $relative );
-				Person::update( 'exact_' . $event . '_date_unknown', true, $relative );
+		foreach ( $dates as $event => $date ) {
+			$exact = 10 === strlen( $date );
+			if ( ! Person::field( $event . '_date', $relative ) || ( $exact && Person::field( 'exact_' . $event . '_date_unknown', $relative ) ) ) {
+				Person::update( $event . '_date', $exact ? $date : $date . '-01-01', $relative );
+				Person::update( 'exact_' . $event . '_date_unknown', ! $exact, $relative );
 			}
 			if ( 'death' === $event ) {
 				Person::update( 'alive', false, $relative );
@@ -247,18 +248,27 @@ class Editor {
 		Person::update( 'marriages', $rows, $id );
 	}
 
-	/** Accept a birth year or a birth–death year range without inventing exact dates. */
+	/** Accept birth and death years or exact ISO dates. */
 	public static function parse_relative_years( $years ) {
 		$years = trim( $years );
 		if ( '' === $years ) {
 			return array();
 		}
-		if ( ! preg_match( '/^([0-9]{4})(?:\s*[-–]\s*([0-9]{4}))?$/u', $years, $matches ) || (int) $matches[1] < 1 || ( isset( $matches[2] ) && (int) $matches[2] < (int) $matches[1] ) ) {
-			return new \WP_Error( 'years', __( 'Use a birth year such as 1923 or a lifespan such as 1923-2000.', 'family-wiki' ) );
+		$error = new \WP_Error( 'years', __( 'Use YYYY or YYYY-MM-DD, optionally followed by a dash and a death year or date (for example, 1923-05-06 – 2000-10-12).', 'family-wiki' ) );
+		if ( ! preg_match( '/^([0-9]{4}(?:-[0-9]{2}-[0-9]{2})?)(?:\s*[-–]\s*([0-9]{4}(?:-[0-9]{2}-[0-9]{2})?))?$/u', $years, $matches ) ) {
+			return $error;
 		}
 		$dates = array( 'birth' => $matches[1] );
 		if ( isset( $matches[2] ) ) {
 			$dates['death'] = $matches[2];
+		}
+		foreach ( $dates as $date ) {
+			if ( (int) substr( $date, 0, 4 ) < 1 || ( 10 === strlen( $date ) && ! checkdate( (int) substr( $date, 5, 2 ), (int) substr( $date, 8, 2 ), (int) substr( $date, 0, 4 ) ) ) ) {
+				return $error;
+			}
+		}
+		if ( isset( $dates['death'] ) && ( substr( $dates['death'], 0, 4 ) < substr( $dates['birth'], 0, 4 ) || ( 10 === strlen( $dates['birth'] ) && 10 === strlen( $dates['death'] ) && $dates['death'] < $dates['birth'] ) ) ) {
+			return $error;
 		}
 		return $dates;
 	}
