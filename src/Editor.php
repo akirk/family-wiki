@@ -351,6 +351,17 @@ class Editor {
 	 */
 	private static function save_fields( $post_id ) {
 		$unmatched = array();
+
+		// Only change the photo when the media field was available in the form.
+		if ( current_user_can( 'upload_files' ) && isset( $_POST['photo_id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$photo_id = absint( $_POST['photo_id'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( ! $photo_id ) {
+				delete_post_thumbnail( $post_id );
+			} elseif ( wp_attachment_is_image( $photo_id ) && current_user_can( 'read_post', $photo_id ) ) {
+				set_post_thumbnail( $post_id, $photo_id );
+			}
+		}
+
 		Person::update( 'is_stub', ! empty( $_POST['is_stub'] ), $post_id ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		foreach ( array( 'born_as', 'birth_place', 'death_place', 'marriage_place' ) as $field ) {
