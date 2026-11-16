@@ -230,7 +230,7 @@ namespace {
 	$third_data['speaker'] = 'Her eldest son';
 	$third_data['date'] = '2026-10-28';
 	$third_saved = Interview::save( $person, $third_person, $third_data );
-	check( ! is_wp_error( $third_saved ) && strpos( get_post( $third_person )->post_content, 'their childhood home' ) !== false, 'Source transcript uses the saved perspective' );
+	check( ! is_wp_error( $third_saved ) && strpos( get_post( $third_person )->post_content, $third_data['catalogue']['childhood']['questions']['home'][0] ) !== false, 'Source transcript uses the saved perspective' );
 	check( strpos( get_post( $third_person )->post_title, 'Her eldest son' ) !== false && $third_saved['date'] === '2026-10-28', 'Speaker and date corrections update the source title' );
 	$other_session = Interview::create( $other, array( 'speaker' => 'Someone else', 'date' => '2026-10-29' ) );
 	check( is_wp_error( Interview::create_draft( $person, array( $session, $other_session ) ) ), 'Mixed-subject source selection rejected before writing' );
@@ -278,6 +278,10 @@ namespace {
 	unset( $GLOBALS['interview_user_meta'] );
 
 	$starter_rows = Interview::question_rows();
+	$starter_ids = array_column( $starter_rows, 'starter' );
+	check( count( $starter_ids ) === 15 && ! array_intersect( array( 'sunday', 'enjoyment', 'turning_point', 'photo_story' ), $starter_ids ), 'New libraries use the shorter life overview without retired prompts' );
+	$retired_rows = array( array( 'starter' => 'photo_story' ) );
+	check( true === Interview::save_questions( array( 'question_library' => json_encode( $retired_rows ) ) ) && ! empty( Interview::resolve_questions( $retired_rows ) ), 'Retired starter references remain importable and usable' );
 	check( $starter_rows[0] === array( 'starter' => 'home' ), 'Untouched starter library stores references only' );
 	check( true === Interview::save_questions( array( 'question_library' => json_encode( $starter_rows ) ) ), 'Starter reference export can be imported unchanged' );
 	$source_defaults = Interview::question_defaults();

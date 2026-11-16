@@ -17,19 +17,25 @@
 			questions.forEach(function (item, index) {
 				var card = document.createElement('fieldset');
 				['topic', 'question', 'hint'].forEach(function (key) {
+					var wrapper = document.createElement('p');
+					wrapper.className = 'familypedia-field';
 					var label = document.createElement('label');
 					label.textContent = library.dataset[key];
 					var field = document.createElement(key === 'topic' ? 'input' : 'textarea');
+					if (key === 'topic') { field.type = 'text'; }
+					else { field.rows = key === 'question' ? 2 : 3; }
 					var baseline = defaults[item.starter] || {};
 					field.value = Object.prototype.hasOwnProperty.call(item, key) ? item[key] : (baseline[key] || '');
 					field.required = key !== 'hint';
 					field.addEventListener('input', function () { if (item.starter && field.value === baseline[key]) { delete item[key]; } else { item[key] = field.value; } syncLibrary(); });
 					label.appendChild(field);
-					card.appendChild(label);
+					wrapper.appendChild(label);
+					card.appendChild(wrapper);
 				});
 				['up', 'down', 'remove'].forEach(function (action) {
 					var button = document.createElement('button');
 					button.type = 'button';
+					button.className = 'familypedia-button';
 					button.textContent = library.dataset[action];
 					button.disabled = (action === 'up' && index === 0) || (action === 'down' && index === questions.length - 1);
 					button.addEventListener('click', function () {
@@ -69,7 +75,10 @@
 			event.target.value = '';
 		});
 		exporting.addEventListener('click', function () {
-			var url = URL.createObjectURL(new Blob([json.value], { type: 'application/json' }));
+			var exported = questions.map(function (item) {
+				return Object.assign({ topic: '', question: '', hint: '' }, defaults[item.starter] || {}, item);
+			});
+			var url = URL.createObjectURL(new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' }));
 			var link = document.createElement('a'); link.href = url; link.download = 'interview-questions.json'; link.click();
 			setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 		});
