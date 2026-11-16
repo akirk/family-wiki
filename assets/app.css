@@ -1103,3 +1103,56 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 	margin: 0;
 	overflow-wrap: anywhere;
 }
+
+.familypedia-gedcom-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0;
+	margin: 1rem 0;
+	border-bottom: 1px solid var(--familypedia-border);
+}
+.familypedia-gedcom-tabs[hidden],
+[data-gedcom-comparison] [hidden] { display: none; }
+.familypedia-gedcom-tabs .familypedia-gedcom-tab {
+	appearance: none;
+	background: transparent;
+	color: var(--familypedia-text);
+	font: inherit;
+	font-weight: 500;
+	padding: 0.8rem 1rem;
+	margin: 0 0 -1px;
+	border: 0;
+	border-bottom: 3px solid transparent;
+	border-radius: 0;
+	box-shadow: none;
+	cursor: pointer;
+}
+.familypedia-gedcom-tabs .familypedia-gedcom-tab:hover { color: var(--familypedia-primary); }
+.familypedia-gedcom-tabs .familypedia-gedcom-tab[aria-selected="true"] {
+	color: var(--familypedia-primary);
+	border-bottom-color: var(--familypedia-primary);
+	font-weight: 700;
+}
+.familypedia-gedcom-tab:focus-visible,
+.familypedia-gedcom-table-toggle:focus-visible { outline: 2px solid var(--familypedia-primary); outline-offset: 2px; }
+[data-gedcom-person-status] { font-size: 0.85rem; font-weight: normal; }
+fieldset.familypedia-gedcom-comparison-person.familypedia-gedcom-clickable,
+fieldset.familypedia-gedcom-clickable > legend,
+fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family,
+fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family dt,
+fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family dd { cursor: pointer; }
+.familypedia-gedcom-clickable:hover,
+.familypedia-gedcom-clickable:focus-within { border-color: var(--familypedia-primary); }
+.familypedia-gedcom-clickable table { cursor: auto; }
+.familypedia-gedcom-table-toggle:focus-visible {
+	position: static;
+	clip: auto;
+	clip-path: none;
+	width: auto;
+	height: auto;
+	margin: 0 0 0.5rem;
+	padding: 0.35rem 0.6rem;
+	overflow: visible;
+}
+.familypedia-gedcom-skipped-person { border-bottom: 1px solid var(--familypedia-border); padding: 0.75rem 0; }
+.familypedia-gedcom-skipped-person > summary { cursor: pointer; font-weight: 600; }
