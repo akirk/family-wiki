@@ -22,6 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/class-private-site.php';
 
 // Autoloader for plugin classes.
 spl_autoload_register(
@@ -44,6 +45,7 @@ add_action(
 	function () {
 		// Translations are loaded automatically since WordPress 6.7, and by
 		// WordPress.org since 4.6, so load_plugin_textdomain() is not called.
+		new Private_Site();
 		new Upgrade();
 		$app = new App();
 		$app->init();

@@ -20,6 +20,7 @@
 	<file>src</file>
 	<file>templates</file>
 	<file>family-wiki.php</file>
+	<file>class-private-site.php</file>
 
 	<!-- Show progress and sniff codes in all reports -->
 	<arg value="ps"/>
