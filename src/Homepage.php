@@ -27,7 +27,7 @@ class Homepage {
 	public function field() {
 		echo '<input type="hidden" name="' . esc_attr( self::OPTION ) . '" value="0" />';
 		echo '<label><input type="checkbox" name="' . esc_attr( self::OPTION ) . '" value="1" ' . checked( get_option( self::OPTION ), true, false ) . ' /> ';
-		esc_html_e( 'Show the wiki at the homepage for signed-in wiki members.', 'family-wiki' );
+		esc_html_e( 'Show Familypedia instead of the site homepage for signed-in wiki members.', 'family-wiki' );
 		echo '</label>';
 	}
 
