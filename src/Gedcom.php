@@ -700,7 +700,7 @@ class Gedcom {
 			}
 			echo '<dt>' . esc_html( $label ) . '</dt><dd>';
 			// Each link and plain-text name is escaped above.
-			echo $names ? implode( ', ', $names ) : esc_html__( 'Not recorded', 'family-wiki' );
+			echo $names ? wp_kses_post( implode( ', ', $names ) ) : esc_html__( 'Not recorded', 'family-wiki' );
 			echo '</dd>';
 		}
 		echo '</dl>';
@@ -746,7 +746,7 @@ class Gedcom {
 		}
 		$state['changes'] = $this->filter_comparison_changes( $state['changes'] );
 		$selected = isset( $_POST['changes'] ) && is_array( $_POST['changes'] ) ? array_map( 'sanitize_key', wp_unslash( $_POST['changes'] ) ) : array();
-		$values = isset( $_POST['values'] ) && is_array( $_POST['values'] ) ? wp_unslash( $_POST['values'] ) : array();
+		$values = isset( $_POST['values'] ) && is_array( $_POST['values'] ) ? map_deep( wp_unslash( $_POST['values'] ), 'sanitize_text_field' ) : array();
 		$applied = 0;
 		$skipped = 0;
 		foreach ( $state['changes'] as $key => $change ) {

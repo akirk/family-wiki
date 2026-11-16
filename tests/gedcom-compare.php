@@ -12,6 +12,7 @@ namespace {
 	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
 	function esc_html__( $value, $domain ) { return esc_html( $value ); }
 	function esc_url( $value ) { return esc_html( $value ); }
+	function wp_kses_post( $value ) { return strip_tags( $value, '<a><span>' ); }
 	function __( $text, $domain ) { return $text; }
 	function sanitize_text_field( $text ) { return trim( strip_tags( $text ) ); }
 	function get_posts( $args ) { return array( 1, 2 ); }
