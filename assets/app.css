@@ -1044,3 +1044,62 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 
 .familypedia-interview__covered { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 1.5rem; height: 1.5rem; margin-left: auto; border-radius: 50%; background: #26833c; color: #fff; font-size: 1rem; font-weight: 700; }
 .familypedia-interview__covered[hidden] { display: none; }
+
+.familypedia-gedcom-comparison-person {
+	min-width: 0;
+	margin: 1.5rem 0;
+	padding: 1rem;
+	border: 1px solid var(--familypedia-border);
+	border-radius: 0.5rem;
+}
+
+.familypedia-gedcom-comparison-person legend {
+	padding: 0 0.5rem;
+	font-size: 1.2rem;
+	font-weight: 600;
+}
+
+.familypedia-gedcom-comparison-person table {
+	table-layout: fixed;
+	overflow-wrap: anywhere;
+}
+
+.familypedia-gedcom-comparison-person [data-gedcom-value] {
+	box-sizing: border-box;
+	width: 100%;
+	min-width: 0;
+	margin-bottom: 0.5rem;
+}
+
+.familypedia-gedcom-comparison-check {
+	width: 4.5rem;
+}
+
+.familypedia-gedcom-comparison-person thead th:first-child {
+	white-space: nowrap;
+}
+
+.familypedia-gedcom-comparison-arrow {
+	width: 3.5rem;
+}
+
+.familypedia-gedcom-comparison-person [data-gedcom-copy] {
+	padding: 0.35rem 0.6rem;
+}
+
+.familypedia-gedcom-comparison-family {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.25rem 0.75rem;
+	margin: 0 0 1rem;
+	font-size: 0.9rem;
+}
+
+.familypedia-gedcom-comparison-family dt {
+	font-weight: 600;
+}
+
+.familypedia-gedcom-comparison-family dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}

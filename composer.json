@@ -28,6 +28,7 @@
         "test": [
             "@lint",
             "php tests/upgrade.php",
+            "php tests/gedcom-compare.php",
             "php tests/roles.php",
             "php tests/privacy.php",
             "php tests/settings.php",
