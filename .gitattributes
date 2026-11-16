@@ -1,0 +1,11 @@
+# Keep development files out of plugin release archives.
+.gitattributes export-ignore
+.github export-ignore
+.gitignore export-ignore
+.phpcs.xml.dist export-ignore
+.agents export-ignore
+.claude export-ignore
+.codex export-ignore
+bin export-ignore
+tests export-ignore
+blueprint.json export-ignore

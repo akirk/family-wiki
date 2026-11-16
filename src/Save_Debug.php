@@ -216,15 +216,15 @@ class Save_Debug {
 	private function write( $event, $data ) {
 		$path = self::log_path();
 		if ( ! file_exists( $path ) ) {
-			$handle = fopen( $path, 'x' );
+			$handle = fopen( $path, 'x' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Exclusive creation avoids overwriting an existing diagnostic log; WP_Filesystem has no equivalent.
 			if ( false === $handle ) {
 				return;
 			}
-			chmod( $path, 0640 );
-			fclose( $handle );
+			chmod( $path, 0640 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- Restrict the local diagnostic log without initializing filesystem credentials.
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Close the exclusively created local diagnostic log.
 		}
 		if ( ! is_link( $path ) ) {
-			chmod( $path, 0640 );
+			chmod( $path, 0640 ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod -- Restrict the local diagnostic log without initializing filesystem credentials.
 		}
 		$line = wp_json_encode(
 			array_merge(

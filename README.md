@@ -5,7 +5,7 @@
 - Requires at least: 6.0
 - Requires PHP: 7.4
 - Tested up to: 7.1
-- License: [GPLv2 or later](https://www.gnu.org/licenses/gpl-2.0.html)
+- License: [GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html)
 - Stable tag: 2.0.0
 
 Keep your family history in a private wiki app hosted on WordPress.
