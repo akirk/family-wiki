@@ -5,6 +5,11 @@ class Private_Site {
 	const MINIMUM_CAPABILITY = 'edit_others_pages';
 
 	public function __construct() {
+		// Preserve existing private sites without offering whole-site privacy to new sites.
+		if ( '-1' !== (string) get_option( 'blog_public' ) ) {
+			return;
+		}
+
 		add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
 
 		add_filter( 'xmlrpc_methods', array( $this, 'xmlrpc_methods' ) );
