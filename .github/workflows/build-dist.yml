@@ -5,17 +5,21 @@ on:
     branches-ignore:
       - 'dist/**'
   workflow_dispatch:
+  delete:
+  pull_request:
+    types:
+      - closed
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-dist-${{ github.ref_name }}
+  group: build-dist-${{ github.event_name }}-${{ github.event.pull_request.head.ref || github.event.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   build:
-    if: startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref_name, 'dist/')
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && startsWith(github.ref, 'refs/heads/') && !startsWith(github.ref_name, 'dist/')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -113,3 +117,28 @@ jobs:
           fi
           git diff --cached --quiet || git commit -m "Build distribution from source"
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/${DIST_REF} --force
+
+  delete-dist:
+    if: (github.event_name == 'delete' && github.event.ref_type == 'branch' && !startsWith(github.event.ref, 'dist/')) || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository && !startsWith(github.event.pull_request.head.ref, 'dist/'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Delete dist branch
+        uses: actions/github-script@v9
+        env:
+          SOURCE_BRANCH: ${{ github.event.pull_request.head.ref || github.event.ref }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/dist/${process.env.SOURCE_BRANCH}`,
+              });
+            } catch (error) {
+              if (error.status !== 404 && error.status !== 422) {
+                throw error;
+              }
+            }
