@@ -8,68 +8,52 @@ class Settings {
 
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
-		add_action( 'admin_init', array( $this, 'admin_init' ) );
-		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ) );
+		add_action( 'wp_loaded', array( $this, 'maybe_save' ) );
 	}
 
 	public function admin_menu() {
-		add_options_page(
+		$hook = add_options_page(
 			__( 'Familypedia', 'family-wiki' ),
 			__( 'Familypedia', 'family-wiki' ),
 			'manage_options',
 			self::PAGE,
-			array( $this, 'render_page' )
+			array( $this, 'redirect_legacy_page' )
 		);
+		add_action( 'load-' . $hook, array( $this, 'redirect_legacy_page' ) );
 	}
 
-	public function admin_enqueue_scripts( $hook_suffix ) {
-		if ( 'settings_page_' . self::PAGE !== $hook_suffix ) {
+	public static function url() {
+		return home_url( '/' . App::URL_PATH . '/settings/' );
+	}
+
+	public function redirect_legacy_page() {
+		if ( current_user_can( 'manage_options' ) ) {
+			wp_safe_redirect( self::url() );
+			exit;
+		}
+	}
+
+	public function maybe_save() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce is checked before any changes below.
+		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) || ! isset( $_POST['familypedia_save_settings'] ) ) {
 			return;
 		}
 
-		wp_enqueue_style(
-			'familypedia-settings',
-			Assets::url( 'settings.css' ),
-			array(),
-			Assets::version( 'settings.css' )
-		);
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to manage settings.', 'family-wiki' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'familypedia_save_settings' );
 
-		wp_enqueue_script(
-			'familypedia-settings',
-			Assets::url( 'settings.js' ),
-			array(),
-			Assets::version( 'settings.js' ),
-			true
-		);
-	}
+		update_option( Homepage::OPTION, ! empty( $_POST[ Homepage::OPTION ] ) );
+		update_option( self::INFOBOX_OPTION, $this->sanitize_infobox_settings( isset( $_POST[ self::INFOBOX_OPTION ] ) ? wp_unslash( $_POST[ self::INFOBOX_OPTION ] ) : array() ) );
+		update_option( self::APP_PAGES_OPTION, $this->sanitize_app_pages_settings( isset( $_POST[ self::APP_PAGES_OPTION ] ) ? wp_unslash( $_POST[ self::APP_PAGES_OPTION ] ) : array() ) );
+		if ( is_multisite() ) {
+			update_option( Cross_Wiki::OPTION, $this->sanitize_cross_wiki_sites( isset( $_POST[ Cross_Wiki::OPTION ] ) ? wp_unslash( $_POST[ Cross_Wiki::OPTION ] ) : array() ) );
+		}
 
-	public function admin_init() {
-		register_setting(
-			self::PAGE,
-			Cross_Wiki::OPTION,
-			array(
-				'sanitize_callback' => array( $this, 'sanitize_cross_wiki_sites' ),
-				'default'           => array(),
-			)
-		);
-
-		register_setting(
-			self::PAGE,
-			self::INFOBOX_OPTION,
-			array(
-				'sanitize_callback' => array( $this, 'sanitize_infobox_settings' ),
-				'default'           => self::get_default_infobox_settings(),
-			)
-		);
-
-		register_setting(
-			self::PAGE,
-			self::APP_PAGES_OPTION,
-			array(
-				'sanitize_callback' => array( $this, 'sanitize_app_pages_settings' ),
-				'default'           => self::get_default_app_pages_settings(),
-			)
-		);
+		Editor::set_notice( __( 'Settings saved.', 'family-wiki' ), 'success' );
+		wp_safe_redirect( self::url() );
+		exit;
 	}
 
 	public static function get_infobox_settings() {
@@ -122,17 +106,26 @@ class Settings {
 		$app_pages = self::get_app_pages_settings();
 		$is_multisite  = function_exists( 'is_multisite' ) && is_multisite();
 		?>
-		<div class="wrap">
+		<div class="familypedia-settings">
 			<h1><?php esc_html_e( 'Familypedia Settings', 'family-wiki' ); ?></h1>
-			<form method="post" action="options.php">
+			<form method="post" action="<?php echo esc_url( self::url() ); ?>">
 				<?php
-				settings_fields( self::PAGE );
-				do_settings_sections( self::PAGE );
+				wp_nonce_field( 'familypedia_save_settings' );
 				?>
+				<input type="hidden" name="familypedia_save_settings" value="1" />
+
+				<section class="familypedia-settings__section">
+					<h2><?php esc_html_e( 'Member homepage', 'family-wiki' ); ?></h2>
+					<label>
+						<input type="checkbox" name="<?php echo esc_attr( Homepage::OPTION ); ?>" value="1" <?php checked( get_option( Homepage::OPTION, false ) ); ?> />
+						<?php esc_html_e( 'Show Familypedia instead of the site homepage for signed-in wiki members.', 'family-wiki' ); ?>
+					</label>
+					<p class="familypedia-settings__help"><?php esc_html_e( 'Other visitors will continue to see the usual site homepage.', 'family-wiki' ); ?></p>
+				</section>
 
 				<section class="familypedia-settings__section">
 					<h2><?php esc_html_e( 'Infoboxes', 'family-wiki' ); ?></h2>
-					<p><?php esc_html_e( 'Choose which optional sections and behaviors appear in person infoboxes.', 'family-wiki' ); ?></p>
+					<p class="familypedia-settings__help"><?php esc_html_e( 'Choose which optional sections and behaviors appear in person infoboxes.', 'family-wiki' ); ?></p>
 					<div class="familypedia-settings__choices">
 						<label>
 							<input type="checkbox" name="<?php echo esc_attr( self::INFOBOX_OPTION ); ?>[show_related_pages]" value="1" <?php checked( $infobox['show_related_pages'] ); ?> />
@@ -151,7 +144,7 @@ class Settings {
 
 				<section class="familypedia-settings__section">
 					<h2><?php esc_html_e( 'App pages', 'family-wiki' ); ?></h2>
-					<p><?php esc_html_e( 'Familypedia serves these pages from the app. They do not need to be created as WordPress pages.', 'family-wiki' ); ?></p>
+					<p class="familypedia-settings__help"><?php esc_html_e( 'Familypedia serves these pages from the app. They do not need to be created as WordPress pages.', 'family-wiki' ); ?></p>
 					<div class="familypedia-settings__choices">
 						<label>
 							<input type="checkbox" name="<?php echo esc_attr( self::APP_PAGES_OPTION ); ?>[calendar]" value="1" <?php checked( $app_pages['calendar'] ); ?> />
@@ -187,7 +180,7 @@ class Settings {
 
 						<div class="familypedia-settings__sites" data-familypedia-sites>
 							<?php if ( empty( $sites ) ) : ?>
-								<p class="description" data-familypedia-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
+								<p class="familypedia-settings__help" data-familypedia-empty><?php esc_html_e( 'No cross-wiki sites configured yet.', 'family-wiki' ); ?></p>
 							<?php endif; ?>
 
 							<?php foreach ( $sites as $index => $site ) : ?>
@@ -196,12 +189,12 @@ class Settings {
 						</div>
 
 						<p>
-							<button type="button" class="button" data-familypedia-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
+							<button type="button" class="familypedia-button" data-familypedia-add-site><?php esc_html_e( 'Add wiki', 'family-wiki' ); ?></button>
 						</p>
 					<?php endif; ?>
 				</section>
 
-				<?php submit_button(); ?>
+				<p><button type="submit" class="familypedia-button familypedia-button--primary"><?php esc_html_e( 'Save Changes', 'family-wiki' ); ?></button></p>
 			</form>
 
 			<?php if ( $is_multisite ) : ?>
@@ -233,6 +226,9 @@ class Settings {
 
 		$return = array();
 		foreach ( $sites as $site ) {
+			if ( ! is_array( $site ) ) {
+				continue;
+			}
 			$site_id = empty( $site['site_id'] ) ? 0 : absint( $site['site_id'] );
 			if ( ! $site_id && ! empty( $site['url'] ) ) {
 				$site_id = $this->get_blog_id_for_url( $site['url'] );
@@ -312,7 +308,7 @@ class Settings {
 		<section class="familypedia-settings__site" data-familypedia-site="<?php echo esc_attr( $index ); ?>">
 			<div class="familypedia-settings__site-header">
 				<h3><?php echo empty( $site['label'] ) ? esc_html__( 'Cross-wiki site', 'family-wiki' ) : esc_html( $site['label'] ); ?></h3>
-				<button type="button" class="button familypedia-settings__remove" data-familypedia-remove-site><?php esc_html_e( 'Remove wiki', 'family-wiki' ); ?></button>
+				<button type="button" class="familypedia-button familypedia-settings__remove" data-familypedia-remove-site><?php esc_html_e( 'Remove wiki', 'family-wiki' ); ?></button>
 			</div>
 
 			<div class="familypedia-settings__fields">
@@ -336,7 +332,7 @@ class Settings {
 			</datalist>
 
 			<h4><?php esc_html_e( 'Person matches', 'family-wiki' ); ?></h4>
-			<p class="description"><?php esc_html_e( 'Add a page match when automatic matching cannot find the same page because the two wikis use different URL slugs. Save after selecting a wiki to load page suggestions from that site.', 'family-wiki' ); ?></p>
+			<p class="familypedia-settings__help"><?php esc_html_e( 'Add a page match when automatic matching cannot find the same page because the two wikis use different URL slugs. Save after selecting a wiki to load page suggestions from that site.', 'family-wiki' ); ?></p>
 
 			<div data-familypedia-mappings>
 				<?php
@@ -349,7 +345,7 @@ class Settings {
 			</div>
 
 			<p>
-				<button type="button" class="button" data-familypedia-add-mapping><?php esc_html_e( 'Add person match', 'family-wiki' ); ?></button>
+				<button type="button" class="familypedia-button" data-familypedia-add-mapping><?php esc_html_e( 'Add person match', 'family-wiki' ); ?></button>
 			</p>
 		</section>
 		<?php
@@ -367,7 +363,7 @@ class Settings {
 				<input type="text" list="<?php echo esc_attr( $remote_list ); ?>" name="<?php echo esc_attr( Cross_Wiki::OPTION . '[' . $site_index . '][mappings][' . $mapping_index . '][remote]' ); ?>" value="<?php echo esc_attr( $remote_slug ); ?>" placeholder="remote-person-slug" />
 			</p>
 			<p>
-				<button type="button" class="button familypedia-settings__remove" data-familypedia-remove-mapping><?php esc_html_e( 'Remove', 'family-wiki' ); ?></button>
+				<button type="button" class="familypedia-button familypedia-settings__remove" data-familypedia-remove-mapping><?php esc_html_e( 'Remove', 'family-wiki' ); ?></button>
 			</p>
 		</div>
 		<?php

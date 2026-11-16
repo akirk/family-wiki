@@ -124,6 +124,7 @@ class App extends BaseApp {
 		$this->app->route( '', 'index.php' );
 		$this->app->route( 'all', 'all.php' );
 		$this->app->route( 'stubs', 'stubs.php' );
+		$this->app->route( 'settings', 'settings.php' );
 		$this->app->route( 'interviews', 'interview-index.php' );
 		$this->app->route( 'new', 'edit.php' );
 		$this->app->route( 'new-page', 'edit-page.php' );
@@ -182,7 +183,7 @@ class App extends BaseApp {
 			$manage_args = array();
 		}
 		if ( current_user_can( 'manage_options' ) ) {
-			$this->app->add_menu_item( 'settings', __( 'Settings', 'family-wiki' ), admin_url( 'options-general.php?page=' . Settings::PAGE ), $manage_args );
+			$this->app->add_menu_item( 'settings', __( 'Settings', 'family-wiki' ), Settings::url(), $manage_args );
 		}
 	}
 
