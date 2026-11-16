@@ -101,10 +101,12 @@ class Private_Site {
 			return;
 		}
 
-		$full_request_url = sanitize_url( ( ( empty( $_SERVER['HTTPS'] ) || 'off' === $_SERVER['HTTPS'] ) ? 'http' : 'https' ) . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? sanitize_url( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+		$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$full_request_url = sanitize_url( ( ( empty( $_SERVER['HTTPS'] ) || 'off' === $_SERVER['HTTPS'] ) ? 'http' : 'https' ) . '://' . $host . $request_uri );
 
 		if ( untrailingslashit( $full_request_url ) === site_url( '/robots.txt' ) ) {
-			do_action( 'do_robots' );
+			do_action( 'do_robots' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Invoke the core robots.txt handler.
 			exit;
 		}
 
@@ -127,7 +129,7 @@ class Private_Site {
 		</head>
 		<body>
 			<?php esc_html_e( 'This site is private.', 'family-wiki' ); ?>
-						<a href="<?php echo esc_url( wp_login_url( $_SERVER['REQUEST_URI'] ) ); ?>"><?php esc_html_e( 'Login' ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Use the WordPress core translation from the default text domain. ?></a>
+						<a href="<?php echo esc_url( wp_login_url( $request_uri ) ); ?>"><?php esc_html_e( 'Login' ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Use the WordPress core translation from the default text domain. ?></a>
 		</body>
 		</html>
 		<?php

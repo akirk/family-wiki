@@ -110,6 +110,7 @@ class Upgrade {
 				'posts_per_page' => -1,
 				'orderby'        => 'ID',
 				'order'          => 'ASC',
+				// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_exclude -- Exclude at most three configured system pages from the one-time migration picker.
 				'exclude'        => array_filter( array( (int) get_option( 'page_on_front' ), (int) get_option( 'page_for_posts' ), (int) get_option( 'wp_page_for_privacy_policy' ) ) ),
 			)
 		);
@@ -408,8 +409,8 @@ class Upgrade {
 				'post_type'      => array( 'page', Person::POST_TYPE ),
 				'post_status'    => array( 'publish', 'private', 'draft', 'pending', 'future' ),
 				'posts_per_page' => 1,
-				'meta_key'       => self::META,
-				'meta_value'     => $url,
+				'meta_key'       => self::META, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Look up a migrated page by its saved legacy URL.
+				'meta_value'     => $url, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Exact legacy URL match is required for the redirect.
 			)
 		);
 		if ( $posts ) {

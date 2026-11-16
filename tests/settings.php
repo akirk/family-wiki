@@ -15,6 +15,7 @@ namespace {
 	function wp_die( ...$args ) { throw new RuntimeException( 'forbidden' ); }
 	function check_admin_referer( $action ) { if ( ! $GLOBALS['nonce'] ) { throw new RuntimeException( 'nonce' ); } }
 	function wp_unslash( $value ) { return $value; }
+	function sanitize_text_field( $value ) { return trim( strip_tags( $value ) ); }
 	function update_option( $key, $value ) { $GLOBALS['options'][ $key ] = $value; }
 	function is_multisite() { return $GLOBALS['multisite']; }
 	function home_url( $path ) { return 'https://example.org' . $path; }
