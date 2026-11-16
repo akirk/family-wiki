@@ -9,6 +9,7 @@ namespace Family_Wiki {
 	}
 }
 namespace {
+	use Family_Wiki\Gedcom;
 	function add_action( ...$args ) {}
 	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
 	function esc_html__( $value, $domain ) { return esc_html( $value ); }
@@ -34,16 +35,46 @@ namespace {
 	function is_wp_error( $value ) { return false; }
 	function update_post_meta( $id, $field, $value ) { $GLOBALS['meta'][ $id ][ $field ] = $value; }
 	require __DIR__ . '/../src/Gedcom.php';
+	// These helpers can be exercised without constructing Gedcom or registering hooks.
+	$parsed_text = Gedcom::parse_records( "0 @I1@ INDI\r\n1 NAME Jane /Smith/\r1 BIRT\n2 DATE 2 JAN 1900\n0 @F1@ FAM\n1 CHIL @I1@\n0 TRLR\n" );
+	if ( 'Jane /Smith/' !== $parsed_text['INDI']['I1'][0]['value'] || '@I1@' !== $parsed_text['FAM']['F1'][0]['value'] ) {
+		throw new RuntimeException( 'Static parsing must handle mixed line endings and preserve family pointers.' );
+	}
+	foreach ( array(
+		array( '2 JAN 1900', '1900-01-02', false ),
+		array( 'ABT 2 JAN 1900', '1900-01-02', true ),
+		array( 'jan 1900', '1900-01-01', true ),
+		array( '1900', '1900-01-01', true ),
+		array( 'unknown', '', false ),
+	) as $case ) {
+		if ( array( 'date' => $case[1], 'approximate' => $case[2] ) !== Gedcom::parse_gedcom_date( $case[0] ) ) {
+			throw new RuntimeException( 'Static GEDCOM date parsing failed: ' . $case[0] );
+		}
+	}
+	if ( 'jane smith' !== Gedcom::matching_name( " Jane&#32; \xc2\xa0Smith " ) ) {
+		throw new RuntimeException( 'Static name normalization must collapse encoded and non-breaking spaces.' );
+	}
+	foreach ( array(
+		array( 'cameron clark', 'cameron alexander kirk clark', true ),
+		array( 'cameron alexander kirk clark', 'cameron clark', true ),
+		array( 'coralie clark', 'coralie clark lupi', true ),
+		array( 'david clark', 'david a clark', true ),
+		array( 'jane smith', 'john smith', false ),
+		array( 'jane smith', 'smith jane', false ),
+		array( 'jane', 'jane smith', false ),
+	) as $case ) {
+		if ( $case[2] !== Gedcom::matching_name_variant( $case[0], $case[1] ) ) {
+			throw new RuntimeException( 'Static name variant matching failed.' );
+		}
+	}
 	$gedcom = new \Family_Wiki\Gedcom();
-	$parse = new ReflectionMethod( $gedcom, 'parse_records' );
-	$parse->setAccessible( true );
 	$compare = new ReflectionMethod( $gedcom, 'comparison_changes' );
 	$compare->setAccessible( true );
 	$GLOBALS['meta'] = array(
 		1 => array( '_family_wiki_gedcom_xref' => 'I1', 'birth_date' => '1900-01-01', 'born_as' => 'Jane Smith', 'alive' => 1 ),
 		2 => array( '_family_wiki_gedcom_xref' => 'I3' ),
 	);
-	$records = $parse->invoke( $gedcom, "0 @I1@ INDI\n1 NAME Jane /Smith/\n1 BIRT\n2 DATE ABT 2 JAN 1900\n2 PLAC Vienna\n0 @I2@ INDI\n1 NAME New /Person/\n0 @I3@ INDI\n1 NAME Deleted /Person/\n1 SEX M\n0 TRLR\n" );
+	$records = Gedcom::parse_records( "0 @I1@ INDI\n1 NAME Jane /Smith/\n1 BIRT\n2 DATE ABT 2 JAN 1900\n2 PLAC Vienna\n0 @I2@ INDI\n1 NAME New /Person/\n0 @I3@ INDI\n1 NAME Deleted /Person/\n1 SEX M\n0 TRLR\n" );
 	$changes = $compare->invoke( $gedcom, $records );
 	$fields = array_column( $changes, 'field' );
 	if ( array( 'birth_place' ) !== $fields ) {
@@ -106,8 +137,6 @@ namespace {
 	if ( $redundant->invoke( $gedcom, 1, 'born_as', 'Jane Jones' ) ) {
 		throw new RuntimeException( 'Distinct birth name was suppressed.' );
 	}
-	$edit = new ReflectionMethod( $gedcom, 'comparison_edited_value' );
-	$edit->setAccessible( true );
 	foreach ( array(
 		array( 'post_title', '  Custom name  ', 'Custom name' ),
 		array( 'birth_place', '<b>Vienna</b>', 'Vienna' ),
@@ -119,7 +148,7 @@ namespace {
 		array( 'post_title', array( 'invalid' ), null ),
 		array( 'birth_place', null, null ),
 	) as $case ) {
-		if ( $case[2] !== $edit->invoke( $gedcom, $case[0], $case[1] ) ) {
+		if ( $case[2] !== Gedcom::comparison_edited_value( $case[0], $case[1] ) ) {
 			throw new RuntimeException( 'Edited value validation failed.' );
 		}
 	}
@@ -136,7 +165,7 @@ namespace {
 	}
 	$missing = new ReflectionMethod( $gedcom, 'comparison_missing_people' );
 	$missing->setAccessible( true );
-	$adjacent_records = $parse->invoke( $gedcom, "0 @I1@ INDI\n1 NAME Jane /Smith/\n0 @P@ INDI\n1 NAME A /Parent/\n0 @S@ INDI\n1 NAME A /Spouse/\n0 @C@ INDI\n1 NAME A /Child/\n0 @G@ INDI\n1 NAME A /Grandchild/\n0 @B@ INDI\n1 NAME A /Sibling/\n0 @U@ INDI\n1 NAME An /Unrelated/\n0 @I3@ INDI\n1 NAME Deleted /Person/\n0 @F1@ FAM\n1 HUSB @P@\n1 CHIL @I1@\n1 CHIL @B@\n0 @F2@ FAM\n1 HUSB @I1@\n1 WIFE @S@\n1 CHIL @C@\n1 CHIL @I3@\n0 @F3@ FAM\n1 HUSB @C@\n1 CHIL @G@\n0 TRLR\n" );
+	$adjacent_records = Gedcom::parse_records( "0 @I1@ INDI\n1 NAME Jane /Smith/\n0 @P@ INDI\n1 NAME A /Parent/\n0 @S@ INDI\n1 NAME A /Spouse/\n0 @C@ INDI\n1 NAME A /Child/\n0 @G@ INDI\n1 NAME A /Grandchild/\n0 @B@ INDI\n1 NAME A /Sibling/\n0 @U@ INDI\n1 NAME An /Unrelated/\n0 @I3@ INDI\n1 NAME Deleted /Person/\n0 @F1@ FAM\n1 HUSB @P@\n1 CHIL @I1@\n1 CHIL @B@\n0 @F2@ FAM\n1 HUSB @I1@\n1 WIFE @S@\n1 CHIL @C@\n1 CHIL @I3@\n0 @F3@ FAM\n1 HUSB @C@\n1 CHIL @G@\n0 TRLR\n" );
 	$xrefs = array_column( $missing->invoke( $gedcom, $adjacent_records ), 'xref' );
 	sort( $xrefs );
 	if ( array( 'C', 'P', 'S' ) !== $xrefs ) {

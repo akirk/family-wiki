@@ -177,7 +177,7 @@ class Gedcom {
 				$result['errors'][ $stable_key ] = array( 'message' => __( 'This person could not be updated. Check the page and your editing permissions.', 'family-wiki' ) );
 				continue;
 			}
-			$value = $this->comparison_edited_value( $field, $values[ $key ] ?? null );
+			$value = self::comparison_edited_value( $field, $values[ $key ] ?? null );
 			if ( null === $value ) {
 				$result['errors'][ $stable_key ] = array( 'message' => __( 'This value is invalid. Your edit has been kept.', 'family-wiki' ) );
 				continue;
@@ -222,7 +222,7 @@ class Gedcom {
 			}
 			$result['saved'][] = $stable_key;
 		}
-		$records = $this->parse_records( $snapshot['contents'] );
+		$records = self::parse_records( $snapshot['contents'] );
 		$imports = array();
 		foreach ( array( 'missing', 'skipped', 'missing_fields', 'missing_values' ) as $name ) {
 			$imports[ $name ] = isset( $selection[ $name ] ) && is_array( $selection[ $name ] ) ? $selection[ $name ] : array();
@@ -269,7 +269,7 @@ class Gedcom {
 				return new \WP_Error( 'review_expired', $this->error_message( 'review_expired' ), array( 'status' => 410 ) );
 			}
 		}
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		$xref = (string) $request->get_param( 'xref' );
 		foreach ( $this->comparison_skipped_people( $records, $this->comparison_changes( $records ), $this->comparison_missing_people( $records ) ) as $person ) {
 			if ( (string) $person['xref'] === $xref && $person['can_import'] ) {
@@ -291,7 +291,7 @@ class Gedcom {
 			return new \WP_Error( 'familypedia_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			return new \WP_Error( 'familypedia_no_individuals', $this->error_message( 'no_individuals' ), array( 'status' => 400 ) );
 		}
@@ -367,7 +367,7 @@ class Gedcom {
 			return new \WP_Error( 'familypedia_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 
 		if ( 'families' === $state['stage'] ) {
 			$state = $this->import_families_batch( $state, $records );
@@ -855,7 +855,7 @@ class Gedcom {
 						unset( $values[ $field ] );
 						continue;
 					}
-					$value = $this->comparison_edited_value( $field, $edited_fields[ $field ] ?? null );
+					$value = self::comparison_edited_value( $field, $edited_fields[ $field ] ?? null );
 					if ( null === $value ) {
 						$invalid = true;
 						break;
@@ -952,7 +952,7 @@ class Gedcom {
 			$people[ $change['id'] ][ $key ] = $change;
 		}
 		$contents = isset( $state['client'] ) ? $state['client']['contents'] : $this->get_import_file( $token );
-		$records = false !== $contents ? $this->parse_records( $contents ) : array(
+		$records = false !== $contents ? self::parse_records( $contents ) : array(
 			'INDI' => array(),
 			'FAM'  => array(),
 		);
@@ -1127,7 +1127,7 @@ class Gedcom {
 		echo '<li>' . esc_html( sprintf( __( 'Birth year: %s. Name variants require the same recorded birth year and a unique candidate.', 'family-wiki' ), $person['birth_year'] ?: __( 'Not recorded', 'family-wiki' ) ) ) . '</li>';
 		$index = $this->existing_page_index();
 		foreach ( $index['aliases'] as $alias => $ids ) {
-			if ( ! $this->matching_name_variant( $this->matching_name( $person['name'] ), $alias ) ) {
+			if ( ! self::matching_name_variant( self::matching_name( $person['name'] ), $alias ) ) {
 				continue;
 			}
 			foreach ( $ids as $id ) {
@@ -1211,7 +1211,7 @@ class Gedcom {
 	}
 
 	/** Validate an edited proposal without trusting field names from the browser. */
-	private function comparison_edited_value( $field, $value ) {
+	public static function comparison_edited_value( $field, $value ) {
 		if ( ! is_scalar( $value ) ) {
 			return null;
 		}
@@ -1265,7 +1265,7 @@ class Gedcom {
 			if ( $this->is_redundant_birth_name( $id, $field, $change['value'] ) ) {
 				continue;
 			}
-			$value = $this->comparison_edited_value( $field, isset( $values[ $key ] ) ? $values[ $key ] : null );
+			$value = self::comparison_edited_value( $field, isset( $values[ $key ] ) ? $values[ $key ] : null );
 			if ( null === $value ) {
 				++$skipped;
 				continue;
@@ -1302,7 +1302,7 @@ class Gedcom {
 		$fields = isset( $_POST['missing_fields'] ) && is_array( $_POST['missing_fields'] ) ? map_deep( wp_unslash( $_POST['missing_fields'] ), 'sanitize_text_field' ) : array();
 		$edited = isset( $_POST['missing_values'] ) && is_array( $_POST['missing_values'] ) ? map_deep( wp_unslash( $_POST['missing_values'] ), 'sanitize_text_field' ) : array();
 		$selected_skipped = isset( $_POST['skipped'] ) && is_array( $_POST['skipped'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['skipped'] ) ) : array();
-		$imported = false !== $contents ? $this->import_comparison_people( $this->parse_records( $contents ), $selected_people, $fields, $edited, $selected_skipped ) : 0;
+		$imported = false !== $contents ? $this->import_comparison_people( self::parse_records( $contents ), $selected_people, $fields, $edited, $selected_skipped ) : 0;
 		$this->delete_import_file( $token );
 		Editor::set_notice(
 			/* translators: 1: applied facts, 2: skipped facts. */
@@ -1327,7 +1327,7 @@ class Gedcom {
 			return;
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			?>
 			<p class="familypedia-notice familypedia-notice--error"><?php echo esc_html( $this->error_message( 'no_individuals' ) ); ?></p>
@@ -1692,7 +1692,7 @@ class Gedcom {
 			$this->fail( 'empty_file' );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			$this->fail( 'no_individuals' );
 		}
@@ -1941,7 +1941,7 @@ class Gedcom {
 	}
 
 	public function import_string( $contents, $selected_xrefs = null ) {
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			return new \WP_Error( 'no_individuals', __( 'The GEDCOM file does not contain individual records.', 'family-wiki' ) );
 		}
@@ -2377,7 +2377,7 @@ class Gedcom {
 
 			if ( ! $trashed ) {
 				foreach ( array( get_the_title( $page_id ), get_post_meta( $page_id, 'born_as', true ) ) as $name ) {
-					$key = $this->matching_name( $name );
+					$key = self::matching_name( $name );
 					if ( $key ) {
 						$index['aliases'][ $key ][ $page_id ] = $page_id;
 					}
@@ -2509,7 +2509,8 @@ class Gedcom {
 		return implode( ', ', $parts );
 	}
 
-	private function parse_records( $contents ) {
+	/** Parse GEDCOM text into records grouped by type and cross-reference ID. */
+	public static function parse_records( $contents ) {
 		$contents = str_replace( array( "\r\n", "\r" ), "\n", $contents );
 		$lines    = explode( "\n", $contents );
 		$records  = array();
@@ -2791,7 +2792,7 @@ class Gedcom {
 				continue;
 			}
 			if ( 'DATE' === $line['tag'] ) {
-				$parsed = $this->parse_gedcom_date( $line['value'] );
+				$parsed = self::parse_gedcom_date( $line['value'] );
 				$event['date']        = $parsed['date'];
 				$event['approximate'] = $parsed['approximate'];
 			} elseif ( 'PLAC' === $line['tag'] ) {
@@ -2802,7 +2803,8 @@ class Gedcom {
 		return $event;
 	}
 
-	private function parse_gedcom_date( $date ) {
+	/** Parse a GEDCOM date into a wiki date and its approximation flag. */
+	public static function parse_gedcom_date( $date ) {
 		$date        = trim( strtoupper( $date ) );
 		$approximate = false;
 		if ( preg_match( '/^(ABT|ABOUT|CAL|EST)\s+(.+)$/', $date, $matches ) ) {
@@ -2810,7 +2812,7 @@ class Gedcom {
 			$date        = $matches[2];
 		}
 
-		$months = array_flip( $this->gedcom_months() );
+		$months = array_flip( self::gedcom_months() );
 		if ( preg_match( '/^(\d{1,2})\s+([A-Z]{3})\s+(\d{3,4})$/', $date, $matches ) && isset( $months[ $matches[2] ] ) ) {
 			return array(
 				'date'        => sprintf( '%04d-%02d-%02d', $matches[3], $months[ $matches[2] ], $matches[1] ),
@@ -2890,13 +2892,13 @@ class Gedcom {
 	}
 
 	/** Normalize names for matching without changing their saved spelling. */
-	private function matching_name( $name ) {
+	public static function matching_name( $name ) {
 		$name = html_entity_decode( (string) $name, ENT_QUOTES, 'UTF-8' );
 		return strtolower( trim( preg_replace( '/[\s\x{00a0}]+/u', ' ', $name ) ) );
 	}
 
 	/** Allow omitted middle or married names, keeping the first name and token order. */
-	private function matching_name_variant( $left, $right ) {
+	public static function matching_name_variant( $left, $right ) {
 		$left = explode( ' ', $left );
 		$right = explode( ' ', $right );
 		if ( count( $left ) < 2 || count( $right ) < 2 || $left[0] !== $right[0] ) {
@@ -2916,11 +2918,11 @@ class Gedcom {
 
 	/** Exact aliases, or name variants supported by a matching birth year. */
 	private function comparison_match_candidates( $xref, $name, $index, $birth_year ) {
-		$name = $this->matching_name( $name );
+		$name = self::matching_name( $name );
 		$exact = array();
 		$variants = array();
 		foreach ( $index['aliases'] ?? array() as $alias => $ids ) {
-			if ( $name !== $alias && ! $this->matching_name_variant( $name, $alias ) ) {
+			if ( $name !== $alias && ! self::matching_name_variant( $name, $alias ) ) {
 				continue;
 			}
 			foreach ( $ids as $id ) {
@@ -3015,7 +3017,7 @@ class Gedcom {
 	private function format_gedcom_date( $date ) {
 		$date = trim( (string) $date );
 		if ( preg_match( '/^(\d{4})-?(\d{2})-?(\d{2})$/', $date, $matches ) ) {
-			$months = $this->gedcom_months();
+			$months = self::gedcom_months();
 			return (int) $matches[3] . ' ' . $months[ (int) $matches[2] ] . ' ' . $matches[1];
 		}
 		if ( preg_match( '/^\d{4}$/', $date ) ) {
@@ -3025,7 +3027,7 @@ class Gedcom {
 		return $this->clean_gedcom_value( $date );
 	}
 
-	private function gedcom_months() {
+	private static function gedcom_months() {
 		return array(
 			1  => 'JAN',
 			2  => 'FEB',
