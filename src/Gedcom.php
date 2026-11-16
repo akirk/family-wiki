@@ -6,6 +6,7 @@ class Gedcom {
 	const EXPORT_ACTION = 'familypedia_gedcom_export';
 	const IMPORT_ACTION = 'familypedia_gedcom_import';
 	const COMPARE_ACTION = 'familypedia_gedcom_compare_selected';
+	const RESUME_COMPARE_ACTION = 'familypedia_gedcom_resume_comparison';
 	const SELECT_ACTION = 'familypedia_gedcom_import_selected';
 	const XREF_META = '_family_wiki_gedcom_xref';
 	const IMPORT_TRANSIENT_PREFIX = 'familypedia_gedcom_import_';
@@ -69,6 +70,9 @@ class Gedcom {
 	 */
 	private $content_index_cache = array();
 
+	private $resumed_comparison;
+	private $comparison_imported_xrefs = array();
+
 	public function __construct() {
 		if ( ! self::$instance ) {
 			self::$instance = $this;
@@ -106,6 +110,175 @@ class Gedcom {
 				'callback'            => array( $this, 'rest_import_step' ),
 			)
 		);
+		register_rest_route(
+			'familypedia/v1',
+			'/comparison-person',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_comparison_person' ),
+			)
+		);
+		register_rest_route(
+			'familypedia/v1',
+			'/comparison-save',
+			array(
+				'methods'             => 'POST',
+				'permission_callback' => array( __CLASS__, 'can_import' ),
+				'callback'            => array( $this, 'rest_save_comparison' ),
+			)
+		);
+	}
+
+	/** Browser reviews are untrusted input; editing rights are checked again at save time. */
+	private function client_comparison_snapshot( $snapshot ) {
+		if ( is_string( $snapshot ) ) {
+			$snapshot = json_decode( $snapshot, true );
+		}
+		if ( ! is_array( $snapshot ) || 1 !== ( $snapshot['version'] ?? null )
+			|| get_current_user_id() !== ( $snapshot['owner'] ?? null )
+			|| get_current_blog_id() !== ( $snapshot['site'] ?? null )
+			|| ! isset( $snapshot['contents'], $snapshot['changes'] )
+			|| ! is_string( $snapshot['contents'] ) || ! is_array( $snapshot['changes'] ) ) {
+			return false;
+		}
+		$labels = $this->comparison_field_labels();
+		foreach ( $snapshot['changes'] as $change ) {
+			if ( ! is_array( $change ) || ! isset( $change['id'], $change['field'], $change['old'], $change['value'] )
+				|| ! is_int( $change['id'] ) || $change['id'] < 1 || ! is_string( $change['field'] )
+				|| ! isset( $labels[ $change['field'] ] ) || ! is_scalar( $change['old'] ) || ! is_scalar( $change['value'] ) ) {
+				return false;
+			}
+		}
+		return $snapshot;
+	}
+
+	private function comparison_draft_prefix() {
+		return 'familypedia-comparison-v1:' . get_current_blog_id() . ':' . get_current_user_id() . ':';
+	}
+
+	/** Apply facts independently so conflicts never discard other pending edits. */
+	private function save_client_comparison( $snapshot, $selection ) {
+		$result = array(
+			'saved'    => array(),
+			'imported' => array(),
+			'errors'   => array(),
+		);
+		$selected = isset( $selection['changes'] ) && is_array( $selection['changes'] ) ? $selection['changes'] : array();
+		$values = isset( $selection['values'] ) && is_array( $selection['values'] ) ? $selection['values'] : array();
+		foreach ( $snapshot['changes'] as $key => $change ) {
+			if ( ! in_array( (string) $key, array_map( 'strval', array_filter( $selected, 'is_scalar' ) ), true ) ) {
+				continue;
+			}
+			$id = $change['id'];
+			$field = $change['field'];
+			$stable_key = 'post:' . $id . ':' . $field;
+			if ( Person::POST_TYPE !== get_post_type( $id ) || ! current_user_can( 'edit_post', $id ) || ! get_post_status( $id ) || 'trash' === get_post_status( $id ) ) {
+				$result['errors'][ $stable_key ] = array( 'message' => __( 'This person could not be updated. Check the page and your editing permissions.', 'family-wiki' ) );
+				continue;
+			}
+			$value = self::comparison_edited_value( $field, $values[ $key ] ?? null );
+			if ( null === $value ) {
+				$result['errors'][ $stable_key ] = array( 'message' => __( 'This value is invalid. Your edit has been kept.', 'family-wiki' ) );
+				continue;
+			}
+			$current = 'post_title' === $field ? get_the_title( $id ) : $this->get_field_value( $field, $id );
+			if ( in_array( $field, array( 'alive', 'exact_birth_date_unknown', 'exact_death_date_unknown' ), true ) ) {
+				$current = $current ? 1 : 0;
+			}
+			if ( (string) $current !== (string) $change['old'] && (string) $current !== (string) $value ) {
+				$result['errors'][ $stable_key ] = array(
+					'message' => __( 'The wiki value changed. Your edit has been kept. Review the current value, then check Save again to replace it.', 'family-wiki' ),
+					'current' => $current,
+				);
+				continue;
+			}
+			if ( (string) $current !== (string) $value ) {
+				if ( 'post_title' === $field ) {
+					$updated = wp_update_post(
+						wp_slash(
+							array(
+								'ID'         => $id,
+								'post_title' => $value,
+							)
+						),
+						true
+					);
+					if ( is_wp_error( $updated ) || ! $updated ) {
+						$result['errors'][ $stable_key ] = array( 'message' => __( 'This value could not be saved. Your edit has been kept.', 'family-wiki' ) );
+						continue;
+					}
+				} else {
+					$this->update_field( $field, $value, $id );
+					$saved_value = $this->get_field_value( $field, $id );
+					if ( in_array( $field, array( 'alive', 'exact_birth_date_unknown', 'exact_death_date_unknown' ), true ) ) {
+						$saved_value = $saved_value ? 1 : 0;
+					}
+					if ( (string) $saved_value !== (string) $value ) {
+						$result['errors'][ $stable_key ] = array( 'message' => __( 'This value could not be saved. Your edit has been kept.', 'family-wiki' ) );
+						continue;
+					}
+				}
+			}
+			$result['saved'][] = $stable_key;
+		}
+		$records = self::parse_records( $snapshot['contents'] );
+		$imports = array();
+		foreach ( array( 'missing', 'skipped', 'missing_fields', 'missing_values' ) as $name ) {
+			$imports[ $name ] = isset( $selection[ $name ] ) && is_array( $selection[ $name ] ) ? $selection[ $name ] : array();
+		}
+		$this->comparison_imported_xrefs = array();
+		if ( $imports['missing'] || $imports['skipped'] ) {
+			$this->import_comparison_people( $records, $imports['missing'], $imports['missing_fields'], $imports['missing_values'], $imports['skipped'] );
+		}
+		$result['imported'] = $this->comparison_imported_xrefs;
+		foreach ( array_merge( $imports['missing'], $imports['skipped'] ) as $xref ) {
+			if ( is_string( $xref ) && ! in_array( $xref, $result['imported'], true ) ) {
+				$result['errors'][ 'import:' . $xref ] = array( 'message' => __( 'This person was not imported. An existing match may have appeared, eligibility changed, or saving failed. Your selection has been kept.', 'family-wiki' ) );
+			}
+		}
+		return $result;
+	}
+
+	public function rest_save_comparison( $request ) {
+		$snapshot = $this->client_comparison_snapshot( $request->get_param( 'snapshot' ) );
+		$selection = $request->get_param( 'selection' );
+		if ( ! $snapshot || ! is_array( $selection ) ) {
+			return new \WP_Error( 'invalid_review', __( 'This saved review is invalid or belongs to another account or site.', 'family-wiki' ), array( 'status' => 400 ) );
+		}
+		return $this->save_client_comparison( $snapshot, $selection );
+	}
+
+	/** Build a skipped person's editor only when explicitly requested. */
+	public function rest_comparison_person( $request ) {
+		$client = $request->get_param( 'snapshot' );
+		if ( null !== $client ) {
+			$snapshot = $this->client_comparison_snapshot( $client );
+			if ( ! $snapshot ) {
+				return new \WP_Error( 'invalid_review', __( 'This saved review is invalid.', 'family-wiki' ), array( 'status' => 400 ) );
+			}
+			$contents = $snapshot['contents'];
+		} else {
+			$token = sanitize_key( (string) $request->get_param( 'token' ) );
+			$state = $this->import_state( $token );
+			if ( empty( $state['comparison'] ) || get_current_user_id() !== (int) $state['owner'] ) {
+				return new \WP_Error( 'review_expired', $this->error_message( 'review_expired' ), array( 'status' => 403 ) );
+			}
+			$contents = $this->get_import_file( $token );
+			if ( false === $contents ) {
+				return new \WP_Error( 'review_expired', $this->error_message( 'review_expired' ), array( 'status' => 410 ) );
+			}
+		}
+		$records = self::parse_records( $contents );
+		$xref = (string) $request->get_param( 'xref' );
+		foreach ( $this->comparison_skipped_people( $records, $this->comparison_changes( $records ), $this->comparison_missing_people( $records ) ) as $person ) {
+			if ( (string) $person['xref'] === $xref && $person['can_import'] ) {
+				ob_start();
+				$this->render_comparison_import_editor( $person, $records, true );
+				return array( 'html' => ob_get_clean() );
+			}
+		}
+		return new \WP_Error( 'not_importable', __( 'This person has an existing or possible wiki match, or is no longer skipped. Reload the comparison to review it.', 'family-wiki' ), array( 'status' => 409 ) );
 	}
 
 	/**
@@ -118,7 +291,7 @@ class Gedcom {
 			return new \WP_Error( 'familypedia_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			return new \WP_Error( 'familypedia_no_individuals', $this->error_message( 'no_individuals' ), array( 'status' => 400 ) );
 		}
@@ -194,7 +367,7 @@ class Gedcom {
 			return new \WP_Error( 'familypedia_review_expired', $this->error_message( 'review_expired' ), array( 'status' => 400 ) );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 
 		if ( 'families' === $state['stage'] ) {
 			$state = $this->import_families_batch( $state, $records );
@@ -415,6 +588,17 @@ class Gedcom {
 			$this->export_download();
 		} elseif ( self::IMPORT_ACTION === $action ) {
 			$this->import_upload();
+		} elseif ( self::RESUME_COMPARE_ACTION === $action ) {
+			if ( ! self::can_import() ) {
+				wp_die( esc_html__( 'Sorry, you are not allowed to import GEDCOM data.', 'family-wiki' ), 403 );
+			}
+			check_admin_referer( self::RESUME_COMPARE_ACTION );
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Structured JSON is validated by client_comparison_snapshot(); saved field values are sanitized separately.
+			$snapshot = isset( $_POST['comparison_snapshot'] ) && is_string( $_POST['comparison_snapshot'] ) ? $this->client_comparison_snapshot( wp_unslash( $_POST['comparison_snapshot'] ) ) : false;
+			if ( ! $snapshot ) {
+				$this->fail( 'review_expired' );
+			}
+			$this->resumed_comparison = $snapshot;
 		} elseif ( self::COMPARE_ACTION === $action ) {
 			$this->apply_comparison();
 		} elseif ( self::SELECT_ACTION === $action ) {
@@ -425,6 +609,28 @@ class Gedcom {
 	}
 
 	public function render_page() {
+		wp_app_enqueue_script( 'familypedia-gedcom-compare', Assets::url( 'gedcom-compare.js' ), array(), Assets::version( 'gedcom-compare.js' ), true, App::URL_PATH );
+		if ( $this->resumed_comparison ) {
+			$this->render_comparison(
+				'',
+				array(
+					'owner'   => get_current_user_id(),
+					'changes' => $this->resumed_comparison['changes'],
+					'client'  => $this->resumed_comparison,
+				)
+			);
+			return;
+		}
+		if ( self::can_import() ) {
+			?>
+			<form method="post" action="<?php echo esc_url( self::get_page_url() ); ?>" data-gedcom-recovery data-draft-prefix="<?php echo esc_attr( $this->comparison_draft_prefix() ); ?>" hidden>
+				<?php wp_nonce_field( self::RESUME_COMPARE_ACTION ); ?>
+				<input type="hidden" name="familypedia_action" value="<?php echo esc_attr( self::RESUME_COMPARE_ACTION ); ?>" />
+				<input type="hidden" name="comparison_snapshot" value="" />
+				<button type="submit" class="familypedia-button"><?php esc_html_e( 'Resume saved GEDCOM review', 'family-wiki' ); ?></button>
+			</form>
+			<?php
+		}
 		wp_app_enqueue_script( 'familypedia-gedcom-download', Assets::url( 'gedcom-download.js' ), array(), Assets::version( 'gedcom-download.js' ), true, App::URL_PATH );
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -506,31 +712,7 @@ class Gedcom {
 				continue;
 			}
 			$record = $records['INDI'][ $person['xref'] ];
-			$values = array();
-			if ( $person['name'] ) {
-				$values['post_title'] = $person['name'];
-				$values['born_as'] = $person['name'];
-			}
-			$sex = $this->first_value( $record, 'SEX' );
-			if ( $sex ) {
-				$values['sex'] = $this->import_sex( $sex );
-			}
-			foreach ( array(
-				'BIRT' => 'birth',
-				'DEAT' => 'death',
-			) as $tag => $prefix ) {
-				$event = $this->event_values( $record, $tag );
-				if ( $event['date'] ) {
-					$values[ $prefix . '_date' ] = $event['date'];
-					$values[ 'exact_' . $prefix . '_date_unknown' ] = $event['approximate'] ? 1 : 0;
-				}
-				if ( $event['place'] ) {
-					$values[ $prefix . '_place' ] = $event['place'];
-				}
-			}
-			if ( $this->has_level_one_tag( $record, 'DEAT' ) ) {
-				$values['alive'] = 0;
-			}
+			$values = $this->comparison_record_values( $record, $person['name'] );
 			foreach ( $values as $field => $value ) {
 				$old = 'post_title' === $field ? get_the_title( $id ) : $this->get_field_value( $field, $id );
 				// A GEDCOM NAME matching the wiki name is not a birth-name change.
@@ -551,6 +733,168 @@ class Gedcom {
 			}
 		}
 		return $this->filter_comparison_changes( $changes );
+	}
+
+	private function comparison_record_values( $record, $name, $is_new = false ) {
+		$values = array();
+		if ( $name ) {
+			$values['post_title'] = $name;
+			$values['born_as'] = $name;
+		}
+		$sex = $this->first_value( $record, 'SEX' );
+		if ( $sex ) {
+			$values['sex'] = $this->import_sex( $sex );
+		}
+		foreach ( array(
+			'BIRT' => 'birth',
+			'DEAT' => 'death',
+		) as $tag => $prefix ) {
+			$event = $this->event_values( $record, $tag );
+			if ( $event['date'] ) {
+				$values[ $prefix . '_date' ] = $event['date'];
+				$values[ 'exact_' . $prefix . '_date_unknown' ] = $event['approximate'] ? 1 : 0;
+			}
+			if ( $event['place'] ) {
+				$values[ $prefix . '_place' ] = $event['place'];
+			}
+		}
+		if ( $this->has_level_one_tag( $record, 'DEAT' ) ) {
+			$values['alive'] = 0;
+		}
+		if ( $is_new ) {
+			$values['alive'] = $values['alive'] ?? 1;
+		}
+		return $values;
+	}
+
+	/** Missing people directly related to an active wiki match in this file. */
+	private function comparison_missing_people( $records ) {
+		$people = $this->review_people( $records );
+		$matched = array();
+		foreach ( $people as $person ) {
+			if ( $person['match_id'] && ! $person['match_trash'] ) {
+				$matched[ $person['xref'] ] = true;
+			}
+		}
+		list( $children, $partners ) = $this->family_links( $records['FAM'] ?? array() );
+		$adjacent = array();
+		foreach ( array( $children, $partners ) as $links ) {
+			foreach ( $links as $from => $relatives ) {
+				foreach ( $relatives as $to ) {
+					if ( isset( $matched[ $from ] ) ) {
+						$adjacent[ $to ] = true;
+					}
+					if ( isset( $matched[ $to ] ) ) {
+						$adjacent[ $from ] = true;
+					}
+				}
+			}
+		}
+		$index = $this->existing_page_index();
+		return array_filter(
+			$people,
+			function ( $person ) use ( $adjacent, $index ) {
+				return ! $person['match_id'] && isset( $adjacent[ $person['xref'] ] )
+					&& ! $this->comparison_match_candidates( $person['xref'], $person['name'], $index, $person['birth_year'] );
+			}
+		);
+	}
+
+	/** Classify records which have no editable comparison or eligible import. */
+	private function comparison_skipped_people( $records, $changes, $missing ) {
+		$changed_ids = array_column( $changes, 'id' );
+		$missing_xrefs = array_column( $missing, 'xref' );
+		$index = $this->existing_page_index();
+		$skipped = array();
+		foreach ( $this->review_people( $records ) as $person ) {
+			if ( in_array( $person['xref'], $missing_xrefs, true ) || ( $person['match_id'] && in_array( $person['match_id'], $changed_ids, true ) ) ) {
+				continue;
+			}
+			if ( $person['match_trash'] ) {
+				$reason = __( 'The matching wiki page is in the trash.', 'family-wiki' );
+			} elseif ( $person['match_id'] && ! current_user_can( 'edit_post', $person['match_id'] ) ) {
+				$reason = __( 'You do not have permission to edit the matching wiki page.', 'family-wiki' );
+			} elseif ( $person['match_id'] ) {
+				$reason = __( 'No eligible fact differences for the matching wiki page.', 'family-wiki' );
+			} elseif ( $this->comparison_match_candidates( $person['xref'], $person['name'], $index, $person['birth_year'] ) ) {
+				$reason = __( 'Possible existing matches are ambiguous or already claimed by another GEDCOM record. No new page is offered.', 'family-wiki' );
+			} else {
+				$reason = __( 'No wiki match, and not a direct parent, child, or spouse of a matched wiki person.', 'family-wiki' );
+			}
+			$person['can_import'] = ! $person['match_id'] && ! $this->comparison_match_candidates( $person['xref'], $person['name'], $index, $person['birth_year'] );
+			$person['reason'] = $reason;
+			$skipped[] = $person;
+		}
+		return $skipped;
+	}
+
+	/** Import adjacent people, plus explicit skipped overrides, with no wiki match. */
+	private function import_comparison_people( $records, $selected, $fields = null, $edited = array(), $selected_skipped = array() ) {
+		$index = $this->existing_page_index();
+		$claimed = array();
+		$imported = 0;
+		$eligible = $this->comparison_missing_people( $records );
+		foreach ( $this->comparison_skipped_people( $records, array(), $eligible ) as $person ) {
+			if ( $person['can_import'] && in_array( (string) $person['xref'], $selected_skipped, true ) ) {
+				$eligible[] = $person;
+			}
+		}
+		foreach ( $eligible as $person ) {
+			if ( ! in_array( (string) $person['xref'], array_merge( $selected, $selected_skipped ), true ) ) {
+				continue;
+			}
+			$values = $this->comparison_record_values( $records['INDI'][ $person['xref'] ], $person['name'] ?: $person['xref'], true );
+			if ( null !== $fields ) {
+				$selected_fields = $fields[ $person['xref'] ] ?? array();
+				$edited_fields = $edited[ $person['xref'] ] ?? array();
+				if ( ! is_array( $selected_fields ) || ! is_array( $edited_fields ) ) {
+					continue;
+				}
+				$invalid = false;
+				foreach ( $values as $field => $value ) {
+					if ( ! in_array( $field, $selected_fields, true ) ) {
+						unset( $values[ $field ] );
+						continue;
+					}
+					$value = self::comparison_edited_value( $field, $edited_fields[ $field ] ?? null );
+					if ( null === $value ) {
+						$invalid = true;
+						break;
+					}
+					$values[ $field ] = $value;
+				}
+				if ( $invalid ) {
+					continue;
+				}
+			}
+			// Never update a page via the new-person editor.
+			if ( $this->find_person_post( $person['xref'], $person['name'], $index, $claimed, $person['birth_year'] ) ) {
+				continue;
+			}
+			$result = wp_insert_post(
+				wp_slash(
+					array(
+						'post_type'    => Person::POST_TYPE,
+						'post_status'  => 'publish',
+						'post_title'   => $values['post_title'] ?? $person['xref'],
+						'post_content' => '',
+					)
+				),
+				true
+			);
+			if ( is_wp_error( $result ) ) {
+				continue;
+			}
+			$claimed[ $result ] = true;
+			update_post_meta( $result, self::XREF_META, $person['xref'] );
+			unset( $values['post_title'] );
+			foreach ( $values as $field => $value ) {
+				$this->update_field( $field, $value, $result );
+			}
+			$this->comparison_imported_xrefs[] = (string) $person['xref'];
+			++$imported;
+		}
+		return $imported;
 	}
 
 	private function is_redundant_birth_name( $id, $field, $value ) {
@@ -600,14 +944,133 @@ class Gedcom {
 			return;
 		}
 		// Apply current comparison rules to previously uploaded reviews too.
-		$state['changes'] = $this->filter_comparison_changes( $state['changes'] );
+		if ( ! isset( $state['client'] ) ) {
+			$state['changes'] = $this->filter_comparison_changes( $state['changes'] );
+		}
 		wp_app_enqueue_script( 'familypedia-gedcom-compare', Assets::url( 'gedcom-compare.js' ), array(), Assets::version( 'gedcom-compare.js' ), true, App::URL_PATH );
 		$people = array();
 		foreach ( $state['changes'] as $key => $change ) {
 			$people[ $change['id'] ][ $key ] = $change;
 		}
+		$contents = isset( $state['client'] ) ? $state['client']['contents'] : $this->get_import_file( $token );
+		$records = false !== $contents ? self::parse_records( $contents ) : array(
+			'INDI' => array(),
+			'FAM'  => array(),
+		);
+		if ( false !== $contents && ! isset( $state['client'] ) ) {
+			$state['changes'] = $this->comparison_changes( $records );
+			$this->save_import_state( $token, array( 'changes' => $state['changes'] ) );
+			$people = array();
+			foreach ( $state['changes'] as $key => $change ) {
+				$people[ $change['id'] ][ $key ] = $change;
+			}
+		}
+		$missing = $this->comparison_missing_people( $records );
+		$skipped = $this->comparison_skipped_people( $records, $state['changes'], $missing );
 		$family = Tree::get_people();
-		$labels = array(
+		$labels = $this->comparison_field_labels();
+		$snapshot = array(
+			'version'  => 1,
+			'owner'    => get_current_user_id(),
+			'site'     => get_current_blog_id(),
+			'contents' => (string) $contents,
+			'changes'  => $state['changes'],
+		);
+		$draft_key = $this->comparison_draft_prefix() . hash( 'sha256', (string) $contents );
+		?>
+		<h2><?php esc_html_e( 'Compare GEDCOM', 'family-wiki' ); ?></h2>
+		<form method="post" action="<?php echo esc_url( self::get_page_url() ); ?>" data-gedcom-comparison data-draft-key="<?php echo esc_attr( $draft_key ); ?>" data-draft-prefix="<?php echo esc_attr( $this->comparison_draft_prefix() ); ?>" data-save-endpoint="<?php echo esc_url( rest_url( 'familypedia/v1/comparison-save' ) ); ?>" data-storage-error="<?php esc_attr_e( 'This browser could not save your review locally. Keep this page open to preserve your edits.', 'family-wiki' ); ?>" data-conflict-label="<?php esc_attr_e( 'The wiki value changed. Your edit is restored but unchecked; review it before selecting Save again.', 'family-wiki' ); ?>" data-save-success="<?php esc_attr_e( 'Selected changes saved. Any unresolved edits remain in this review.', 'family-wiki' ); ?>" data-save-error="<?php esc_attr_e( 'Some changes could not be saved. Your edits have been kept; review the messages below.', 'family-wiki' ); ?>" data-person-endpoint="<?php echo esc_url( rest_url( 'familypedia/v1/comparison-person' ) ); ?>" data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>" data-load-error="<?php esc_attr_e( 'Could not load the import editor. Please try again.', 'family-wiki' ); ?>">
+			<?php wp_nonce_field( self::COMPARE_ACTION ); ?>
+			<input type="hidden" name="familypedia_action" value="<?php echo esc_attr( self::COMPARE_ACTION ); ?>" />
+			<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>" />
+			<textarea name="comparison_snapshot" hidden><?php echo esc_textarea( wp_json_encode( $snapshot ) ); ?></textarea>
+			<p data-gedcom-draft-status role="status" hidden></p>
+			<p data-gedcom-save-status role="status" hidden></p>
+			<div class="familypedia-gedcom-tabs" data-gedcom-tabs hidden aria-label="<?php esc_attr_e( 'Comparison categories', 'family-wiki' ); ?>">
+				<?php
+				foreach ( array(
+					'existing' => __( 'Existing people', 'family-wiki' ),
+					'missing'  => __( 'Add people', 'family-wiki' ),
+					'selected' => __( 'Pending changes', 'family-wiki' ),
+					'skipped'  => __( 'Skipped', 'family-wiki' ),
+				) as $type => $label ) :
+					?>
+					<button type="button" id="gedcom-tab-<?php echo esc_attr( $type ); ?>" data-gedcom-tab="<?php echo esc_attr( $type ); ?>" class="familypedia-gedcom-tab"><?php echo esc_html( $label ); ?> (<span data-gedcom-count>0</span>)</button>
+				<?php endforeach; ?>
+			</div>
+			<p data-gedcom-search-wrap hidden><label><?php esc_html_e( 'Search people', 'family-wiki' ); ?> <input type="search" data-gedcom-search /></label></p>
+			<div id="gedcom-comparison-panel" data-gedcom-panel>
+			<?php foreach ( $people as $id => $changes ) : ?>
+				<fieldset class="familypedia-gedcom-comparison-person" data-gedcom-person="existing" data-gedcom-name="<?php echo esc_attr( get_the_title( $id ) ); ?>">
+					<legend><a href="<?php echo esc_url( Person::url( $id ) ); ?>" target="_blank" rel="noopener noreferrer" title="<?php esc_attr_e( 'Open person page in a new tab', 'family-wiki' ); ?>"><?php echo esc_html( get_the_title( $id ) ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'family-wiki' ); ?></span> &#8599;</a> <span data-gedcom-person-status></span></legend>
+					<?php $this->render_comparison_family( $id, $family ); ?>
+					<?php $this->render_comparison_table( $changes, $labels ); ?>
+				</fieldset>
+			<?php endforeach; ?>
+			<div data-gedcom-category="missing">
+			<?php if ( $missing ) : ?>
+				<?php foreach ( $missing as $person ) : ?>
+					<fieldset class="familypedia-gedcom-comparison-person" data-gedcom-person="missing" data-gedcom-name="<?php echo esc_attr( $person['name'] ?: $person['xref'] ); ?>">
+						<?php $this->render_comparison_import_editor( $person, $records ); ?>
+					</fieldset>
+				<?php endforeach; ?>
+			<?php endif; ?>
+			</div>
+			<div data-gedcom-category="skipped">
+				<?php foreach ( $skipped as $person ) : ?>
+					<details class="familypedia-gedcom-skipped-person" data-gedcom-person="skipped" data-gedcom-name="<?php echo esc_attr( $person['name'] ?: $person['xref'] ); ?>">
+						<summary><?php echo esc_html( $person['name'] ?: $person['xref'] ); ?></summary>
+						<p><?php echo esc_html( $person['reason'] ); ?></p>
+						<p><?php echo esc_html( $person['birth'] . ' · ' . $person['death'] ); ?></p>
+						<?php if ( $person['can_import'] ) : ?>
+							<button type="button" class="familypedia-button" data-gedcom-import-skipped="<?php echo esc_attr( $person['xref'] ); ?>" hidden><?php esc_html_e( 'Import anyway', 'family-wiki' ); ?></button>
+							<p data-gedcom-import-error role="status" hidden></p>
+							<fieldset class="familypedia-gedcom-comparison-person" data-gedcom-skipped-editor hidden></fieldset>
+						<?php endif; ?>
+						<?php if ( $person['match_id'] && ! $person['match_trash'] ) : ?>
+							<p><a href="<?php echo esc_url( Person::url( $person['match_id'] ) ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'Open matching wiki page', 'family-wiki' ); ?></a></p>
+						<?php endif; ?>
+					</details>
+				<?php endforeach; ?>
+			</div>
+			<p data-gedcom-empty hidden data-empty-existing="<?php esc_attr_e( 'No differences to review.', 'family-wiki' ); ?>" data-empty-missing="<?php esc_attr_e( 'No people to add. You can also choose people from Skipped.', 'family-wiki' ); ?>" data-empty-selected="<?php esc_attr_e( 'No pending changes. Select facts or people in another tab.', 'family-wiki' ); ?>" data-empty-skipped="<?php esc_attr_e( 'No skipped people.', 'family-wiki' ); ?>" data-empty-search="<?php esc_attr_e( 'No people match your search.', 'family-wiki' ); ?>"></p>
+			</div>
+			<p data-gedcom-selection-status aria-live="polite" hidden><?php esc_html_e( 'People with pending changes:', 'family-wiki' ); ?> <span data-gedcom-selected-count>0</span>. <span data-gedcom-backup-status hidden><?php esc_html_e( 'Changes are backed up in this browser.', 'family-wiki' ); ?></span></p>
+			<?php if ( empty( $state['changes'] ) && ! $missing ) : ?>
+				<p><?php esc_html_e( 'No changed facts found for matched people.', 'family-wiki' ); ?></p>
+			<?php endif; ?>
+			<?php if ( $state['changes'] || $missing || $skipped ) : ?>
+				<button type="submit" class="familypedia-button familypedia-button--primary"><?php esc_html_e( 'Apply selected changes', 'family-wiki' ); ?></button>
+			<?php endif; ?>
+		</form>
+		<?php
+	}
+
+	/** Shared import controls, also returned by the on-demand skipped editor. */
+	private function render_comparison_import_editor( $person, $records, $skipped = false ) {
+		$labels = $this->comparison_field_labels();
+		?>
+						<legend><label><input type="checkbox" name="<?php echo $skipped ? 'skipped[]' : 'missing[]'; ?>" data-gedcom-import value="<?php echo esc_attr( $person['xref'] ); ?>" /> <?php esc_html_e( 'Import', 'family-wiki' ); ?> <?php echo esc_html( $person['name'] ?: $person['xref'] ); ?></label> <span data-gedcom-person-status></span></legend>
+						<?php
+						$this->render_comparison_gedcom_family( $person['xref'], $records );
+						if ( ! $skipped ) {
+							$this->render_comparison_match_reason( $person );
+						}
+						$changes = array();
+						foreach ( $this->comparison_record_values( $records['INDI'][ $person['xref'] ], $person['name'] ?: $person['xref'], true ) as $field => $value ) {
+							$changes[ $field ] = array(
+								'field' => $field,
+								'old'   => $value,
+								'value' => $value,
+							);
+						}
+						$this->render_comparison_table( $changes, $labels, 'missing_fields[' . $person['xref'] . ']', 'missing_values[' . $person['xref'] . ']', true );
+						?>
+		<?php
+	}
+
+	private function comparison_field_labels() {
+		return array(
 			'post_title'               => __( 'Name on wiki', 'family-wiki' ),
 			'born_as'                  => __( 'Birth name', 'family-wiki' ),
 			'sex'                      => __( 'Sex', 'family-wiki' ),
@@ -619,60 +1082,95 @@ class Gedcom {
 			'exact_death_date_unknown' => __( 'Death date is approximate', 'family-wiki' ),
 			'alive'                    => __( 'Living', 'family-wiki' ),
 		);
+	}
+
+	/** Shared fact editor for existing and new people. */
+	private function render_comparison_table( $changes, $labels, $selection_name = 'changes', $values_name = 'values', $is_new = false ) {
 		?>
-		<h2><?php esc_html_e( 'Compare GEDCOM', 'family-wiki' ); ?></h2>
-		<p><?php esc_html_e( 'Edit a wiki value or use the arrow to copy the GEDCOM value. Modified rows are checked automatically. Review the checked rows, then press Apply selected changes to save. Missing facts do not erase wiki data. Page text, relationships, and people without a match are not changed.', 'family-wiki' ); ?></p>
-		<form method="post" action="<?php echo esc_url( self::get_page_url() ); ?>">
-			<?php wp_nonce_field( self::COMPARE_ACTION ); ?>
-			<input type="hidden" name="familypedia_action" value="<?php echo esc_attr( self::COMPARE_ACTION ); ?>" />
-			<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>" />
-			<?php foreach ( $people as $id => $changes ) : ?>
-				<fieldset class="familypedia-gedcom-comparison-person">
-					<legend><a href="<?php echo esc_url( Person::url( $id ) ); ?>" target="_blank" rel="noopener noreferrer" title="<?php esc_attr_e( 'Open person page in a new tab', 'family-wiki' ); ?>"><?php echo esc_html( get_the_title( $id ) ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'family-wiki' ); ?></span> &#8599;</a></legend>
-					<?php $this->render_comparison_family( $id, $family ); ?>
-					<table class="familypedia-gedcom-review__table">
-						<colgroup><col class="familypedia-gedcom-comparison-check" /><col /><col /><col class="familypedia-gedcom-comparison-arrow" /><col /></colgroup>
-						<thead><tr><th><?php esc_html_e( 'Save', 'family-wiki' ); ?></th><th><?php esc_html_e( 'Field', 'family-wiki' ); ?></th><th><?php esc_html_e( 'GEDCOM value', 'family-wiki' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Copy', 'family-wiki' ); ?></span></th><th><?php esc_html_e( 'Familypedia value', 'family-wiki' ); ?></th></tr></thead>
-						<tbody>
-						<?php foreach ( $changes as $key => $change ) : ?>
-							<tr data-gedcom-change>
-								<td><input type="checkbox" name="changes[]" value="<?php echo esc_attr( $key ); ?>" aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>" /></td>
-								<th scope="row"><?php echo esc_html( $labels[ $change['field'] ] ); ?></th>
-								<td><?php echo esc_html( $this->comparison_value_label( $change['field'], $change['value'] ) ); ?></td>
-								<td><button type="button" class="familypedia-button" data-gedcom-copy="<?php echo esc_attr( $change['value'] ); ?>" title="<?php esc_attr_e( 'Copy GEDCOM value', 'family-wiki' ); ?>" aria-label="<?php echo esc_attr( $labels[ $change['field'] ] . ': ' . __( 'Copy GEDCOM value', 'family-wiki' ) ); ?>" hidden>&rarr;</button></td>
-								<td>
-									<?php if ( in_array( $change['field'], array( 'alive', 'exact_birth_date_unknown', 'exact_death_date_unknown', 'sex' ), true ) ) : ?>
-										<select name="values[<?php echo esc_attr( $key ); ?>]" data-gedcom-value aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>">
-											<?php $options = 'sex' === $change['field'] ? array( '', 'Male', 'Female', 'Unknown' ) : array( 0, 1 ); ?>
-											<?php foreach ( $options as $option ) : ?>
-												<option value="<?php echo esc_attr( $option ); ?>" <?php selected( (string) $change['old'], (string) $option ); ?>><?php echo esc_html( $this->comparison_value_label( $change['field'], $option ) ); ?></option>
-											<?php endforeach; ?>
-										</select>
-									<?php else : ?>
-										<input type="text" name="values[<?php echo esc_attr( $key ); ?>]" value="<?php echo esc_attr( $change['old'] ); ?>" data-gedcom-value placeholder="<?php echo esc_attr( in_array( $change['field'], array( 'birth_date', 'death_date' ), true ) ? __( 'YYYY-MM-DD or YYYY', 'family-wiki' ) : '' ); ?>" aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>" />
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						</tbody>
-					</table>
-				</fieldset>
+		<button type="button" class="familypedia-gedcom-table-toggle" data-gedcom-table-toggle data-show-label="<?php esc_attr_e( 'Show comparison table', 'family-wiki' ); ?>" data-hide-label="<?php esc_attr_e( 'Hide comparison table', 'family-wiki' ); ?>" hidden><?php esc_html_e( 'Show comparison table', 'family-wiki' ); ?></button>
+		<table class="familypedia-gedcom-review__table">
+			<colgroup><col class="familypedia-gedcom-comparison-check" /><col /><col /><col class="familypedia-gedcom-comparison-arrow" /><col /></colgroup>
+			<thead><tr><th><?php esc_html_e( 'Save', 'family-wiki' ); ?></th><th><?php esc_html_e( 'Field', 'family-wiki' ); ?></th><th><?php esc_html_e( 'GEDCOM value', 'family-wiki' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Copy', 'family-wiki' ); ?></span></th><th><?php esc_html_e( 'Familypedia value', 'family-wiki' ); ?></th></tr></thead>
+			<tbody>
+			<?php foreach ( $changes as $key => $change ) : ?>
+				<tr data-gedcom-draft-key="<?php echo esc_attr( isset( $change['id'] ) ? 'post:' . $change['id'] . ':' . $change['field'] : $values_name . ':' . $change['field'] ); ?>" data-gedcom-original="<?php echo esc_attr( $change['old'] ); ?>" data-gedcom-change<?php echo $is_new ? ' data-gedcom-new="1"' : ''; ?>>
+					<td><input type="checkbox" name="<?php echo esc_attr( $selection_name ); ?>[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( $is_new ); ?> aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>" /></td>
+					<th scope="row"><?php echo esc_html( $labels[ $change['field'] ] ); ?></th>
+					<td><?php echo esc_html( $this->comparison_value_label( $change['field'], $change['value'] ) ); ?></td>
+					<td><button type="button" class="familypedia-button" data-gedcom-copy="<?php echo esc_attr( $change['value'] ); ?>" title="<?php esc_attr_e( 'Copy GEDCOM value', 'family-wiki' ); ?>" aria-label="<?php echo esc_attr( $labels[ $change['field'] ] . ': ' . __( 'Copy GEDCOM value', 'family-wiki' ) ); ?>" hidden>&rarr;</button></td>
+					<td>
+						<?php if ( in_array( $change['field'], array( 'alive', 'exact_birth_date_unknown', 'exact_death_date_unknown', 'sex' ), true ) ) : ?>
+							<select name="<?php echo esc_attr( $values_name ); ?>[<?php echo esc_attr( $key ); ?>]" data-gedcom-value aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>">
+								<?php $options = 'sex' === $change['field'] ? array( '', 'Male', 'Female', 'Unknown' ) : array( 0, 1 ); ?>
+								<?php foreach ( $options as $option ) : ?>
+									<option value="<?php echo esc_attr( $option ); ?>" <?php selected( (string) $change['old'], (string) $option ); ?>><?php echo esc_html( $this->comparison_value_label( $change['field'], $option ) ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						<?php else : ?>
+							<input type="text" name="<?php echo esc_attr( $values_name ); ?>[<?php echo esc_attr( $key ); ?>]" value="<?php echo esc_attr( $change['old'] ); ?>" data-gedcom-value placeholder="<?php echo esc_attr( in_array( $change['field'], array( 'birth_date', 'death_date' ), true ) ? __( 'YYYY-MM-DD or YYYY', 'family-wiki' ) : '' ); ?>" aria-label="<?php echo esc_attr( $labels[ $change['field'] ] ); ?>" />
+						<?php endif; ?>
+					</td>
+				</tr>
 			<?php endforeach; ?>
-			<?php if ( empty( $state['changes'] ) ) : ?>
-				<p><?php esc_html_e( 'No changed facts found for matched people.', 'family-wiki' ); ?></p>
-			<?php else : ?>
-				<button type="submit" class="familypedia-button familypedia-button--primary"><?php esc_html_e( 'Apply selected changes', 'family-wiki' ); ?></button>
-			<?php endif; ?>
-		</form>
+			</tbody>
+		</table>
 		<?php
-		$contents = $this->get_import_file( $token );
-		if ( false !== $contents ) {
-			foreach ( $this->review_people( $this->parse_records( $contents ) ) as $person ) {
-				if ( ! $person['match_id'] || $person['match_trash'] ) {
-					echo '<p>' . esc_html( $person['name'] . ': ' . __( 'No active wiki match; skipped.', 'family-wiki' ) ) . '</p>';
-				}
+	}
+
+	/** Explain why a directly related record is offered for creation. */
+	private function render_comparison_match_reason( $person ) {
+		echo '<details><summary>' . esc_html__( 'Why offered as a new person?', 'family-wiki' ) . '</summary><ul>';
+		/* translators: %s: GEDCOM individual ID. */
+		echo '<li>' . esc_html( sprintf( __( 'No existing page matched GEDCOM ID %s.', 'family-wiki' ), $person['xref'] ) ) . '</li>';
+		/* translators: %s: incoming name. */
+		echo '<li>' . esc_html( sprintf( __( 'No available page matched the title or birth name “%s” with a compatible birth year.', 'family-wiki' ), $person['name'] ) ) . '</li>';
+		/* translators: %s: incoming birth year, or Not recorded. */
+		echo '<li>' . esc_html( sprintf( __( 'Birth year: %s. Name variants require the same recorded birth year and a unique candidate.', 'family-wiki' ), $person['birth_year'] ?: __( 'Not recorded', 'family-wiki' ) ) ) . '</li>';
+		$index = $this->existing_page_index();
+		foreach ( $index['aliases'] as $alias => $ids ) {
+			if ( ! self::matching_name_variant( self::matching_name( $person['name'] ), $alias ) ) {
+				continue;
+			}
+			foreach ( $ids as $id ) {
+				$year = substr( (string) get_post_meta( $id, 'birth_date', true ), 0, 4 );
+				/* translators: 1: existing page title, 2: recorded birth year. */
+				echo '<li>' . esc_html( sprintf( __( 'Similar existing name: %1$s (birth year: %2$s); it did not pass all matching checks.', 'family-wiki' ), get_the_title( $id ), $year ?: __( 'Not recorded', 'family-wiki' ) ) ) . '</li>';
 			}
 		}
+		echo '<li>' . esc_html__( 'Eligible because this GEDCOM record is a parent, child, or spouse of a matched wiki person. Family context is shown above; relationships alone do not establish identity.', 'family-wiki' ) . '</li></ul></details>';
+	}
+
+	/** Show GEDCOM relatives, linking to active wiki matches when available. */
+	private function render_comparison_gedcom_family( $xref, $records ) {
+		$people = array();
+		foreach ( $this->review_people( $records ) as $person ) {
+			$people[ $person['xref'] ] = $person;
+		}
+		list( $children, $partners ) = $this->family_links( $records['FAM'] ?? array() );
+		$parents = array();
+		foreach ( $children as $parent => $offspring ) {
+			if ( isset( $offspring[ $xref ] ) ) {
+				$parents[] = $parent;
+			}
+		}
+		echo '<dl class="familypedia-gedcom-comparison-family">';
+		foreach ( array(
+			__( 'Parents', 'family-wiki' )  => $parents,
+			__( 'Children', 'family-wiki' ) => $children[ $xref ] ?? array(),
+			__( 'Spouses', 'family-wiki' )  => $partners[ $xref ] ?? array(),
+		) as $label => $relatives ) {
+			$names = array();
+			foreach ( $relatives as $relative ) {
+				if ( ! isset( $people[ $relative ] ) ) {
+					continue;
+				}
+				$person = $people[ $relative ];
+				$name = esc_html( $person['name'] ?: $relative );
+				$names[] = $person['match_id'] && ! $person['match_trash'] ? '<a href="' . esc_url( Person::url( $person['match_id'] ) ) . '" target="_blank" rel="noopener noreferrer">' . $name . '</a>' : $name;
+			}
+			echo '<dt>' . esc_html( $label ) . '</dt><dd>' . ( $names ? wp_kses_post( implode( ', ', $names ) ) : esc_html__( 'Not recorded', 'family-wiki' ) ) . '</dd>';
+		}
+		echo '</dl>';
 	}
 
 	/** Show existing family context, including relationships recorded at either end. */
@@ -714,7 +1212,7 @@ class Gedcom {
 	}
 
 	/** Validate an edited proposal without trusting field names from the browser. */
-	private function comparison_edited_value( $field, $value ) {
+	public static function comparison_edited_value( $field, $value ) {
 		if ( ! is_scalar( $value ) ) {
 			return null;
 		}
@@ -739,6 +1237,17 @@ class Gedcom {
 			wp_die( esc_html__( 'Sorry, you are not allowed to import GEDCOM data.', 'family-wiki' ), 403 );
 		}
 		check_admin_referer( self::COMPARE_ACTION );
+		if ( isset( $_POST['comparison_snapshot'] ) && is_string( $_POST['comparison_snapshot'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Structured JSON is validated by client_comparison_snapshot(); saved field values are sanitized separately.
+			$snapshot = $this->client_comparison_snapshot( wp_unslash( $_POST['comparison_snapshot'] ) );
+			if ( ! $snapshot ) {
+				$this->fail( 'review_expired' );
+			}
+			$result = $this->save_client_comparison( $snapshot, wp_unslash( $_POST ) );
+			Editor::set_notice( $result['errors'] ? __( 'Some changes could not be saved. Your browser draft is kept for review.', 'family-wiki' ) : __( 'Selected changes saved.', 'family-wiki' ), $result['errors'] ? 'warning' : 'success' );
+			wp_safe_redirect( self::get_page_url() );
+			exit;
+		}
 		$token = isset( $_POST['token'] ) ? sanitize_key( wp_unslash( $_POST['token'] ) ) : '';
 		$state = $this->import_state( $token );
 		if ( empty( $state['comparison'] ) || get_current_user_id() !== (int) $state['owner'] ) {
@@ -758,7 +1267,7 @@ class Gedcom {
 			if ( $this->is_redundant_birth_name( $id, $field, $change['value'] ) ) {
 				continue;
 			}
-			$value = $this->comparison_edited_value( $field, isset( $values[ $key ] ) ? $values[ $key ] : null );
+			$value = self::comparison_edited_value( $field, isset( $values[ $key ] ) ? $values[ $key ] : null );
 			if ( null === $value ) {
 				++$skipped;
 				continue;
@@ -790,9 +1299,22 @@ class Gedcom {
 			}
 			++$applied;
 		}
+		$selected_people = isset( $_POST['missing'] ) && is_array( $_POST['missing'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['missing'] ) ) : array();
+		$contents = $this->get_import_file( $token );
+		$fields = isset( $_POST['missing_fields'] ) && is_array( $_POST['missing_fields'] ) ? map_deep( wp_unslash( $_POST['missing_fields'] ), 'sanitize_text_field' ) : array();
+		$edited = isset( $_POST['missing_values'] ) && is_array( $_POST['missing_values'] ) ? map_deep( wp_unslash( $_POST['missing_values'] ), 'sanitize_text_field' ) : array();
+		$selected_skipped = isset( $_POST['skipped'] ) && is_array( $_POST['skipped'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['skipped'] ) ) : array();
+		$imported = false !== $contents ? $this->import_comparison_people( self::parse_records( $contents ), $selected_people, $fields, $edited, $selected_skipped ) : 0;
 		$this->delete_import_file( $token );
-		/* translators: 1: applied facts, 2: skipped facts. */
-		Editor::set_notice( sprintf( __( 'Applied %1$d changes. Skipped %2$d changes because the value was invalid, the page changed, or it could not be updated.', 'family-wiki' ), $applied, $skipped ), 'success' );
+		Editor::set_notice(
+			/* translators: 1: applied facts, 2: skipped facts. */
+			sprintf( __( 'Applied %1$d changes. Skipped %2$d changes because the value was invalid, the page changed, or it could not be updated.', 'family-wiki' ), $applied, $skipped ) . ' ' . sprintf(
+			/* translators: %d: imported people. */
+				__( 'Imported %d missing people.', 'family-wiki' ),
+				$imported
+			),
+			'success'
+		);
 		wp_safe_redirect( self::get_page_url() );
 		exit;
 	}
@@ -807,7 +1329,7 @@ class Gedcom {
 			return;
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			?>
 			<p class="familypedia-notice familypedia-notice--error"><?php echo esc_html( $this->error_message( 'no_individuals' ) ); ?></p>
@@ -1172,7 +1694,7 @@ class Gedcom {
 			$this->fail( 'empty_file' );
 		}
 
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			$this->fail( 'no_individuals' );
 		}
@@ -1421,7 +1943,7 @@ class Gedcom {
 	}
 
 	public function import_string( $contents, $selected_xrefs = null ) {
-		$records = $this->parse_records( $contents );
+		$records = self::parse_records( $contents );
 		if ( empty( $records['INDI'] ) ) {
 			return new \WP_Error( 'no_individuals', __( 'The GEDCOM file does not contain individual records.', 'family-wiki' ) );
 		}
@@ -1820,12 +2342,13 @@ class Gedcom {
 
 	/**
 	 * Pages that a GEDCOM entry could land on, looked up the same way the
-	 * import does: by a previously stored xref first, then by title.
+	 * import does: by stored xref, title, birth name, then dated name variants.
 	 */
 	private function existing_page_index() {
 		$index = array(
 			'xref'    => array(),
 			'title'   => array(),
+			'aliases' => array(),
 			'trashed' => array(),
 		);
 
@@ -1852,6 +2375,15 @@ class Gedcom {
 			// GEDCOM commonly share a name, and each needs its own page.
 			if ( $title ) {
 				$index['title'][ $title ][] = $page_id;
+			}
+
+			if ( ! $trashed ) {
+				foreach ( array( get_the_title( $page_id ), get_post_meta( $page_id, 'born_as', true ) ) as $name ) {
+					$key = self::matching_name( $name );
+					if ( $key ) {
+						$index['aliases'][ $key ][ $page_id ] = $page_id;
+					}
+				}
 			}
 
 			$xref = get_post_meta( $page_id, self::XREF_META, true );
@@ -1979,7 +2511,8 @@ class Gedcom {
 		return implode( ', ', $parts );
 	}
 
-	private function parse_records( $contents ) {
+	/** Parse GEDCOM text into records grouped by type and cross-reference ID. */
+	public static function parse_records( $contents ) {
 		$contents = str_replace( array( "\r\n", "\r" ), "\n", $contents );
 		$lines    = explode( "\n", $contents );
 		$records  = array();
@@ -2261,7 +2794,7 @@ class Gedcom {
 				continue;
 			}
 			if ( 'DATE' === $line['tag'] ) {
-				$parsed = $this->parse_gedcom_date( $line['value'] );
+				$parsed = self::parse_gedcom_date( $line['value'] );
 				$event['date']        = $parsed['date'];
 				$event['approximate'] = $parsed['approximate'];
 			} elseif ( 'PLAC' === $line['tag'] ) {
@@ -2272,7 +2805,8 @@ class Gedcom {
 		return $event;
 	}
 
-	private function parse_gedcom_date( $date ) {
+	/** Parse a GEDCOM date into a wiki date and its approximation flag. */
+	public static function parse_gedcom_date( $date ) {
 		$date        = trim( strtoupper( $date ) );
 		$approximate = false;
 		if ( preg_match( '/^(ABT|ABOUT|CAL|EST)\s+(.+)$/', $date, $matches ) ) {
@@ -2280,7 +2814,7 @@ class Gedcom {
 			$date        = $matches[2];
 		}
 
-		$months = array_flip( $this->gedcom_months() );
+		$months = array_flip( self::gedcom_months() );
 		if ( preg_match( '/^(\d{1,2})\s+([A-Z]{3})\s+(\d{3,4})$/', $date, $matches ) && isset( $months[ $matches[2] ] ) ) {
 			return array(
 				'date'        => sprintf( '%04d-%02d-%02d', $matches[3], $months[ $matches[2] ], $matches[1] ),
@@ -2331,11 +2865,7 @@ class Gedcom {
 		}
 
 		$key = strtolower( trim( (string) $title ) );
-		if ( '' === $key || empty( $index['title'][ $key ] ) ) {
-			return 0;
-		}
-
-		foreach ( $index['title'][ $key ] as $page_id ) {
+		foreach ( $index['title'][ $key ] ?? array() as $page_id ) {
 			if ( isset( $claimed[ $page_id ] ) ) {
 				continue;
 			}
@@ -2355,7 +2885,65 @@ class Gedcom {
 			return (int) $page_id;
 		}
 
+		$candidates = $this->comparison_match_candidates( $xref, $title, $index, $birth_year );
+		if ( 1 === count( $candidates ) && ! isset( $claimed[ $candidates[0] ] ) ) {
+			return $candidates[0];
+		}
+
 		return 0;
+	}
+
+	/** Normalize names for matching without changing their saved spelling. */
+	public static function matching_name( $name ) {
+		$name = html_entity_decode( (string) $name, ENT_QUOTES, 'UTF-8' );
+		return strtolower( trim( preg_replace( '/[\s\x{00a0}]+/u', ' ', $name ) ) );
+	}
+
+	/** Allow omitted middle or married names, keeping the first name and token order. */
+	public static function matching_name_variant( $left, $right ) {
+		$left = explode( ' ', $left );
+		$right = explode( ' ', $right );
+		if ( count( $left ) < 2 || count( $right ) < 2 || $left[0] !== $right[0] ) {
+			return false;
+		}
+		if ( count( $left ) > count( $right ) ) {
+			list( $left, $right ) = array( $right, $left );
+		}
+		$cursor = 0;
+		foreach ( $right as $token ) {
+			if ( isset( $left[ $cursor ] ) && $left[ $cursor ] === $token ) {
+				++$cursor;
+			}
+		}
+		return count( $left ) === $cursor;
+	}
+
+	/** Exact aliases, or name variants supported by a matching birth year. */
+	private function comparison_match_candidates( $xref, $name, $index, $birth_year ) {
+		$name = self::matching_name( $name );
+		$exact = array();
+		$variants = array();
+		foreach ( $index['aliases'] ?? array() as $alias => $ids ) {
+			if ( $name !== $alias && ! self::matching_name_variant( $name, $alias ) ) {
+				continue;
+			}
+			foreach ( $ids as $id ) {
+				$stored = get_post_meta( $id, self::XREF_META, true );
+				if ( $stored && $stored !== $xref ) {
+					continue;
+				}
+				$year = substr( preg_replace( '/\D/', '', (string) get_post_meta( $id, 'birth_date', true ) ), 0, 4 );
+				if ( $birth_year && $year && $year !== $birth_year ) {
+					continue;
+				}
+				if ( $name === $alias ) {
+					$exact[ $id ] = (int) $id;
+				} elseif ( $birth_year && $year === $birth_year ) {
+					$variants[ $id ] = (int) $id;
+				}
+			}
+		}
+		return array_values( $exact ?: $variants );
 	}
 
 	private function gedcom_birth_year( $record ) {
@@ -2431,7 +3019,7 @@ class Gedcom {
 	private function format_gedcom_date( $date ) {
 		$date = trim( (string) $date );
 		if ( preg_match( '/^(\d{4})-?(\d{2})-?(\d{2})$/', $date, $matches ) ) {
-			$months = $this->gedcom_months();
+			$months = self::gedcom_months();
 			return (int) $matches[3] . ' ' . $months[ (int) $matches[2] ] . ' ' . $matches[1];
 		}
 		if ( preg_match( '/^\d{4}$/', $date ) ) {
@@ -2441,7 +3029,7 @@ class Gedcom {
 		return $this->clean_gedcom_value( $date );
 	}
 
-	private function gedcom_months() {
+	private static function gedcom_months() {
 		return array(
 			1  => 'JAN',
 			2  => 'FEB',
