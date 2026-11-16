@@ -122,7 +122,7 @@ class Private_Site {
 		</head>
 		<body>
 			<?php esc_html_e( 'This site is private.', 'family-wiki' ); ?>
-						<a href="<?php echo esc_url( wp_login_url( $_SERVER['REQUEST_URI'] ) ); ?>"><?php esc_html_e( 'Login', 'family-wiki' ); ?></a>
+						<a href="<?php echo esc_url( wp_login_url( $_SERVER['REQUEST_URI'] ) ); ?>"><?php esc_html_e( 'Login' ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Use the WordPress core translation from the default text domain. ?></a>
 		</body>
 		</html>
 		<?php
