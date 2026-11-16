@@ -606,6 +606,7 @@ class Gedcom {
 		foreach ( $state['changes'] as $key => $change ) {
 			$people[ $change['id'] ][ $key ] = $change;
 		}
+		$family = Tree::get_people();
 		$labels = array(
 			'post_title'               => __( 'Name on wiki', 'family-wiki' ),
 			'born_as'                  => __( 'Birth name', 'family-wiki' ),
@@ -627,7 +628,8 @@ class Gedcom {
 			<input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>" />
 			<?php foreach ( $people as $id => $changes ) : ?>
 				<fieldset class="familypedia-gedcom-comparison-person">
-					<legend><?php echo esc_html( get_the_title( $id ) ); ?></legend>
+					<legend><a href="<?php echo esc_url( Person::url( $id ) ); ?>" target="_blank" rel="noopener noreferrer" title="<?php esc_attr_e( 'Open person page in a new tab', 'family-wiki' ); ?>"><?php echo esc_html( get_the_title( $id ) ); ?><span class="screen-reader-text"> <?php esc_html_e( '(opens in a new tab)', 'family-wiki' ); ?></span> &#8599;</a></legend>
+					<?php $this->render_comparison_family( $id, $family ); ?>
 					<table class="familypedia-gedcom-review__table">
 						<colgroup><col class="familypedia-gedcom-comparison-check" /><col /><col /><col class="familypedia-gedcom-comparison-arrow" /><col /></colgroup>
 						<thead><tr><th><?php esc_html_e( 'Save', 'family-wiki' ); ?></th><th><?php esc_html_e( 'Field', 'family-wiki' ); ?></th><th><?php esc_html_e( 'GEDCOM value', 'family-wiki' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Copy', 'family-wiki' ); ?></span></th><th><?php esc_html_e( 'Familypedia value', 'family-wiki' ); ?></th></tr></thead>
@@ -671,6 +673,37 @@ class Gedcom {
 				}
 			}
 		}
+	}
+
+	/** Show existing family context, including relationships recorded at either end. */
+	private function render_comparison_family( $id, $family ) {
+		$person = isset( $family[ $id ] ) ? $family[ $id ] : array();
+		echo '<dl class="familypedia-gedcom-comparison-family">';
+		foreach ( array(
+			'parents'  => __( 'Parents', 'family-wiki' ),
+			'children' => __( 'Children', 'family-wiki' ),
+		) as $relation => $label ) {
+			$names = array();
+			foreach ( isset( $person[ $relation ] ) ? $person[ $relation ] : array() as $relative_id ) {
+				if ( isset( $family[ $relative_id ] ) ) {
+					$names[] = '<a href="' . esc_url( Person::url( $relative_id ) ) . '" target="_blank" rel="noopener noreferrer">'
+						. esc_html( get_the_title( $relative_id ) ) . '<span class="screen-reader-text"> '
+						. esc_html__( '(opens in a new tab)', 'family-wiki' ) . '</span></a>';
+				}
+			}
+			if ( 'parents' === $relation ) {
+				foreach ( array( 'father', 'mother' ) as $parent ) {
+					if ( ! Person::field( $parent, $id ) && Person::field( $parent . '_name', $id ) ) {
+						$names[] = esc_html( Person::field( $parent . '_name', $id ) );
+					}
+				}
+			}
+			echo '<dt>' . esc_html( $label ) . '</dt><dd>';
+			// Each link and plain-text name is escaped above.
+			echo $names ? implode( ', ', $names ) : esc_html__( 'Not recorded', 'family-wiki' );
+			echo '</dd>';
+		}
+		echo '</dl>';
 	}
 
 	private function comparison_value_label( $field, $value ) {

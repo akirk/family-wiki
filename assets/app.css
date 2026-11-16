@@ -1086,3 +1086,20 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 .familypedia-gedcom-comparison-person [data-gedcom-copy] {
 	padding: 0.35rem 0.6rem;
 }
+
+.familypedia-gedcom-comparison-family {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 0.25rem 0.75rem;
+	margin: 0 0 1rem;
+	font-size: 0.9rem;
+}
+
+.familypedia-gedcom-comparison-family dt {
+	font-weight: 600;
+}
+
+.familypedia-gedcom-comparison-family dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}

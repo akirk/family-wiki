@@ -3,11 +3,15 @@
 namespace Family_Wiki {
 	class Person {
 		const POST_TYPE = 'person';
+		public static function url( $id ) { return 'https://example.org/familypedia/person-' . $id . '/'; }
 		public static function field( $field, $id ) { return get_post_meta( $id, $field, true ); }
 	}
 }
 namespace {
 	function add_action( ...$args ) {}
+	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
+	function esc_html__( $value, $domain ) { return esc_html( $value ); }
+	function esc_url( $value ) { return esc_html( $value ); }
 	function __( $text, $domain ) { return $text; }
 	function sanitize_text_field( $text ) { return trim( strip_tags( $text ) ); }
 	function get_posts( $args ) { return array( 1, 2 ); }
@@ -103,6 +107,17 @@ namespace {
 	) as $case ) {
 		if ( $case[2] !== $edit->invoke( $gedcom, $case[0], $case[1] ) ) {
 			throw new RuntimeException( 'Edited value validation failed.' );
+		}
+	}
+	$context = new ReflectionMethod( $gedcom, 'render_comparison_family' );
+	$context->setAccessible( true );
+	$GLOBALS['meta'][1]['father_name'] = 'Parent <name>';
+	ob_start();
+	$context->invoke( $gedcom, 1, array( 1 => array( 'parents' => array(), 'children' => array( 3 ) ), 3 => array() ) );
+	$html = ob_get_clean();
+	foreach ( array( 'Parents', 'Children', 'Parent &lt;name&gt;', 'person-3/', 'target="_blank"', 'rel="noopener noreferrer"' ) as $expected ) {
+		if ( false === strpos( $html, $expected ) ) {
+			throw new RuntimeException( 'Family context missing: ' . $expected );
 		}
 	}
 	echo "GEDCOM comparison checks passed.\n";
