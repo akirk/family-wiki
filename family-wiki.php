@@ -45,7 +45,6 @@ add_action(
 	function () {
 		// Translations are loaded automatically since WordPress 6.7, and by
 		// WordPress.org since 4.6, so load_plugin_textdomain() is not called.
-		Save_Debug::maybe_start();
 		new Private_Site();
 		new Upgrade();
 		$app = new App();

@@ -49,12 +49,6 @@ Development happens on `main`. Dependencies in `vendor/` are ignored by Git; run
 
 Every push to a source branch builds an installable `dist/<branch>` branch with production dependencies and appends the source commit to the plugin version. The build can also be run manually for a source branch from GitHub Actions. Use `dist/main` for installations and WordPress Playground; PR previews use their corresponding distribution branches and become available once the build finishes.
 
-### Temporary save diagnostics
-
-Enable timings for one hour with `wp --url=your-wiki.example transient set family_wiki_save_debug 1 3600`. Stop early with `wp --url=your-wiki.example transient delete family_wiki_save_debug`.
-
-Save requests log callback timings, database query counts, REST response statuses, external HTTP hosts and fatal-error locations to `family-wiki-save-BLOG_ID.log` in PHP’s temporary directory. Logs exclude page content, SQL text and credentials. Timing entries share a request identifier. The web-server account owns the log; its group can read it.
-
 ## Changelog
 
 ### 2.0.0
