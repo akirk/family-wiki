@@ -15,6 +15,8 @@ Keep your family history in a private wiki app hosted on WordPress.
 
 Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator or Editor account. Advanced Custom Fields is no longer required.
 
+On Import / Export, choose **Upload for comparison only** to review GEDCOM differences without changing the wiki. Each person has a comparison section. Edit the wiki value or use the copy arrow to carry over a GEDCOM value. Modified rows are checked automatically; review the individual name, sex, birth or death facts and press **Apply selected changes** to save. Missing facts never erase data; unmatched people, relationships and page text are left untouched. Facts edited since the comparison was opened are skipped.
+
 Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and their selected option in Settings → Reading. Once displayed in Settings → Reading, its availability is remembered so administrators can disable and later re-enable it. The option is not offered on sites without legacy privacy. WpApp protects app content and its REST endpoints independently of whole-site visibility.
 
 ### Upgrading from Family Wiki 1.x
