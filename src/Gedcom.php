@@ -593,6 +593,7 @@ class Gedcom {
 				wp_die( esc_html__( 'Sorry, you are not allowed to import GEDCOM data.', 'family-wiki' ), 403 );
 			}
 			check_admin_referer( self::RESUME_COMPARE_ACTION );
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Structured JSON is validated by client_comparison_snapshot(); saved field values are sanitized separately.
 			$snapshot = isset( $_POST['comparison_snapshot'] ) && is_string( $_POST['comparison_snapshot'] ) ? $this->client_comparison_snapshot( wp_unslash( $_POST['comparison_snapshot'] ) ) : false;
 			if ( ! $snapshot ) {
 				$this->fail( 'review_expired' );
@@ -1237,6 +1238,7 @@ class Gedcom {
 		}
 		check_admin_referer( self::COMPARE_ACTION );
 		if ( isset( $_POST['comparison_snapshot'] ) && is_string( $_POST['comparison_snapshot'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Structured JSON is validated by client_comparison_snapshot(); saved field values are sanitized separately.
 			$snapshot = $this->client_comparison_snapshot( wp_unslash( $_POST['comparison_snapshot'] ) );
 			if ( ! $snapshot ) {
 				$this->fail( 'review_expired' );

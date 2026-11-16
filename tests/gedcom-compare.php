@@ -55,10 +55,10 @@ namespace {
 		throw new RuntimeException( 'Static name normalization must collapse encoded and non-breaking spaces.' );
 	}
 	foreach ( array(
-		array( 'cameron clark', 'cameron alexander kirk clark', true ),
-		array( 'cameron alexander kirk clark', 'cameron clark', true ),
-		array( 'coralie clark', 'coralie clark lupi', true ),
-		array( 'david clark', 'david a clark', true ),
+		array( 'samuel reed', 'samuel james thomas reed', true ),
+		array( 'samuel james thomas reed', 'samuel reed', true ),
+		array( 'emily reed', 'emily reed parker', true ),
+		array( 'daniel reed', 'daniel a reed', true ),
 		array( 'jane smith', 'john smith', false ),
 		array( 'jane smith', 'smith jane', false ),
 		array( 'jane', 'jane smith', false ),
@@ -217,32 +217,32 @@ namespace {
 	}
 	$find = new ReflectionMethod( $gedcom, 'find_person_post' );
 	$find->setAccessible( true );
-	$GLOBALS['meta'][40] = array( 'birth_date' => '1938-03-31' );
-	$GLOBALS['meta'][41] = array( 'birth_date' => '1967-09-19' );
+	$GLOBALS['meta'][40] = array( 'birth_date' => '1920-04-12' );
+	$GLOBALS['meta'][41] = array( 'birth_date' => '1950-06-21' );
 	$matching_index = array(
 		'xref' => array(), 'title' => array(), 'trashed' => array(),
-		'aliases' => array( 'jean margaret kirk' => array( 40 ), 'cameron clark' => array( 41 ), 'cameron alexander kirk clark' => array( 41 ) ),
+		'aliases' => array( 'olivia rose thomas' => array( 40 ), 'samuel reed' => array( 41 ), 'samuel james thomas reed' => array( 41 ) ),
 	);
 	foreach ( array(
-		array( 'Jean Margaret Kirk', '1938', 40 ),
-		array( " Jean  Margaret Kirk ", '1938', 40 ),
-		array( 'Cameron Alexander Clark', '1967', 41 ),
-		array( 'Cameron Alexander Clark', '1968', 0 ),
-		array( 'Cameron Alexander Clark', '', 0 ),
-		array( 'Cameron Smith', '1967', 0 ),
+		array( 'Olivia Rose Thomas', '1920', 40 ),
+		array( " Olivia  Rose Thomas ", '1920', 40 ),
+		array( 'Samuel James Reed', '1950', 41 ),
+		array( 'Samuel James Reed', '1951', 0 ),
+		array( 'Samuel James Reed', '', 0 ),
+		array( 'Samuel Smith', '1950', 0 ),
 	) as $case ) {
 		if ( $case[2] !== $find->invoke( $gedcom, 'NEW', $case[0], $matching_index, array(), $case[1] ) ) {
 			throw new RuntimeException( 'Alias or variant match failed: ' . $case[0] );
 		}
 	}
-	$GLOBALS['meta'][42] = array( 'birth_date' => '1967-01-01' );
-	$matching_index['aliases']['cameron clark'][] = 42;
-	if ( 0 !== $find->invoke( $gedcom, 'NEW', 'Cameron Alexander Clark', $matching_index, array(), '1967' ) ) {
+	$GLOBALS['meta'][42] = array( 'birth_date' => '1950-01-01' );
+	$matching_index['aliases']['samuel reed'][] = 42;
+	if ( 0 !== $find->invoke( $gedcom, 'NEW', 'Samuel James Reed', $matching_index, array(), '1950' ) ) {
 		throw new RuntimeException( 'Ambiguous name variants must not be automatically matched.' );
 	}
-	unset( $matching_index['aliases']['cameron clark'][1] );
+	unset( $matching_index['aliases']['samuel reed'][1] );
 	$GLOBALS['meta'][41]['_family_wiki_gedcom_xref'] = 'OTHER';
-	if ( 0 !== $find->invoke( $gedcom, 'NEW', 'Cameron Alexander Clark', $matching_index, array(), '1967' ) ) {
+	if ( 0 !== $find->invoke( $gedcom, 'NEW', 'Samuel James Reed', $matching_index, array(), '1950' ) ) {
 		throw new RuntimeException( 'Alias matching must respect conflicting GEDCOM IDs.' );
 	}
 	$reason = new ReflectionMethod( $gedcom, 'render_comparison_match_reason' );
@@ -296,6 +296,11 @@ namespace {
 	);
 	if ( $browser_snapshot !== $validate_snapshot->invoke( $gedcom, json_encode( $browser_snapshot ) ) ) {
 		throw new RuntimeException( 'A browser snapshot should be usable without a server-side review.' );
+	}
+	$structured_snapshot = $browser_snapshot;
+	$structured_snapshot['contents'] = "0 @JSON_TEST@ INDI\n1 NAME Example /Person/\n1 NOTE Quotes \"example\", slashes /path/, percent %20, and <literal> text.\n0 TRLR\n";
+	if ( $structured_snapshot !== $validate_snapshot->invoke( $gedcom, json_encode( $structured_snapshot ) ) ) {
+		throw new RuntimeException( 'Snapshot validation must preserve GEDCOM JSON text for later field sanitization.' );
 	}
 	foreach ( array( array( 'owner', 8 ), array( 'site', 4 ), array( 'version', 2 ), array( 'contents', array() ) ) as $invalid ) {
 		$bad = $browser_snapshot;
