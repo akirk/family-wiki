@@ -91,50 +91,46 @@ class Interview {
 			'childhood'     => array(
 				'label'     => __( 'Childhood', 'family-wiki' ),
 				'questions' => array(
-					'home'         => array( __( 'Take me back to one moment in your childhood home.', 'family-wiki' ), __( 'Who lived there? What could you see from your window? Did you move during childhood?', 'family-wiki' ) ),
-					'early_memory' => array( __( 'What is one of your earliest memories?', 'family-wiki' ), __( 'Who was with you? What do you remember seeing, hearing or smelling?', 'family-wiki' ) ),
-					'parents'      => array( __( 'Tell me about a time a parent or grandparent surprised you.', 'family-wiki' ), __( 'What did they do every day? What sayings or habits do you remember?', 'family-wiki' ) ),
+					'home'         => array( __( 'Where did you grow up, and what was it like there?', 'family-wiki' ), __( 'Who lived with you? What was your home like? Did you move during childhood?', 'family-wiki' ) ),
+					'early_memory' => array( __( 'What do you remember about being a child?', 'family-wiki' ), __( 'Is there an early memory that stands out? What did you enjoy doing?', 'family-wiki' ) ),
+					'parents'      => array( __( 'What were your parents or the people who raised you like?', 'family-wiki' ), __( 'What did they do day to day? Are there things they said or did that you still remember? Were you close to any grandparents or other adults?', 'family-wiki' ) ),
 				),
 			),
 			'school'        => array(
 				'label'     => __( 'School and growing up', 'family-wiki' ),
 				'questions' => array(
-					'school_career' => array( __( 'Could you walk me through your school career, from your first school to when you finished your education?', 'family-wiki' ), __( 'Which schools did you attend, where were they, and roughly when? Include further education, training or qualifications if relevant. What do you remember about starting a new school, changing direction or leaving?', 'family-wiki' ) ),
-					'school_days'   => array( __( 'Tell me about a school day you still remember.', 'family-wiki' ), __( 'How did you get there? Who were your friends? Was there a teacher you remember?', 'family-wiki' ) ),
-					'free_time'     => array( __( 'Tell me about an adventure you had with friends when you were young.', 'family-wiki' ), __( 'Where did you go? What music, games or hobbies mattered to you?', 'family-wiki' ) ),
-					'leaving_home'  => array( __( 'What do you remember about the day you left home or first felt independent?', 'family-wiki' ), __( 'When did you leave home? What did you hope your life would be like?', 'family-wiki' ) ),
+					'school_career' => array( __( 'Which schools did you go to?', 'family-wiki' ), __( 'Where were they, and roughly when did you attend? Did you continue with further education or training?', 'family-wiki' ) ),
+					'school_days'   => array( __( 'What was school like for you?', 'family-wiki' ), __( 'How did you get there? Who did you spend time with? Are there teachers or particular days you remember?', 'family-wiki' ) ),
+					'free_time'     => array( __( 'What did you enjoy doing in your free time when you were young?', 'family-wiki' ), __( 'Who did you spend time with? What music, games or hobbies mattered to you? Did you have any adventures together?', 'family-wiki' ) ),
+					'leaving_home'  => array( __( 'How did life change as you grew older and became more independent?', 'family-wiki' ), __( 'Did you leave the family home? What do you remember about that time? What hopes or plans did you have?', 'family-wiki' ) ),
 				),
 			),
 			'work'          => array(
 				'label'     => __( 'Work', 'family-wiki' ),
 				'questions' => array(
-					'first_job'    => array( __( 'How did you find your first job?', 'family-wiki' ), __( 'What did you do? Who helped you learn? What did you spend your first pay on?', 'family-wiki' ) ),
-					'working_life' => array( __( 'Tell me about a day at work that you still talk about.', 'family-wiki' ), __( 'What were you proud of? Who did you work with? Did your work take you somewhere new?', 'family-wiki' ) ),
-					'changes'      => array( __( 'Take me back to a moment when you decided to change direction.', 'family-wiki' ), __( 'What prompted the change? What was difficult? What happened next?', 'family-wiki' ) ),
+					'first_job'    => array( __( 'What was your first job?', 'family-wiki' ), __( 'How did you find it? What did you do? Who helped you learn? Do you remember what you spent your first pay on?', 'family-wiki' ) ),
+					'working_life' => array( __( 'What kinds of work have you done over the years?', 'family-wiki' ), __( 'What was a typical day like? Who did you work with? What did you enjoy, or find difficult? Is there anything you feel particularly proud of?', 'family-wiki' ) ),
+					'changes'      => array( __( 'How did your working life change over time?', 'family-wiki' ), __( 'Did you change jobs, take breaks, care for others or stop working? What led to those changes? How did you feel about them?', 'family-wiki' ) ),
 				),
 			),
 			'relationships' => array(
 				'label'     => __( 'Relationships and family', 'family-wiki' ),
 				'questions' => array(
-					'important_people' => array( __( 'Tell me about the first time you met someone who became important to you.', 'family-wiki' ), __( 'How did you meet? What did you enjoy doing together?', 'family-wiki' ) ),
-					'family_life'      => array( __( 'Tell me about a family gathering when something unexpected happened.', 'family-wiki' ), __( 'Think of celebrations, raising children, visits, friendships or ordinary days together.', 'family-wiki' ) ),
-					'traditions'       => array( __( 'Which family traditions or stories were passed down to you?', 'family-wiki' ), __( 'Who told you the story? Did you experience it yourself, or hear it from someone else?', 'family-wiki' ) ),
+					'important_people' => array( __( 'Who have been the important people in your life?', 'family-wiki' ), __( 'How did you meet or get to know them? What did you enjoy doing together? Are there particular memories that stand out?', 'family-wiki' ) ),
+					'family_life'      => array( __( 'What has family life been like for you over the years?', 'family-wiki' ), __( 'Who did you spend time with? Were children or other people you cared for part of your life? What do you remember about ordinary days or gatherings together?', 'family-wiki' ) ),
+					'traditions'       => array( __( 'Are there family traditions or stories you remember?', 'family-wiki' ), __( 'Were there celebrations, customs or sayings that mattered to your family? Who passed them on? Did you experience the stories yourself, or hear them from someone else?', 'family-wiki' ) ),
 				),
 			),
 			'everyday'      => array(
-				'label'     => __( 'Everyday life', 'family-wiki' ),
+				'label'     => __( 'Homes and places', 'family-wiki' ),
 				'questions' => array(
-					'sunday'    => array( __( 'Take me through one Sunday you can still picture.', 'family-wiki' ), __( 'What did you eat? Who visited? How did this change over the years?', 'family-wiki' ) ),
-					'places'    => array( __( 'Tell me about a moment when a new place began to feel like home.', 'family-wiki' ), __( 'What brought you there? What were the neighbours and surroundings like?', 'family-wiki' ) ),
-					'enjoyment' => array( __( 'Tell me about a small moment that still makes you smile.', 'family-wiki' ), __( 'Are there recipes, songs, journeys, pets or small routines you want us to remember?', 'family-wiki' ) ),
+					'places' => array( __( 'Where have you lived over the years?', 'family-wiki' ), __( 'What brought you to each place? What were the neighbours and surroundings like? Were there places where you felt especially at home?', 'family-wiki' ) ),
 				),
 			),
-			'memories'      => array(
-				'label'     => __( 'Particular memories', 'family-wiki' ),
+			'closing'       => array(
+				'label'     => __( 'Wrapping up', 'family-wiki' ),
 				'questions' => array(
-					'turning_point' => array( __( 'Take me back to the day you learned news that changed your life.', 'family-wiki' ), __( 'How did you experience them? What helped you through? An approximate year is enough.', 'family-wiki' ) ),
-					'photo_story'   => array( __( 'Is there a photograph or object with a story you would like to tell?', 'family-wiki' ), __( 'Who is pictured? Where and roughly when was it? Why have you kept it?', 'family-wiki' ) ),
-					'remember'      => array( __( 'What else would you like the family to know or remember?', 'family-wiki' ), __( 'Is there a story we have not asked about, or someone we should speak to next?', 'family-wiki' ) ),
+					'remember' => array( __( 'Is there anything else you’d like to talk about?', 'family-wiki' ), '' ),
 				),
 			),
 		);
@@ -142,25 +138,21 @@ class Interview {
 			return $catalogue;
 		}
 		$other_questions = array(
-			'home'             => array( __( 'Tell me a story about something that happened in their childhood home.', 'family-wiki' ), __( 'Who lived there? What was the neighbourhood like? Did they move during childhood?', 'family-wiki' ) ),
-			'early_memory'     => array( __( 'What is one of your earliest memories of them?', 'family-wiki' ), __( 'Where were you? What did they say or do? What stands out about that moment?', 'family-wiki' ) ),
-			'parents'          => array( __( 'Tell me a story that shows what their parents or grandparents were like.', 'family-wiki' ), __( 'What did they do every day? Which stories about them were passed down?', 'family-wiki' ) ),
-			'school_career'    => array( __( 'Could you walk me through their school career, from their first school to when they finished their education?', 'family-wiki' ), __( 'Which schools did they attend, where were they, and roughly when? Include further education, training or qualifications if relevant. What did they tell you about starting a new school, changing direction or leaving?', 'family-wiki' ) ),
-			'school_days'      => array( __( 'What story did they tell about a particular day at school?', 'family-wiki' ), __( 'Where did they go to school? Who were their friends? Did they tell any stories about it?', 'family-wiki' ) ),
-			'free_time'        => array( __( 'Tell me about an adventure they had when they were young.', 'family-wiki' ), __( 'What music, games or hobbies mattered to them? Who spent time with them?', 'family-wiki' ) ),
-			'leaving_home'     => array( __( 'What story did they tell about leaving home or first feeling independent?', 'family-wiki' ), __( 'When did they leave home? What plans or hopes did they talk about?', 'family-wiki' ) ),
-			'first_job'        => array( __( 'What do you know about their first job?', 'family-wiki' ), __( 'How did they find it? What did they do? Who helped them learn?', 'family-wiki' ) ),
-			'working_life'     => array( __( 'Tell me about a particular day at work they remembered.', 'family-wiki' ), __( 'What were they proud of? Who did they work with? Where did their work take them?', 'family-wiki' ) ),
-			'changes'          => array( __( 'Tell me about a moment when they decided to change direction.', 'family-wiki' ), __( 'What prompted the change? What was difficult? What happened next?', 'family-wiki' ) ),
-			'important_people' => array( __( 'Tell me the story of how they met someone important to them.', 'family-wiki' ), __( 'How did they meet? What did they enjoy doing together?', 'family-wiki' ) ),
-			'family_life'      => array( __( 'Tell me about a family gathering with them when something unexpected happened.', 'family-wiki' ), __( 'Think of celebrations, raising children, visits, friendships or ordinary days together.', 'family-wiki' ) ),
-			'traditions'       => array( __( 'Which traditions or stories did they pass down?', 'family-wiki' ), __( 'Did you hear these stories from them, or from someone else? Who else might remember?', 'family-wiki' ) ),
-			'sunday'           => array( __( 'Take me through one Sunday with them that you can still picture.', 'family-wiki' ), __( 'What did they eat? Who visited? How did this change over the years?', 'family-wiki' ) ),
-			'places'           => array( __( 'Tell me a story about a place where they felt at home.', 'family-wiki' ), __( 'What brought them there? What were the neighbours and surroundings like?', 'family-wiki' ) ),
-			'enjoyment'        => array( __( 'Tell me about a small moment when you saw them happy.', 'family-wiki' ), __( 'Are there recipes, songs, journeys, pets or small routines that remind you of them?', 'family-wiki' ) ),
-			'turning_point'    => array( __( 'Tell me about the day they learned news that changed their life.', 'family-wiki' ), __( 'How did they experience them? What helped them through? An approximate year is enough.', 'family-wiki' ) ),
-			'photo_story'      => array( __( 'Is there a photograph or object that tells a story about them?', 'family-wiki' ), __( 'Who is pictured? Where and roughly when was it? Why was it kept?', 'family-wiki' ) ),
-			'remember'         => array( __( 'What else would you like the family to remember about them?', 'family-wiki' ), __( 'Is there a story we have not asked about, or someone we should speak to next?', 'family-wiki' ) ),
+			'home'             => array( __( 'Where did they grow up, and what was it like there?', 'family-wiki' ), __( 'Who lived with them? What was their home like? Did they move during childhood?', 'family-wiki' ) ),
+			'early_memory'     => array( __( 'What do you know about their childhood?', 'family-wiki' ), __( 'Did they share any early memories? What did they enjoy doing?', 'family-wiki' ) ),
+			'parents'          => array( __( 'What were their parents or the people who raised them like?', 'family-wiki' ), __( 'What did those people do day to day? Are there sayings or habits you remember or heard about? Were they close to any grandparents or other adults?', 'family-wiki' ) ),
+			'school_career'    => array( __( 'Which schools did they go to?', 'family-wiki' ), __( 'Where were they, and roughly when did they attend? Did they continue with further education or training?', 'family-wiki' ) ),
+			'school_days'      => array( __( 'What was school like for them?', 'family-wiki' ), __( 'How did they get there? Who did they spend time with? Did they mention any teachers or particular days they remembered?', 'family-wiki' ) ),
+			'free_time'        => array( __( 'What did they enjoy doing in their free time when they were young?', 'family-wiki' ), __( 'Who did they spend time with? What music, games or hobbies mattered to them? Did they have any adventures together?', 'family-wiki' ) ),
+			'leaving_home'     => array( __( 'How did life change as they grew older and became more independent?', 'family-wiki' ), __( 'Did they leave the family home? What do you know about that time? What hopes or plans did they have?', 'family-wiki' ) ),
+			'first_job'        => array( __( 'What was their first job?', 'family-wiki' ), __( 'How did they find it? What did they do? Who helped them learn? Do you know what they spent their first pay on?', 'family-wiki' ) ),
+			'working_life'     => array( __( 'What kinds of work did they do over the years?', 'family-wiki' ), __( 'What was a typical day like? Who did they work with? What did they enjoy, or find difficult? Was there anything they felt particularly proud of?', 'family-wiki' ) ),
+			'changes'          => array( __( 'How did their working life change over time?', 'family-wiki' ), __( 'Did they change jobs, take breaks, care for others or stop working? What led to those changes? How did they feel about them?', 'family-wiki' ) ),
+			'important_people' => array( __( 'Who were the important people in their life?', 'family-wiki' ), __( 'How did they meet or get to know them? What did they enjoy doing together? Are there particular memories that stand out?', 'family-wiki' ) ),
+			'family_life'      => array( __( 'What was family life like for them over the years?', 'family-wiki' ), __( 'Who did they spend time with? Were children or other people they cared for part of their life? What do you know about ordinary days or gatherings together?', 'family-wiki' ) ),
+			'traditions'       => array( __( 'Are there family traditions or stories associated with them?', 'family-wiki' ), __( 'Were there celebrations, customs or sayings that mattered to their family? Who passed them on? Did you experience the stories yourself, or hear them from someone else?', 'family-wiki' ) ),
+			'places'           => array( __( 'Where did they live over the years?', 'family-wiki' ), __( 'What brought them to each place? What were the neighbours and surroundings like? Were there places where they felt especially at home?', 'family-wiki' ) ),
+			'remember'         => array( __( 'Is there anything else you’d like to share about them?', 'family-wiki' ), '' ),
 		);
 		foreach ( $catalogue as &$group ) {
 			foreach ( $group['questions'] as $key => &$prompt ) {
@@ -199,6 +191,18 @@ class Interview {
 					'question' => $prompt[0],
 					'hint'     => $prompt[1],
 				);
+			}
+		}
+		// Keep retired starter references usable in personal libraries and imports.
+		foreach ( self::legacy_catalogue( $about_other ) as $group ) {
+			foreach ( $group['questions'] as $id => $prompt ) {
+				if ( ! isset( $defaults[ $id ] ) ) {
+					$defaults[ $id ] = array(
+						'topic'    => $group['label'],
+						'question' => $prompt[0],
+						'hint'     => $prompt[1],
+					);
+				}
 			}
 		}
 		return $defaults;

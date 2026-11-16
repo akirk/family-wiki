@@ -148,7 +148,7 @@ if ( $familypedia_recovery ) :
 		<button type="submit" name="op" value="save" hidden><?php esc_html_e( 'Save interview', 'family-wiki' ); ?></button>
 		<input type="hidden" name="version" value="<?php echo esc_attr( $familypedia_data['version'] ); ?>" />
 		<div data-question-picker hidden data-covered="<?php esc_attr_e( 'Marked in audio recording', 'family-wiki' ); ?>" data-visited="<?php esc_attr_e( 'Visited', 'family-wiki' ); ?>">
-			<p class="familypedia-interview__hint"><?php esc_html_e( 'Choose a topic, then pick whichever question fits the conversation.', 'family-wiki' ); ?></p>
+			<p class="familypedia-interview__hint"><?php esc_html_e( 'Choose a topic, then pick whichever question fits the conversation. If you like, look at photographs or objects together to help the conversation along.', 'family-wiki' ); ?></p>
 			<div class="familypedia-interview__topics" role="group" aria-label="<?php esc_attr_e( 'Topics', 'family-wiki' ); ?>" data-topic-chips></div>
 			<div class="familypedia-interview__cards" data-question-cards></div>
 		</div>
@@ -287,22 +287,22 @@ if ( $familypedia_recovery ) :
 		data-up="<?php esc_attr_e( 'Move up', 'family-wiki' ); ?>" data-down="<?php esc_attr_e( 'Move down', 'family-wiki' ); ?>" data-remove="<?php esc_attr_e( 'Remove', 'family-wiki' ); ?>"
 		data-imported="<?php esc_attr_e( 'Questions added for review. Save to keep them.', 'family-wiki' ); ?>" data-invalid="<?php esc_attr_e( 'Import a JSON list with topic, question and optional hint fields (maximum 200 questions and 1 MB).', 'family-wiki' ); ?>">
 		<summary><?php esc_html_e( 'My question library', 'family-wiki' ); ?></summary>
-		<p><?php esc_html_e( 'Ask for one scene: where were you, who was there, what happened next? Follow the story before moving on. Your library applies to new interviews; saved interviews keep their questions. Custom wording is used for both perspectives.', 'family-wiki' ); ?></p>
-		<form method="post" action="<?php echo esc_url( Interview::url( $familypedia_person_id ) ); ?>">
+		<p><?php esc_html_e( 'Start with a broad question and follow the memories that come up. Your library applies to new interviews; saved interviews keep their questions. Custom wording is used for both perspectives.', 'family-wiki' ); ?></p>
+		<form method="post" class="familypedia-form" action="<?php echo esc_url( Interview::url( $familypedia_person_id ) ); ?>">
 			<?php $familypedia_form_fields(); ?>
 			<?php
 			$familypedia_rows = Interview::question_rows();
 			?>
 			<script type="application/json" data-question-defaults><?php echo wp_json_encode( Interview::question_defaults(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ); ?></script>
 			<div data-library-rows></div>
-			<p><button type="button" data-add-question hidden><?php esc_html_e( 'Add question', 'family-wiki' ); ?></button></p>
+			<p><button type="button" class="familypedia-button" data-add-question hidden><?php esc_html_e( 'Add question', 'family-wiki' ); ?></button></p>
 			<label for="question-library"><?php esc_html_e( 'Question set (JSON)', 'family-wiki' ); ?></label>
 			<p><?php esc_html_e( 'Import adds questions for review. Edit or reorder the list, then save to replace your personal library.', 'family-wiki' ); ?></p>
 			<textarea id="question-library" name="question_library" rows="12" style="width:100%" required><?php echo esc_textarea( wp_json_encode( $familypedia_rows, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE ) ); ?></textarea>
 			<p><input type="file" accept=".json,application/json" data-import-questions aria-label="<?php esc_attr_e( 'Import questions', 'family-wiki' ); ?>" />
-			<button type="button" data-export-questions hidden><?php esc_html_e( 'Export questions', 'family-wiki' ); ?></button></p>
+			<button type="button" class="familypedia-button familypedia-button--primary" data-export-questions hidden><?php esc_html_e( 'Export questions', 'family-wiki' ); ?></button></p>
 			<p role="status" data-library-status></p>
-			<button type="submit" name="op" value="questions" class="familypedia-button"><?php esc_html_e( 'Save my question library', 'family-wiki' ); ?></button>
+			<button type="submit" name="op" value="questions" class="familypedia-button familypedia-button--primary"><?php esc_html_e( 'Save my question library', 'family-wiki' ); ?></button>
 		</form>
 	</details>
 	<section class="familypedia-interview__panel">
