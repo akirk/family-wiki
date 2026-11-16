@@ -118,7 +118,7 @@ class Cross_Wiki {
 		}
 
 		switch_to_blog( $blog_id );
-		if ( Private_Site::is_private() || ! current_user_can( 'edit_others_pages' ) ) {
+		if ( ! current_user_can( 'edit_others_pages' ) ) {
 			restore_current_blog();
 			$pages[ $cache_key ] = false;
 			return false;
