@@ -26,7 +26,8 @@ class Private_Site {
 		?>
 		<br />
 		<input id="blog-private" type="radio" name="blog_public" value="-1" <?php checked( get_option( 'blog_public' ), '-1' ); ?> />
-		<label for="blog-private"><?php esc_html_e( 'Private, visible only to administrators, editors, and wiki users', 'family-wiki' ); ?></label>
+		<label for="blog-private"><?php esc_html_e( 'Legacy Family Wiki: private, visible only to administrators and editors', 'family-wiki' ); ?></label>
+		<p class="description"><?php esc_html_e( 'This setting preserves whole-site privacy from the original Family Wiki plugin. Familypedia protects its app separately through WpApp.', 'family-wiki' ); ?></p>
 		<?php
 	}
 

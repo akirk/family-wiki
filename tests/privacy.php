@@ -33,6 +33,7 @@ foreach ( array( -1, '-1' ) as $value ) {
 	ob_start();
 	call_user_func( $GLOBALS['privacy_hooks']['blog_privacy_selector'] );
 	$html = ob_get_clean();
+	check_privacy( strpos( $html, 'Legacy Family Wiki:' ) !== false, 'The legacy privacy option must identify its origin.' );
 	check_privacy( strpos( $html, 'value="-1" checked="checked"' ) !== false, 'Legacy setting must remain selected when Reading settings are saved.' );
 }
 $GLOBALS['privacy_blog'] = 1;
