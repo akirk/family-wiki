@@ -5,7 +5,6 @@
  * Description: Like Wikipedia, but private and just for your family — stories and photos for every relative, compatible with other family tree apps via GEDCOM.
  * Version: 2.0.0
  * Requires at least: 6.0
- * Tested up to: 7.1
  * Requires PHP: 7.4
  * Author: Alex Kirk
  * Author URI: https://alex.kirk.at/
@@ -46,7 +45,6 @@ add_action(
 	function () {
 		// Translations are loaded automatically since WordPress 6.7, and by
 		// WordPress.org since 4.6, so load_plugin_textdomain() is not called.
-		Save_Debug::maybe_start();
 		new Private_Site();
 		new Upgrade();
 		$app = new App();

@@ -47,7 +47,11 @@ $familypedia_graph_groups = array(
 			</div>
 			<?php if ( $familypedia_graph_editable ) : ?>
 				<?php if ( 'parents' !== $familypedia_group || ! Person::field( 'father', $familypedia_graph_id ) || ! Person::field( 'mother', $familypedia_graph_id ) ) : ?>
-					<button type="button" class="familypedia-family-plus" data-family-add aria-label="<?php echo esc_attr( sprintf( __( 'Add to %s', 'family-wiki' ), $familypedia_group_label ) ); ?>">+</button>
+					<?php
+					/* translators: %s: family relationship group, such as Parents or Children. */
+					$familypedia_graph_add_label = sprintf( __( 'Add to %s', 'family-wiki' ), $familypedia_group_label );
+					?>
+					<button type="button" class="familypedia-family-plus" data-family-add aria-label="<?php echo esc_attr( $familypedia_graph_add_label ); ?>">+</button>
 				<?php endif; ?>
 				<template data-family-template>
 					<div class="familypedia-family-card familypedia-family-card--entry" data-family-row>

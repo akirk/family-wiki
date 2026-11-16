@@ -5,7 +5,8 @@
 - Requires at least: 6.0
 - Requires PHP: 7.4
 - Tested up to: 7.1
-- License: [GPLv2 or later](https://www.gnu.org/licenses/gpl-2.0.html)
+- License: GPL-2.0-or-later
+- License URI: https://www.gnu.org/licenses/gpl-2.0.html
 - Stable tag: 2.0.0
 
 Keep your family history in a private wiki app hosted on WordPress.
@@ -14,7 +15,7 @@ Keep your family history in a private wiki app hosted on WordPress.
 
 Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator or Editor account. Advanced Custom Fields is no longer required.
 
-Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. The existing whole-site privacy setting in Settings → Reading remains supported; app content requires wiki access even on a public site.
+Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and their selected option in Settings → Reading. Once displayed in Settings → Reading, its availability is remembered so administrators can disable and later re-enable it. The option is not offered on sites without legacy privacy. WpApp protects app content and its REST endpoints independently of whole-site visibility.
 
 ### Upgrading from Family Wiki 1.x
 
@@ -47,12 +48,6 @@ Select saved interviews to create an attributed biography outline. Edit and save
 Development happens on `main`. Dependencies in `vendor/` are ignored by Git; run `composer install --no-dev` before using a source checkout. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
 
 Every push to a source branch builds an installable `dist/<branch>` branch with production dependencies and appends the source commit to the plugin version. The build can also be run manually for a source branch from GitHub Actions. Use `dist/main` for installations and WordPress Playground; PR previews use their corresponding distribution branches and become available once the build finishes.
-
-### Temporary save diagnostics
-
-Enable timings for one hour with `wp --url=your-wiki.example transient set family_wiki_save_debug 1 3600`. Stop early with `wp --url=your-wiki.example transient delete family_wiki_save_debug`.
-
-Save requests log callback timings, database query counts, REST response statuses, external HTTP hosts and fatal-error locations to `family-wiki-save-BLOG_ID.log` in PHP’s temporary directory. Logs exclude page content, SQL text and credentials. Timing entries share a request identifier. The web-server account owns the log; its group can read it.
 
 ## Changelog
 
