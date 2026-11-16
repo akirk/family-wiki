@@ -3,14 +3,18 @@ namespace Family_Wiki;
 
 class Private_Site {
 	const MINIMUM_CAPABILITY = 'edit_others_pages';
+	const LEGACY_OPTION = 'family_wiki_legacy_privacy_available';
 
 	public function __construct() {
-		// Preserve existing private sites without offering whole-site privacy to new sites.
-		if ( '-1' !== (string) get_option( 'blog_public' ) ) {
-			return;
+		$legacy_private = '-1' === (string) get_option( 'blog_public' );
+		if ( $legacy_private || get_option( self::LEGACY_OPTION ) ) {
+			add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
 		}
 
-		add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
+		// Only the active privacy setting enables whole-site restrictions.
+		if ( ! $legacy_private ) {
+			return;
+		}
 
 		add_filter( 'xmlrpc_methods', array( $this, 'xmlrpc_methods' ) );
 		add_action( 'parse_request', array( $this, 'parse_request' ), 100 );
@@ -23,6 +27,7 @@ class Private_Site {
 	}
 
 	public function blog_privacy_selector() {
+		add_option( self::LEGACY_OPTION, 1, '', false );
 		?>
 		<br />
 		<input id="blog-private" type="radio" name="blog_public" value="-1" <?php checked( get_option( 'blog_public' ), '-1' ); ?> />
