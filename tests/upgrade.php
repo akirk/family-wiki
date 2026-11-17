@@ -125,6 +125,7 @@ namespace {
 	\Family_Wiki\Upgrade::record_previous_install();
 	check( \Family_Wiki\Upgrade::should_show_notice(), 'Stored 1.x settings must establish prior use even if empty.' );
 	$GLOBALS['options'] = $saved_options;
+	$GLOBALS['options']['blog_public'] = -1;
 
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 2 ) ) ), 'Child without parent must be rejected.' );
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1 ) ) ), 'Parent without child must be rejected.' );
@@ -135,6 +136,7 @@ namespace {
 	get_post( 4 )->post_name = 'contact';
 	check( \Family_Wiki\Upgrade::migrate( array( 1, 2, 3 ) ) === 3, 'Three pages must migrate.' );
 	check( get_post_type( 1 ) === \Family_Wiki\Person::POST_TYPE, 'Person must become app content.' );
+	check( get_option( 'blog_public' ) === -1, 'Migration must preserve legacy whole-site privacy until the owner disables it.' );
 	check( get_post_type( 4 ) === 'page' && get_post_type( 5 ) === 'page', 'Ordinary pages and homepage must remain pages.' );
 	check( get_post( 2 )->post_parent === 1, 'Hierarchy must remain intact.' );
 	check( get_post( 1 )->post_content === 'Original text', 'Content must remain intact.' );

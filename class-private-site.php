@@ -122,17 +122,8 @@ class Private_Site {
 			);
 		}
 
-		?>
-		<html>
-		<head>
-		<title><?php esc_html_e( 'This site is private.', 'family-wiki' ); ?></title>
-		</head>
-		<body>
-			<?php esc_html_e( 'This site is private.', 'family-wiki' ); ?>
-						<a href="<?php echo esc_url( wp_login_url( $request_uri ) ); ?>"><?php esc_html_e( 'Login' ); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- Use the WordPress core translation from the default text domain. ?></a>
-		</body>
-		</html>
-		<?php
+		nocache_headers();
+		wp_safe_redirect( wp_login_url( $request_uri, is_user_logged_in() ) );
 
 		exit;
 	}
