@@ -10,6 +10,15 @@ namespace Family_Wiki {
 }
 namespace {
 	use Family_Wiki\Gedcom;
+	define( 'DAY_IN_SECONDS', 86400 );
+	function get_transient( $key ) {
+		$entry = $GLOBALS['transients'][ $key ] ?? null;
+		return $entry && $entry['expires'] > $GLOBALS['clock'] ? $entry['value'] : false;
+	}
+	function set_transient( $key, $value, $expiration ) {
+		$GLOBALS['transients'][ $key ] = array( 'value' => $value, 'expires' => $GLOBALS['clock'] + $expiration );
+		return true;
+	}
 	function add_action( ...$args ) {}
 	function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES ); }
 	function esc_html__( $value, $domain ) { return esc_html( $value ); }
@@ -68,6 +77,26 @@ namespace {
 		}
 	}
 	$gedcom = new \Family_Wiki\Gedcom();
+	$save_state = new ReflectionMethod( $gedcom, 'save_import_state' );
+	$save_state->setAccessible( true );
+	$read_state = new ReflectionMethod( $gedcom, 'import_state' );
+	$read_state->setAccessible( true );
+	$GLOBALS['clock'] = 0;
+	$save_state->invoke( $gedcom, 'retention-test', array( 'gedcom' => '/tmp/example.ged', 'owner' => 7 ) );
+	$GLOBALS['clock'] = 6 * DAY_IN_SECONDS;
+	$state = $read_state->invoke( $gedcom, 'retention-test' );
+	if ( '/tmp/example.ged' !== ( $state['gedcom'] ?? '' ) || 7 !== ( $state['owner'] ?? 0 ) ) {
+		throw new RuntimeException( 'GEDCOM reviews must survive a multi-day pause.' );
+	}
+	$save_state->invoke( $gedcom, 'retention-test', array() );
+	$GLOBALS['clock'] = 8 * DAY_IN_SECONDS;
+	if ( $state !== $read_state->invoke( $gedcom, 'retention-test' ) ) {
+		throw new RuntimeException( 'Refreshing an import must preserve its files and ownership for another week.' );
+	}
+	$GLOBALS['clock'] = 13 * DAY_IN_SECONDS;
+	if ( array() !== $read_state->invoke( $gedcom, 'retention-test' ) ) {
+		throw new RuntimeException( 'Inactive GEDCOM reviews must still expire after a week.' );
+	}
 	$compare = new ReflectionMethod( $gedcom, 'comparison_changes' );
 	$compare->setAccessible( true );
 	$GLOBALS['meta'] = array(
