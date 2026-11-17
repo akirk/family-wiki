@@ -338,6 +338,10 @@
 	margin: 0 0 0.35rem;
 }
 
+.familypedia-calendar-month__weekday {
+	display: none;
+}
+
 .familypedia-calendar-month__events {
 	font-size: 0.8125rem;
 	line-height: 1.35;
@@ -391,18 +395,53 @@
 		display: none;
 	}
 
-	.familypedia-calendar-month table {
-		table-layout: auto;
+	/* Stack days so names remain readable without horizontal scrolling. */
+	.familypedia-calendar-month table,
+	.familypedia-calendar-month tbody,
+	.familypedia-calendar-month tr {
+		display: block;
+		width: 100%;
 	}
 
-	.familypedia-calendar-month__day {
-		height: 6rem;
-		min-width: 8rem;
+	.familypedia-calendar-month thead,
+	.familypedia-calendar-month__empty {
+		display: none;
+	}
+
+	.familypedia-calendar-month td.familypedia-calendar-month__day {
+		border-width: 0 0 1px;
+		box-sizing: border-box;
+		display: block;
+		height: auto;
+		min-width: 0;
+		overflow-wrap: anywhere;
+		padding: 0.75rem;
+		width: 100%;
+	}
+
+	.familypedia-calendar-month__weekday {
+		display: inline;
+	}
+
+	.familypedia-calendar-month__day--empty .familypedia-calendar-month__date {
+		color: #54595d;
+		font-weight: 400;
+		margin: 0;
+	}
+
+	.familypedia-calendar-month__events {
+		font-size: 1rem;
+		line-height: 1.5;
+	}
+
+	.familypedia-calendar-month__events a {
+		display: inline-block;
+		padding-block: 0.35rem;
 	}
 
 	.familypedia-calendar-month__header {
 		gap: 0.5rem;
-		grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
+		grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
 	}
 
 	.familypedia-calendar-month__header h2 {
@@ -410,12 +449,12 @@
 	}
 
 	.familypedia-calendar-month__nav {
-		flex-basis: 2.25rem;
+		flex-basis: 2.75rem;
 		font-size: 1.75rem;
-		height: 2.25rem;
-		max-width: 2.25rem;
-		min-width: 2.25rem;
-		width: 2.25rem;
+		height: 2.75rem;
+		max-width: 2.75rem;
+		min-width: 2.75rem;
+		width: 2.75rem;
 	}
 }
 

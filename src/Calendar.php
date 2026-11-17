@@ -534,7 +534,8 @@ class Calendar {
 		}
 
 		$return  = '<td id="' . esc_attr( self::get_day_anchor( $day_date ) ) . '" class="' . esc_attr( implode( ' ', $classes ) ) . '">';
-		$return .= '<span class="familypedia-calendar-month__date">' . esc_html( $day ) . '</span>';
+		$return .= '<time class="familypedia-calendar-month__date" datetime="' . esc_attr( $day_date->format( 'Y-m-d' ) ) . '">';
+		$return .= '<span class="familypedia-calendar-month__weekday">' . esc_html( date_i18n( 'l', $day_date->format( 'U' ) ) ) . ' </span>' . esc_html( $day ) . '</time>';
 
 		if ( empty( $events ) ) {
 			$return .= '</td>';
