@@ -21,8 +21,8 @@ class Stubs {
 	public static function people( $search = '', $only_stubs = true ) {
 		$args = array( 's' => $search );
 		if ( $only_stubs ) {
-			$args['meta_key'] = 'is_stub';
-			$args['meta_value'] = '1';
+			$args['meta_key'] = 'is_stub'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Select only explicitly flagged stubs for the review list.
+			$args['meta_value'] = '1'; // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Match the explicit boolean stub flag.
 		}
 		return array_values( array_filter( Person::get_all( $args ), function ( $person ) use ( $only_stubs ) {
 			return 'publish' === $person->post_status && ! Wiki_Page::is_page( $person ) && Editor::can_edit( $person->ID ) && ( ! $only_stubs || Person::field( 'is_stub', $person->ID ) );
@@ -159,7 +159,8 @@ class Stubs {
 			$ids = array( absint( $_POST['complete_person'] ) );
 			$review = false;
 		} elseif ( isset( $_POST['people'] ) && is_array( $_POST['people'] ) ) {
-			$ids = array_map( 'absint', array_filter( $_POST['people'], 'is_scalar' ) );
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Non-scalar entries are discarded and every remaining ID is sanitized with absint().
+			$ids = array_map( 'absint', array_filter( wp_unslash( $_POST['people'] ), 'is_scalar' ) );
 		}
 		$result = self::apply( $ids, $review );
 		Editor::set_notice( is_wp_error( $result ) ? $result->get_error_message() : sprintf(

@@ -35,7 +35,7 @@ class Settings {
 
 	public function maybe_save() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce is checked before any changes below.
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) || ! isset( $_POST['familypedia_save_settings'] ) ) {
+		if ( 'POST' !== ( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' ) || ! isset( $_POST['familypedia_save_settings'] ) ) {
 			return;
 		}
 
@@ -45,9 +45,12 @@ class Settings {
 		check_admin_referer( 'familypedia_save_settings' );
 
 		update_option( Homepage::OPTION, ! empty( $_POST[ Homepage::OPTION ] ) );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The custom sanitizer validates and sanitizes every setting below.
 		update_option( self::INFOBOX_OPTION, $this->sanitize_infobox_settings( isset( $_POST[ self::INFOBOX_OPTION ] ) ? wp_unslash( $_POST[ self::INFOBOX_OPTION ] ) : array() ) );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The custom sanitizer validates and sanitizes every setting below.
 		update_option( self::APP_PAGES_OPTION, $this->sanitize_app_pages_settings( isset( $_POST[ self::APP_PAGES_OPTION ] ) ? wp_unslash( $_POST[ self::APP_PAGES_OPTION ] ) : array() ) );
 		if ( is_multisite() ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- The custom sanitizer validates and sanitizes every setting below.
 			update_option( Cross_Wiki::OPTION, $this->sanitize_cross_wiki_sites( isset( $_POST[ Cross_Wiki::OPTION ] ) ? wp_unslash( $_POST[ Cross_Wiki::OPTION ] ) : array() ) );
 		}
 
