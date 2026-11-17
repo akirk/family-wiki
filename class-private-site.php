@@ -6,6 +6,11 @@ class Private_Site {
 	const LEGACY_OPTION = 'family_wiki_legacy_privacy_available';
 
 	public function __construct() {
+		// Network Privacy owns the shared blog_public setting when active.
+		if ( class_exists( 'RA_Network_Privacy' ) ) {
+			return;
+		}
+
 		$legacy_private = '-1' === (string) get_option( 'blog_public' );
 		if ( $legacy_private || get_option( self::LEGACY_OPTION ) ) {
 			add_action( 'blog_privacy_selector', array( $this, 'blog_privacy_selector' ) );
@@ -45,6 +50,10 @@ class Private_Site {
 	 * blog within a single request.
 	 */
 	public static function is_private() {
+		if ( class_exists( 'RA_Network_Privacy' ) ) {
+			return false;
+		}
+
 		static $is_private = array();
 
 		$blog_id = get_current_blog_id();

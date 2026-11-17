@@ -58,3 +58,15 @@ $GLOBALS['privacy_blog'] = 2;
 $GLOBALS['privacy_option'] = 1;
 check_privacy( ! Family_Wiki\Private_Site::is_private(), 'Switching to a public peer site must not inherit legacy restrictions.' );
 echo "Legacy private-site preservation and new-site visibility checks passed.\n";
+
+// Simulate Network Privacy being loaded before plugins_loaded runs.
+if ( ! class_exists( 'RA_Network_Privacy' ) ) {
+	class RA_Network_Privacy {}
+}
+$GLOBALS['privacy_option'] = -1;
+$GLOBALS['privacy_blog'] = 1;
+$GLOBALS['privacy_hooks'] = array();
+new Family_Wiki\Private_Site();
+check_privacy( ! $GLOBALS['privacy_hooks'], 'Network Privacy must own privacy hooks and the selector when active.' );
+check_privacy( ! Family_Wiki\Private_Site::is_private(), 'Network Privacy must override even a cached legacy restriction.' );
+echo "Network Privacy delegation checks passed.\n";
