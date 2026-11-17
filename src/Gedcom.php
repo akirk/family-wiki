@@ -12,6 +12,9 @@ class Gedcom {
 	const IMPORT_TRANSIENT_PREFIX = 'familypedia_gedcom_import_';
 	const RUN_TRANSIENT_PREFIX = 'familypedia_gedcom_run_';
 
+	/** Keep uploads and import progress available for a week between updates. */
+	const IMPORT_RETENTION = 7 * DAY_IN_SECONDS;
+
 	/**
 	 * How much of the file one request takes on. Small enough that no single
 	 * request is at risk of the timeout a whole family would run into, large
@@ -341,7 +344,7 @@ class Gedcom {
 		// each person's text lands right after the person themselves.
 		$state = $this->add_content_to_run_state( $state, $token );
 
-		if ( ! set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS ) ) {
+		if ( ! set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, self::IMPORT_RETENTION ) ) {
 			return new \WP_Error( 'familypedia_run_failed', $this->error_message( 'store_failed' ), array( 'status' => 500 ) );
 		}
 
@@ -386,7 +389,9 @@ class Gedcom {
 			return $this->finish_run( $run, $state );
 		}
 
-		set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, HOUR_IN_SECONDS );
+		// Keep the source files available for as long as the refreshed run.
+		$this->save_import_state( $state['token'], array() );
+		set_transient( self::RUN_TRANSIENT_PREFIX . $run, $state, self::IMPORT_RETENTION );
 
 		return $this->run_progress( $state );
 	}
@@ -1816,7 +1821,7 @@ class Gedcom {
 			);
 		}
 
-		return set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, array_merge( $state, $changes ), HOUR_IN_SECONDS );
+		return set_transient( self::IMPORT_TRANSIENT_PREFIX . $token, array_merge( $state, $changes ), self::IMPORT_RETENTION );
 	}
 
 	private function import_state( $token ) {
