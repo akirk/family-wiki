@@ -5,10 +5,10 @@
  */
 
 .familypedia-infobox {
-	background: #f8f9fa;
-	border: 1px solid #a2a9b1;
+	background: var(--familypedia-surface, #f8f9fa);
+	border: 1px solid var(--familypedia-border, #a2a9b1);
 	clear: right;
-	color: #202122;
+	color: var(--familypedia-text, #202122);
 	float: right;
 	font-size: 0.875rem;
 	line-height: 1.4;
@@ -19,8 +19,8 @@
 
 .familypedia-infobox__title {
 	align-items: center;
-	background: #eaecf0;
-	border-bottom: 1px solid #a2a9b1;
+	background: var(--familypedia-surface-alt, #eaecf0);
+	border-bottom: 1px solid var(--familypedia-border, #a2a9b1);
 	display: flex;
 	font-size: 1rem;
 	font-weight: 700;
@@ -49,7 +49,7 @@
 
 .familypedia-infobox__toggle {
 	background: transparent;
-	border: 1px solid #a2a9b1;
+	border: 1px solid var(--familypedia-border, #a2a9b1);
 	border-radius: 2px;
 	color: inherit;
 	display: none;
@@ -79,7 +79,7 @@
 }
 
 .familypedia-infobox__row {
-	border-top: 1px solid #c8ccd1;
+	border-top: 1px solid var(--familypedia-border, #c8ccd1);
 	display: grid;
 	gap: 0.5rem;
 	grid-template-columns: minmax(4.5rem, 38%) 1fr;
@@ -102,15 +102,15 @@
 }
 
 .familypedia-infobox__age {
-	color: #54595d;
+	color: var(--familypedia-muted, #54595d);
 }
 
 .familypedia-infobox__meta {
-	color: #54595d;
+	color: var(--familypedia-muted, #54595d);
 }
 
 .familypedia-infobox__marriage + .familypedia-infobox__marriage {
-	border-top: 1px solid #eaecf0;
+	border-top: 1px solid var(--familypedia-border, #eaecf0);
 	margin-top: 0.45rem;
 	padding-top: 0.45rem;
 }
@@ -121,10 +121,10 @@
 }
 
 .familypedia-highlights {
-	background: #f8f9fa;
-	border: 1px solid #a2a9b1;
+	background: var(--familypedia-surface, #f8f9fa);
+	border: 1px solid var(--familypedia-border, #a2a9b1);
 	clear: right;
-	color: #202122;
+	color: var(--familypedia-text, #202122);
 	float: right;
 	font-size: 0.9375rem;
 	line-height: 1.45;
@@ -134,8 +134,8 @@
 }
 
 .familypedia-highlights__title {
-	background: #eaecf0;
-	border-bottom: 1px solid #a2a9b1;
+	background: var(--familypedia-surface-alt, #eaecf0);
+	border-bottom: 1px solid var(--familypedia-border, #a2a9b1);
 	font-size: 1.125rem;
 	font-weight: 700;
 	line-height: 1.25;
@@ -149,7 +149,7 @@
 }
 
 .familypedia-highlights__section {
-	border-top: 1px solid #c8ccd1;
+	border-top: 1px solid var(--familypedia-border, #c8ccd1);
 	padding: 0.75rem;
 }
 
@@ -199,7 +199,7 @@
 }
 
 .familypedia-highlights__events li + li {
-	border-top: 1px solid #eaecf0;
+	border-top: 1px solid var(--familypedia-border, #eaecf0);
 	margin-top: 0.45rem;
 	padding-top: 0.45rem;
 }
@@ -210,7 +210,7 @@
 
 .familypedia-highlights__meta,
 .familypedia-highlights__empty {
-	color: #54595d;
+	color: var(--familypedia-muted, #54595d);
 	margin: 0.35rem 0 0;
 }
 
