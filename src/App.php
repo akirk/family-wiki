@@ -67,7 +67,9 @@ class App extends BaseApp {
 		} elseif ( 'person.php' === $template ) {
 			$person = self::routed_person();
 			if ( $person && in_array( $person->post_status, array( 'publish', 'private', 'draft' ), true ) && Editor::can_edit( $person->ID ) ) {
-				if ( Wiki_Page::is_page( $person ) ) {
+				if ( Reunion::is_reunion( $person ) ) {
+					$url = Reunion::edit_url( $person );
+				} elseif ( Wiki_Page::is_page( $person ) ) {
 					$url = Interview::edit_url( $person );
 				} else {
 					$title = __( 'Edit Person', 'family-wiki' );
@@ -123,6 +125,9 @@ class App extends BaseApp {
 	protected function setup_routes(): void {
 		$this->app->route( '', 'index.php' );
 		$this->app->route( 'all', 'all.php' );
+		$this->app->route( 'reunions', 'reunions.php' );
+		$this->app->route( 'reunions/(?P<reunion_id>[0-9]+)/edit', 'edit-reunion.php', array( 'reunion_id' ) );
+		$this->app->route( 'new-reunion', 'edit-reunion.php' );
 		$this->app->route( 'stubs', 'stubs.php' );
 		$this->app->route( 'settings', 'settings.php' );
 		$this->app->route( 'interviews', 'interview-index.php' );
@@ -145,6 +150,7 @@ class App extends BaseApp {
 
 		// A person, optionally with a related page beneath them, and the form
 		// for editing either one's facts.
+		$this->app->route( '(?P<person>.+)/reunion', 'edit-reunion.php', array( 'person' ) );
 		$this->app->route( '(?P<person>.+)/add-page', 'edit-related.php', array( 'person' ) );
 		$this->app->route( '(?P<person>.+)/interviews', 'interviews.php', array( 'person' ) );
 		$this->app->route( '(?P<person>.+)/(?P<related>[^/]+)/edit', 'edit.php', array( 'person', 'related' ) );
@@ -155,6 +161,8 @@ class App extends BaseApp {
 
 	protected function setup_menu(): void {
 		$this->app->add_menu_item( 'all', __( 'All Pages', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/all/' ) );
+		$this->app->add_menu_item( 'reunions', __( 'Reunions and visits', 'family-wiki' ), Reunion::url() );
+
 		$this->app->add_menu_item( 'tree', __( 'Family Tree', 'family-wiki' ), home_url( '/' . self::URL_PATH . '/tree/' ) );
 
 		if ( Calendar::is_calendar_enabled() ) {

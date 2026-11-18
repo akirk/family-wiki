@@ -1156,3 +1156,37 @@ fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family dd
 }
 .familypedia-gedcom-skipped-person { border-bottom: 1px solid var(--familypedia-border); padding: 0.75rem 0; }
 .familypedia-gedcom-skipped-person > summary { cursor: pointer; font-weight: 600; }
+
+.familypedia-reunion-attendees {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+	gap: .5rem 1rem;
+	max-height: 28rem;
+	overflow-y: auto;
+	padding: .5rem;
+}
+
+.familypedia-reunion-attendee {
+	display: flex;
+	align-items: baseline;
+	gap: .5rem;
+}
+
+.familypedia-reunion-attendee[hidden] {
+	display: none;
+}
+
+.familypedia-reunion-facts {
+	margin-block: 1.5rem;
+	padding: 1rem;
+	border: 1px solid var(--familypedia-border, #ccc);
+	border-radius: .5rem;
+}
+
+.familypedia-reunion-facts dt {
+	font-weight: bold;
+}
+
+.familypedia-reunion-facts dd {
+	margin: 0 0 .75rem;
+}

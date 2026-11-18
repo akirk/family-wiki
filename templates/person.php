@@ -58,7 +58,9 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 				<details class="familypedia-action-menu" name="person-actions">
 					<summary><?php esc_html_e( 'Edit', 'family-wiki' ); ?></summary>
 					<ul>
-						<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
+						<?php if ( Reunion::is_reunion( $familypedia_person ) ) : ?>
+							<li><a href="<?php echo esc_url( Reunion::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Reunion or visit facts', 'family-wiki' ); ?></a></li>
+						<?php elseif ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
 							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
 						<?php endif; ?>
 						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php echo esc_html( Interview::is_session( $familypedia_person ) ? __( 'Continue interview', 'family-wiki' ) : __( 'Page text', 'family-wiki' ) ); ?></a></li>
@@ -100,6 +102,10 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 	}
 	?>
 
+	<?php if ( Reunion::is_reunion( $familypedia_person ) ) : ?>
+		<?php require __DIR__ . '/partials/reunion-facts.php'; ?>
+	<?php endif; ?>
+
 	<div class="familypedia-person__content">
 		<?php
 		if ( trim( wp_strip_all_tags( $familypedia_content ) ) ) {
@@ -107,11 +113,42 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 			echo $familypedia_content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		} else {
 			?>
-			<p class="familypedia-person__empty"><?php esc_html_e( 'Nothing has been written about this person yet.', 'family-wiki' ); ?></p>
+			<p class="familypedia-person__empty">
+				<?php
+				if ( Reunion::is_reunion( $familypedia_person ) ) {
+					esc_html_e( 'Nothing has been written about this reunion or visit yet.', 'family-wiki' );
+				} elseif ( Wiki_Page::is_page( $familypedia_person ) ) {
+					esc_html_e( 'Nothing has been written on this page yet.', 'family-wiki' );
+				} else {
+					esc_html_e( 'Nothing has been written about this person yet.', 'family-wiki' );
+				}
+				?>
+			</p>
 			<?php
 		}
 		?>
 	</div>
+
+	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
+		<?php
+		$familypedia_attended = array_filter(
+			Reunion::get_all(),
+			function ( $reunion ) use ( $familypedia_person ) {
+				return in_array( (int) $familypedia_person->ID, Reunion::data( $reunion->ID )['attendees'], true );
+			}
+		);
+		?>
+		<?php if ( $familypedia_attended ) : ?>
+			<section>
+				<h2><?php esc_html_e( 'Reunions and visits attended', 'family-wiki' ); ?></h2>
+				<ul>
+					<?php foreach ( $familypedia_attended as $familypedia_reunion ) : ?>
+						<li><a href="<?php echo esc_url( Person::url( $familypedia_reunion ) ); ?>"><?php echo esc_html( get_the_title( $familypedia_reunion ) ); ?></a></li>
+					<?php endforeach; ?>
+				</ul>
+			</section>
+		<?php endif; ?>
+	<?php endif; ?>
 
 	<?php if ( isset( Tree::get_people()[ $familypedia_person->ID ] ) ) : ?>
 		<p class="familypedia-person__tree-link">

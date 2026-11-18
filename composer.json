@@ -32,6 +32,7 @@
             "php tests/roles.php",
             "php tests/privacy.php",
             "php tests/app-privacy.php",
+            "php tests/reunions.php",
             "php tests/settings.php",
             "php tests/relatives.php",
             "php tests/stubs.php",

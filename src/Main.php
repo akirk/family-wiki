@@ -23,6 +23,7 @@ class Main {
 		new Stubs();
 		new Tree();
 		new Wiki_Page();
+		new Reunion();
 		new Interview();
 
 		add_action( 'save_post_' . Person::POST_TYPE, array( __CLASS__, 'flush_family_data_cache' ) );
