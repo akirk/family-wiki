@@ -145,7 +145,8 @@ class Reunion {
 
 	public function maybe_save() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified below before any write.
-		if ( 'POST' !== ( $_SERVER['REQUEST_METHOD'] ?? '' ) || self::ACTION !== ( $_POST['familypedia_action'] ?? '' ) ) {
+		$action = isset( $_POST['familypedia_action'] ) && is_string( $_POST['familypedia_action'] ) ? sanitize_text_field( wp_unslash( $_POST['familypedia_action'] ) ) : '';
+		if ( self::ACTION !== $action ) {
 			return;
 		}
 		$id = isset( $_POST['reunion_id'] ) ? absint( $_POST['reunion_id'] ) : 0;

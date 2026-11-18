@@ -67,10 +67,17 @@ namespace {
 	}
 	$data = Family_Wiki\Reunion::validate( array( 'start' => '2012-02-29', 'end' => '2012-03-01' ) );
 	verify_reunion( ! is_wp_error( $data ) && $data['year'] === '2012', 'Valid dates infer the year.' );
-	$_SERVER['REQUEST_METHOD'] = 'POST';
+	unset( $_SERVER['REQUEST_METHOD'] );
 	$_POST = array_merge( $valid, array( 'familypedia_action' => Family_Wiki\Reunion::ACTION, 'post_title' => 'Paris reunion', 'creation_key' => '12345678-1234-4234-8234-123456789abc' ) );
 	$GLOBALS['writes'] = 0;
 	$feature = new Family_Wiki\Reunion();
+	$submitted = $_POST;
+	foreach ( array( array(), array( 'familypedia_action' => 'another_action' ), array( 'familypedia_action' => array( 'unexpected' ) ) ) as $unrelated ) {
+		$_POST = $unrelated;
+		$feature->maybe_save();
+		verify_reunion( $GLOBALS['writes'] === 0, 'Missing, unrelated and malformed actions must be ignored.' );
+	}
+	$_POST = $submitted;
 	foreach ( array( array( false, true ), array( true, false ) ) as $permissions ) {
 		list( $GLOBALS['allowed'], $GLOBALS['nonce'] ) = $permissions;
 		try { $feature->maybe_save(); } catch ( RuntimeException $e ) {}
