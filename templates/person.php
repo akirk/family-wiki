@@ -108,7 +108,7 @@ $familypedia_content = Links::filter_content( $familypedia_content );
 
 	<div class="familypedia-person__content">
 		<?php
-		if ( trim( wp_strip_all_tags( $familypedia_content ) ) ) {
+		if ( trim( $familypedia_content ) ) {
 			// Already through the_content filters, as in any theme template.
 			echo $familypedia_content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		} else {
