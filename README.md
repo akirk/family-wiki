@@ -1,4 +1,4 @@
-# Familypedia
+# Familypedia — Your private family wiki
 
 - Contributors: akirk
 - Tags: family, wiki, genealogy
