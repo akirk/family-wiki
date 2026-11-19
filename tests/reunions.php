@@ -25,6 +25,8 @@ namespace {
 	function wp_is_uuid( $v ) { return (bool) preg_match( '/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $v ); }
 	function get_posts( $args ) { $found = array(); foreach ( $GLOBALS['posts'] as $p ) { if ( get_post_meta( $p->ID, $args['meta_key'], true ) === $args['meta_value'] ) { $found[] = $p; } } return $found; }
 	function __( $text, $domain ) { return $text; }
+	function wp_timezone() { return new DateTimeZone( 'Europe/Berlin' ); }
+	function wp_date( $format, $timestamp ) { return ( new DateTimeImmutable( '@' . $timestamp ) )->setTimezone( wp_timezone() )->format( $format ); }
 	function esc_html__( $text, $domain ) { return $text; }
 	function esc_html( $text ) { return $text; }
 	function sanitize_text_field( $text ) { return trim( strip_tags( (string) $text ) ); }
@@ -51,6 +53,16 @@ namespace {
 		4 => (object) array( 'ID' => 4, 'post_type' => 'familypedia_person', 'post_status' => 'draft' ),
 	);
 	$GLOBALS['meta'] = array();
+	foreach ( array(
+		array( '', '', '' ),
+		array( '2012-08-23', '', 'August 23' ),
+		array( '2012-08-23', '2012-08-23', 'August 23' ),
+		array( '2012-08-23', '2012-08-27', 'August 23–27' ),
+		array( '2012-08-23', '2012-09-02', 'August 23 – September 2' ),
+		array( '2012-12-30', '2013-01-02', 'December 30, 2012 – January 2, 2013' ),
+	) as $dates ) {
+		verify_reunion( Family_Wiki\Reunion::date_label( array( 'start' => $dates[0], 'end' => $dates[1] ) ) === $dates[2], 'Reunion dates should use readable, compact ranges.' );
+	}
 	$valid = array( 'year' => '2012', 'location' => '<b>Paris</b>', 'attendees' => array( '1', '1' ) );
 	$data = Family_Wiki\Reunion::validate( $valid );
 	verify_reunion( ! is_wp_error( $data ) && $data['year'] === '2012' && $data['start'] === '' && $data['end'] === '', 'Year-only reunions must not invent dates.' );

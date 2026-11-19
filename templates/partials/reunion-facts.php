@@ -23,7 +23,7 @@ $familypedia_details = Reunion::data( $familypedia_person->ID );
 		<?php endif; ?>
 		<?php if ( $familypedia_details['start'] ) : ?>
 			<div class="familypedia-reunion-facts__detail">
-				<dt><?php esc_html_e( 'Dates', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['start'] . ( $familypedia_details['end'] ? ' – ' . $familypedia_details['end'] : '' ) ); ?></dd>
+				<dt><?php esc_html_e( 'Dates', 'family-wiki' ); ?></dt><dd><?php echo esc_html( Reunion::date_label( $familypedia_details ) ); ?></dd>
 			</div>
 		<?php endif; ?>
 		<?php if ( $familypedia_details['location'] ) : ?>
