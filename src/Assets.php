@@ -40,6 +40,18 @@ class Assets {
 	 * them on their own, without the app's page chrome.
 	 */
 	public static function enqueue_app_style() {
+		// WpApp removes the theme's global-styles, which also contain the core
+		// flex and grid layout rules used by galleries and other content blocks.
+		wp_register_style( 'familypedia-block-layout', false, array(), App::VERSION );
+		wp_add_inline_style(
+			'familypedia-block-layout',
+			\WP_Theme_JSON_Resolver::get_core_data()->get_stylesheet(
+				array( 'styles' ),
+				array( 'default' )
+			)
+		);
+		wp_enqueue_style( 'familypedia-block-layout' );
+
 		wp_app_enqueue_style( 'familypedia-content', self::url( 'content.css' ), array(), self::version( 'content.css' ), App::URL_PATH );
 		wp_app_enqueue_style( 'familypedia-menu', self::url( 'menu.css' ), array(), self::version( 'menu.css' ), App::URL_PATH );
 		wp_app_enqueue_style( 'familypedia-app', self::url( 'app.css' ), array(), self::version( 'app.css' ), App::URL_PATH );

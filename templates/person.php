@@ -29,7 +29,6 @@ $familypedia_facts_id = Infobox::facts_post_id_for( $familypedia_person->ID );
 $familypedia_title    = Infobox::title_with_parent( get_the_title( $familypedia_person ), $familypedia_person->ID );
 
 $familypedia_page_title = $familypedia_title;
-require __DIR__ . '/partials/header.php';
 
 global $post;
 $post = $familypedia_person; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
@@ -48,6 +47,10 @@ if ( $familypedia_facts_id ) {
 }
 $familypedia_content = apply_filters( 'the_content', $familypedia_content );
 $familypedia_content = Links::filter_content( $familypedia_content );
+
+// Render blocks before wp_head() so their styles and script module imports
+// are available when WordPress prints the head, including the image lightbox.
+require __DIR__ . '/partials/header.php';
 ?>
 
 <article class="familypedia-person">
