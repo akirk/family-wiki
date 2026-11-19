@@ -23,6 +23,7 @@ class Main {
 		new Stubs();
 		new Tree();
 		new Wiki_Page();
+		new Reunion();
 		new Interview();
 
 		add_action( 'save_post_' . Person::POST_TYPE, array( __CLASS__, 'flush_family_data_cache' ) );
@@ -53,7 +54,7 @@ class Main {
 	public static function flush_on_meta_change( $meta_id, $post_id, $meta_key ) {
 		unset( $meta_id );
 
-		if ( ! isset( Person::FIELDS[ $meta_key ] ) ) {
+		if ( ! isset( Person::FIELDS[ $meta_key ] ) && ! in_array( $meta_key, array( Reunion::META, '_thumbnail_id' ), true ) ) {
 			return;
 		}
 

@@ -29,8 +29,9 @@ class Highlights {
 		$random_person = self::get_random_person();
 		$birthdays     = self::get_upcoming_events( 'birth' );
 		$death_dates   = self::get_upcoming_events( 'death' );
+		$reunions      = Reunion::anniversaries();
 
-		if ( ! $random_person && empty( $birthdays ) && empty( $death_dates ) ) {
+		if ( ! $random_person && empty( $birthdays ) && empty( $death_dates ) && empty( $reunions ) ) {
 			wp_cache_set( $cache_key, '', self::CACHE_GROUP, 15 * MINUTE_IN_SECONDS );
 			set_transient( $cache_key, '', 15 * MINUTE_IN_SECONDS );
 			return '';
@@ -45,6 +46,8 @@ class Highlights {
 
 		$return .= self::render_event_list( __( 'Upcoming Birthdays', 'family-wiki' ), $birthdays, Calendar::is_birthdays_enabled() ? Calendar::get_birthdays_url() : '' );
 		$return .= self::render_event_list( __( 'Upcoming Death Dates', 'family-wiki' ), $death_dates, Calendar::is_calendar_enabled() ? Calendar::get_calendar_url() : '' );
+
+		$return .= self::render_reunion_anniversaries( array_slice( $reunions, 0, self::UPCOMING_LIMIT ) );
 
 		$return .= '</div>';
 		$return .= '</section>';
@@ -62,7 +65,54 @@ class Highlights {
 	}
 
 	private static function cache_key() {
-		return 'familypedia_highlights_' . get_current_blog_id() . '_' . get_locale();
+		return 'familypedia_highlights_' . get_current_blog_id() . '_' . get_locale() . '_' . wp_date( 'Y-m-d' );
+	}
+
+	private static function render_reunion_anniversaries( $events ) {
+		if ( ! $events ) {
+			return '';
+		}
+		$return  = '<section class="familypedia-highlights__section familypedia-highlights__reunions">';
+		$return .= '<h3><a href="' . esc_url( Reunion::url() ) . '">' . esc_html__( 'Reunion and visit anniversaries', 'family-wiki' ) . '</a></h3>';
+		$return .= '<ul class="familypedia-highlights__events">';
+		foreach ( $events as $event ) {
+			$post = $event['post'];
+			$url  = Person::url( $post );
+			$date = wp_date( 'M j', $event['start']->getTimestamp() );
+			if ( $event['end']->getTimestamp() !== $event['start']->getTimestamp() ) {
+				$date .= ' – ' . wp_date( 'M j', $event['end']->getTimestamp() );
+			}
+			$return .= '<li><div class="familypedia-highlights__person">';
+			$photo = Reunion::photo_id( $post );
+			if ( $photo ) {
+				$return .= '<a class="familypedia-highlights__image" href="' . esc_url( $url ) . '" aria-label="' . esc_attr( get_the_title( $post ) ) . '">' . wp_get_attachment_image( $photo, 'thumbnail' ) . '</a>';
+			}
+			$return .= '<div><span class="familypedia-highlights__event-date">' . esc_html( $date ) . '</span> ';
+			$return .= '<a href="' . esc_url( $url ) . '">' . esc_html( get_the_title( $post ) ) . '</a>';
+			$return .= ' <span class="familypedia-highlights__meta">' . esc_html(
+				sprintf(
+					// translators: %d is the number of years since the reunion or visit.
+					_n( '%d year ago', '%d years ago', $event['years'], 'family-wiki' ),
+					$event['years']
+				)
+			) . '</span>';
+			if ( $event['data']['location'] ) {
+				$return .= '<div class="familypedia-highlights__meta">' . esc_html( $event['data']['location'] ) . '</div>';
+			}
+			$attendees = array();
+			foreach ( $event['data']['attendees'] as $id ) {
+				$person = get_post( $id );
+				if ( $person && Person::POST_TYPE === $person->post_type && 'publish' === $person->post_status && ! Wiki_Page::is_page( $person ) ) {
+					$attendees[] = '<a href="' . esc_url( Person::url( $person ) ) . '">' . esc_html( get_the_title( $person ) ) . '</a>';
+				}
+			}
+			if ( $attendees ) {
+				$return .= '<div class="familypedia-highlights__meta">' . implode( ', ', $attendees ) . '</div>';
+			}
+			$return .= '</div></div></li>';
+		}
+		$return .= '</ul></section>';
+		return $return;
 	}
 
 	private static function render_random_person( $person ) {
