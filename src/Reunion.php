@@ -35,6 +35,25 @@ class Reunion {
 		);
 	}
 
+	/** Readable dates, with the year shown separately unless the range crosses years. */
+	public static function date_label( $data ) {
+		$start = self::exact_date( $data['start'] );
+		$end   = self::exact_date( $data['end'] );
+		if ( ! $start ) {
+			return '';
+		}
+		if ( ! $end || $end->getTimestamp() === $start->getTimestamp() ) {
+			return wp_date( 'F j', $start->getTimestamp() );
+		}
+		if ( $start->format( 'Y' ) !== $end->format( 'Y' ) ) {
+			return wp_date( 'F j, Y', $start->getTimestamp() ) . ' – ' . wp_date( 'F j, Y', $end->getTimestamp() );
+		}
+		if ( $start->format( 'm' ) === $end->format( 'm' ) ) {
+			return wp_date( 'F j', $start->getTimestamp() ) . '–' . wp_date( 'j', $end->getTimestamp() );
+		}
+		return wp_date( 'F j', $start->getTimestamp() ) . ' – ' . wp_date( 'F j', $end->getTimestamp() );
+	}
+
 	public static function url() {
 		return home_url( '/' . App::URL_PATH . '/reunions/' );
 	}
