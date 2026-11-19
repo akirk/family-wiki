@@ -13,10 +13,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $familypedia_page_title = __( 'Familypedia', 'family-wiki' );
-require __DIR__ . '/partials/header.php';
 
 // A tree block on this page starts from nobody having been drawn yet.
 Tree::reset_expanded();
+
+$familypedia_content = Front_Page::render();
+
+// Block assets must be queued before WordPress prints styles and module imports.
+require __DIR__ . '/partials/header.php';
 
 $familypedia_edit_url = Front_Page::can_edit() ? Front_Page::edit_url() : '';
 ?>
@@ -26,7 +30,7 @@ $familypedia_edit_url = Front_Page::can_edit() ? Front_Page::edit_url() : '';
 <div class="familypedia-front-page">
 	<?php
 	// Already through the_content filters, as in any theme template.
-	echo Front_Page::render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+	echo $familypedia_content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	?>
 </div>
 
