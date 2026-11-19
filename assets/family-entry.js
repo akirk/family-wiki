@@ -88,8 +88,4 @@
 		});
 	});
 
-	// Close the action dropdown when opening the family builder on this page.
-	document.querySelectorAll('.familypedia-action-menu a[href="#add-family-member"]').forEach(function (link) {
-		link.addEventListener('click', function () { link.closest('details').open = false; });
-	});
 }());

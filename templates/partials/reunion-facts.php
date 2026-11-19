@@ -12,6 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 $familypedia_details = Reunion::data( $familypedia_person->ID );
 ?>
 <section class="familypedia-reunion-facts" aria-label="<?php esc_attr_e( 'Reunion or visit facts', 'family-wiki' ); ?>">
+	<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
+		<p class="familypedia-section-actions"><a href="<?php echo esc_url( Reunion::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Edit reunion or visit facts', 'family-wiki' ); ?></a></p>
+	<?php endif; ?>
 	<dl>
 		<?php if ( $familypedia_details['year'] ) : ?>
 			<dt><?php esc_html_e( 'Year', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['year'] ); ?></dd>

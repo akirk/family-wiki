@@ -149,14 +149,36 @@ class Infobox {
 		return $return;
 	}
 
-	public function render() {
-		$settings = Settings::get_infobox_settings();
-		$rows     = array();
+	/**
+	 * Render facts, optionally with contextual actions for the app page.
+	 *
+	 * @param bool $show_actions Whether to include permitted editing links.
+	 * @return string
+	 */
+	public function render( $show_actions = false ) {
+		$settings        = Settings::get_infobox_settings();
+		$rows            = array();
+		$can_add_related = $show_actions && Editor::can_edit( $this->display_post_id ) && ! Wiki_Page::is_page( $this->display_post_id ) && Related_Page::can_create( $this->display_post_id );
+		$related_add_url = $can_add_related ? Related_Page::add_url( get_post( $this->display_post_id ) ) : '';
 		foreach ( $this->rows() as $row ) {
 			$rows[] = $this->row( $row['label'], $row['value'] );
 		}
 
-		if ( empty( $rows ) && ! has_post_thumbnail( $this->post_id ) ) {
+		$actions   = '';
+		$edit_link = '';
+		if ( $show_actions && Editor::can_edit( $this->post_id ) && ! Wiki_Page::is_page( $this->post_id ) && ! Reunion::is_reunion( $this->post_id ) ) {
+			$edit_link = '<a class="familypedia-infobox__edit" href="' . esc_url( Person::edit_url( get_post( $this->post_id ) ) ) . '" aria-label="' . esc_attr__( 'Edit facts', 'family-wiki' ) . '">' . esc_html__( 'Edit', 'family-wiki' ) . '</a>';
+		}
+		if ( $show_actions && Editor::can_edit( $this->display_post_id ) && ! Wiki_Page::is_page( $this->display_post_id ) ) {
+			if ( Editor::can_create() ) {
+				$actions .= '<a href="#add-family-member">' . esc_html__( 'Add family member', 'family-wiki' ) . '</a>';
+			}
+			if ( $can_add_related ) {
+				$actions .= '<a href="' . esc_url( $related_add_url ) . '">' . esc_html__( 'Add related page', 'family-wiki' ) . '</a>';
+			}
+		}
+
+		if ( empty( $rows ) && ! has_post_thumbnail( $this->post_id ) && ! $actions && ! $edit_link ) {
 			return '';
 		}
 
@@ -167,7 +189,7 @@ class Infobox {
 		}
 
 		$return  = '<aside class="' . esc_attr( implode( ' ', $classes ) ) . '" aria-label="' . esc_attr__( 'Familypedia infobox', 'family-wiki' ) . '">';
-		$return .= '<h2 class="familypedia-infobox__title" data-collapsed-title="' . esc_attr__( 'Infobox', 'family-wiki' ) . '"><span>' . $this->title_value() . '</span><button type="button" class="familypedia-infobox__toggle" aria-controls="' . esc_attr( $content_id ) . '" aria-expanded="true" aria-label="' . esc_attr__( 'Toggle infobox', 'family-wiki' ) . '">-</button></h2>';
+		$return .= '<h2 class="familypedia-infobox__title" data-collapsed-title="' . esc_attr__( 'Infobox', 'family-wiki' ) . '"><span>' . $this->title_value() . '</span>' . $edit_link . '<button type="button" class="familypedia-infobox__toggle" aria-controls="' . esc_attr( $content_id ) . '" aria-expanded="true" aria-label="' . esc_attr__( 'Toggle infobox', 'family-wiki' ) . '">-</button></h2>';
 		$return .= '<div id="' . esc_attr( $content_id ) . '" class="familypedia-infobox__content">';
 
 		if ( has_post_thumbnail( $this->post_id ) ) {
@@ -176,9 +198,14 @@ class Infobox {
 
 		if ( ! empty( $rows ) ) {
 			$return .= '<dl class="familypedia-infobox__facts">' . implode( '', $rows ) . '</dl>';
+		} elseif ( $actions || $edit_link ) {
+			$return .= '<p class="familypedia-infobox__empty">' . esc_html__( 'No facts recorded yet.', 'family-wiki' ) . '</p>';
 		}
 
 		$return .= '</div>';
+		if ( $actions ) {
+			$return .= '<nav class="familypedia-section-actions familypedia-infobox__actions" aria-label="' . esc_attr__( 'Facts and family actions', 'family-wiki' ) . '">' . $actions . '</nav>';
+		}
 		$return .= '</aside>';
 
 		return $return;
