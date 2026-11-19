@@ -83,6 +83,83 @@ class Reunion {
 		return $posts;
 	}
 
+	/** Exact-date anniversaries active today or starting within the next week. */
+	public static function anniversaries( $today = null, $days = 7 ) {
+		$today = $today ? $today->setTimezone( wp_timezone() )->setTime( 0, 0 ) : new \DateTimeImmutable( 'today', wp_timezone() );
+		$until = $today->modify( '+' . max( 0, (int) $days ) . ' days' );
+		$events = array();
+		foreach ( self::get_all() as $post ) {
+			$data  = self::data( $post->ID );
+			$start = self::exact_date( $data['start'] );
+			$end   = self::exact_date( $data['end'] ? $data['end'] : $data['start'] );
+			if ( ! $start || ! $end || $end < $start ) {
+				continue;
+			}
+			$first = max( 1, (int) $today->format( 'Y' ) - (int) $end->format( 'Y' ) );
+			$last  = (int) $until->format( 'Y' ) - (int) $start->format( 'Y' );
+			$match = null;
+			for ( $years = $first; $years <= $last; $years++ ) {
+				// Reconstruct both endpoints rather than silently moving Feb 29 to March 1.
+				$anniversary_start = self::exact_date( ( (int) $start->format( 'Y' ) + $years ) . $start->format( '-m-d' ) );
+				$anniversary_end   = self::exact_date( ( (int) $end->format( 'Y' ) + $years ) . $end->format( '-m-d' ) );
+				if ( ! $anniversary_start || ! $anniversary_end || $anniversary_end < $today || $anniversary_start > $until ) {
+					continue;
+				}
+				$event = array(
+					'post'  => $post,
+					'data'  => $data,
+					'start' => $anniversary_start,
+					'end'   => $anniversary_end,
+					'next'  => $anniversary_start < $today ? $today : $anniversary_start,
+					'years' => $years,
+				);
+				if ( ! $match || $event['next'] < $match['next'] || ( $event['next']->getTimestamp() === $match['next']->getTimestamp() && $event['start'] > $match['start'] ) ) {
+					$match = $event;
+				}
+			}
+			if ( $match ) {
+				$events[] = $match;
+			}
+		}
+		usort(
+			$events,
+			function ( $a, $b ) {
+				return $a['next'] <=> $b['next'] ?: strcasecmp( $a['post']->post_title, $b['post']->post_title );
+			}
+		);
+		return $events;
+	}
+
+	private static function exact_date( $value ) {
+		if ( ! is_string( $value ) || ! preg_match( '/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $value ) ) {
+			return null;
+		}
+		$date = \DateTimeImmutable::createFromFormat( '!Y-m-d', $value, wp_timezone() );
+		return $date && $date->format( 'Y-m-d' ) === $value ? $date : null;
+	}
+
+	/** The featured photo, or the first image actually included in the memories. */
+	public static function photo_id( $post ) {
+		$id = get_post_thumbnail_id( $post );
+		if ( $id ) {
+			return $id;
+		}
+		return self::block_photo_id( parse_blocks( $post->post_content ) );
+	}
+
+	private static function block_photo_id( $blocks ) {
+		foreach ( $blocks as $block ) {
+			if ( 'core/image' === $block['blockName'] && ! empty( $block['attrs']['id'] ) ) {
+				return (int) $block['attrs']['id'];
+			}
+			$id = self::block_photo_id( $block['innerBlocks'] );
+			if ( $id ) {
+				return $id;
+			}
+		}
+		return 0;
+	}
+
 	public static function people() {
 		return array_values(
 			array_filter(
