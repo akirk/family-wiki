@@ -216,6 +216,45 @@ class App extends BaseApp {
 		return Person::get_by_path( $path );
 	}
 
+	/**
+	 * Resolve the masthead section independently of the current page title.
+	 *
+	 * @param string       $template Current route template.
+	 * @param \WP_Post|null $person Current record, when viewing one.
+	 * @return array Section label and URL, or an empty array for the home trail.
+	 */
+	public static function breadcrumb_section( $template, $person = null ) {
+		$sections = array(
+			'reunions'   => array(
+				'label'     => __( 'Reunions and visits', 'family-wiki' ),
+				'templates' => array( 'reunions.php', 'edit-reunion.php' ),
+			),
+			'interviews' => array(
+				'label'     => __( 'Interviews', 'family-wiki' ),
+				'templates' => array( 'interview-index.php', 'interviews.php' ),
+			),
+		);
+
+		if ( 'person.php' === $template && $person ) {
+			if ( Reunion::is_reunion( $person ) ) {
+				$template = 'reunions.php';
+			} elseif ( Interview::is_session( $person ) ) {
+				$template = 'interview-index.php';
+			}
+		}
+
+		foreach ( $sections as $path => $section ) {
+			if ( in_array( $template, $section['templates'], true ) ) {
+				return array(
+					'label' => $section['label'],
+					'url'   => home_url( '/' . self::URL_PATH . '/' . $path . '/' ),
+				);
+			}
+		}
+
+		return array();
+	}
+
 	public function activate(): void {
 		Main::setup();
 	}

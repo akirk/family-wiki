@@ -30,6 +30,8 @@ remove_action( 'wp_head', '_block_template_render_title_tag', 1 );
 remove_action( 'wp_head', '_block_template_viewport_meta_tag', 0 );
 
 $familypedia_notice = Editor::take_notice();
+global $wp_app_route;
+$familypedia_breadcrumb_section = App::breadcrumb_section( $wp_app_route['template'] ?? '', $familypedia_person ?? null );
 ?>
 <!DOCTYPE html>
 <html <?php wp_app_language_attributes(); ?>>
@@ -44,7 +46,14 @@ $familypedia_notice = Editor::take_notice();
 
 	<div class="familypedia-page">
 		<header class="familypedia-masthead">
-			<a class="familypedia-masthead__home" href="<?php echo esc_url( home_url( '/' . App::URL_PATH . '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a>
+			<nav class="familypedia-breadcrumbs" aria-label="<?php esc_attr_e( 'Breadcrumb', 'family-wiki' ); ?>">
+				<ol>
+					<li><a class="familypedia-masthead__home" href="<?php echo esc_url( home_url( '/' . App::URL_PATH . '/' ) ); ?>"><?php echo esc_html( get_bloginfo( 'name' ) ); ?></a></li>
+					<?php if ( $familypedia_breadcrumb_section ) : ?>
+						<li><a href="<?php echo esc_url( $familypedia_breadcrumb_section['url'] ); ?>"><?php echo esc_html( $familypedia_breadcrumb_section['label'] ); ?></a></li>
+					<?php endif; ?>
+				</ol>
+			</nav>
 			<form class="familypedia-search" role="search" method="get" action="<?php echo esc_url( home_url( '/' . App::URL_PATH . '/all/' ) ); ?>">
 				<label class="screen-reader-text" for="familypedia-search-field"><?php esc_html_e( 'Search the wiki', 'family-wiki' ); ?></label>
 				<input id="familypedia-search-field" type="search" name="s" value="<?php echo esc_attr( isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>" placeholder="<?php esc_attr_e( 'Search the wiki…', 'family-wiki' ); ?>" />

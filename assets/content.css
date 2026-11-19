@@ -228,6 +228,84 @@
 	margin: 0.35rem 0;
 }
 
+.familypedia-reunion-facts {
+	background: var(--familypedia-surface, #fff);
+	border: 1px solid var(--familypedia-border, #dcdcde);
+	border-radius: var(--familypedia-radius, 4px);
+	clear: both;
+	margin: 1.5rem 0;
+	padding: clamp(1rem, 3vw, 1.5rem);
+}
+
+.familypedia-reunion-facts .familypedia-section-actions {
+	font-size: 0.75rem;
+	justify-content: flex-end;
+	margin: 0 0 1rem;
+	text-align: end;
+}
+
+.familypedia-reunion-facts__details {
+	display: grid;
+	gap: 1rem 1.5rem;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+	margin: 0;
+}
+
+.familypedia-reunion-facts__detail {
+	background: var(--familypedia-surface-alt, #f0f0f1);
+	border-radius: var(--familypedia-radius, 4px);
+	min-width: 0;
+	padding: 0.85rem 1rem;
+}
+
+.familypedia-reunion-facts__detail dt {
+	color: var(--familypedia-muted, #646970);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	margin: 0 0 0.3rem;
+}
+
+.familypedia-reunion-facts__detail dd {
+	font-size: 1.0625rem;
+	font-weight: 600;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.familypedia-reunion-facts h2 {
+	font-size: 1.125rem;
+	margin: 1.5rem 0 0.75rem;
+}
+
+.familypedia-reunion-facts__attendees {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+
+.familypedia-reunion-facts__attendees li {
+	margin: 0;
+	max-width: 100%;
+}
+
+.familypedia-reunion-facts__attendees a {
+	background: var(--familypedia-surface-alt, #f0f0f1);
+	border: 1px solid var(--familypedia-border, #dcdcde);
+	border-radius: 1.25rem;
+	display: block;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+	padding: 0.25rem 0.65rem;
+	text-decoration: none;
+}
+
+.familypedia-reunion-facts__attendees a:hover,
+.familypedia-reunion-facts__attendees a:focus-visible {
+	border-color: currentColor;
+	text-decoration: underline;
+}
+
 .familypedia-person-list__meta {
 	color: #54595d;
 }
