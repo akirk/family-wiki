@@ -53,9 +53,40 @@ body.familypedia {
 
 .familypedia-masthead__home {
 	color: inherit;
-	font-size: 1.25rem;
 	font-weight: 700;
 	text-decoration: none;
+}
+
+.familypedia-breadcrumbs {
+	flex: 1 1 16rem;
+	font-size: 1.25rem;
+	min-width: 0;
+}
+
+.familypedia-breadcrumbs ol {
+	align-items: baseline;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.65rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.familypedia-breadcrumbs li {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.familypedia-breadcrumbs li + li::before {
+	color: var(--familypedia-muted);
+	content: "›";
+	display: inline-block;
+	margin-inline-end: 0.65rem;
+}
+
+.familypedia-breadcrumbs a:hover {
+	text-decoration: underline;
 }
 
 .familypedia-search {
@@ -605,6 +636,10 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 }
 
 @media (max-width: 40rem) {
+	.familypedia-breadcrumbs {
+		flex-basis: auto;
+	}
+
 	.familypedia-masthead {
 		align-items: stretch;
 		flex-direction: column;

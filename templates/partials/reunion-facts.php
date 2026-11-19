@@ -13,22 +13,28 @@ $familypedia_details = Reunion::data( $familypedia_person->ID );
 ?>
 <section class="familypedia-reunion-facts" aria-label="<?php esc_attr_e( 'Reunion or visit facts', 'family-wiki' ); ?>">
 	<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
-		<p class="familypedia-section-actions"><a href="<?php echo esc_url( Reunion::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Edit reunion or visit facts', 'family-wiki' ); ?></a></p>
+		<p class="familypedia-section-actions"><a href="<?php echo esc_url( Reunion::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Edit', 'family-wiki' ); ?></a></p>
 	<?php endif; ?>
-	<dl>
+	<dl class="familypedia-reunion-facts__details">
 		<?php if ( $familypedia_details['year'] ) : ?>
-			<dt><?php esc_html_e( 'Year', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['year'] ); ?></dd>
+			<div class="familypedia-reunion-facts__detail">
+				<dt><?php esc_html_e( 'Year', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['year'] ); ?></dd>
+			</div>
 		<?php endif; ?>
 		<?php if ( $familypedia_details['start'] ) : ?>
-			<dt><?php esc_html_e( 'Dates', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['start'] . ( $familypedia_details['end'] ? ' – ' . $familypedia_details['end'] : '' ) ); ?></dd>
+			<div class="familypedia-reunion-facts__detail">
+				<dt><?php esc_html_e( 'Dates', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['start'] . ( $familypedia_details['end'] ? ' – ' . $familypedia_details['end'] : '' ) ); ?></dd>
+			</div>
 		<?php endif; ?>
 		<?php if ( $familypedia_details['location'] ) : ?>
-			<dt><?php esc_html_e( 'Location', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['location'] ); ?></dd>
+			<div class="familypedia-reunion-facts__detail">
+				<dt><?php esc_html_e( 'Location', 'family-wiki' ); ?></dt><dd><?php echo esc_html( $familypedia_details['location'] ); ?></dd>
+			</div>
 		<?php endif; ?>
 	</dl>
 	<h2><?php esc_html_e( 'Who was there?', 'family-wiki' ); ?></h2>
 	<?php if ( $familypedia_details['attendees'] ) : ?>
-		<ul class="familypedia-person-list">
+		<ul class="familypedia-person-list familypedia-reunion-facts__attendees">
 			<?php foreach ( $familypedia_details['attendees'] as $familypedia_attendee_id ) : ?>
 				<?php $familypedia_attendee = get_post( $familypedia_attendee_id ); ?>
 				<?php if ( $familypedia_attendee && Person::POST_TYPE === $familypedia_attendee->post_type && 'publish' === $familypedia_attendee->post_status && ! Wiki_Page::is_page( $familypedia_attendee ) ) : ?>
@@ -39,5 +45,4 @@ $familypedia_details = Reunion::data( $familypedia_person->ID );
 	<?php else : ?>
 		<p><?php esc_html_e( 'No attendees recorded yet.', 'family-wiki' ); ?></p>
 	<?php endif; ?>
-	<p><a href="<?php echo esc_url( Reunion::url() ); ?>"><?php esc_html_e( 'All reunions and visits', 'family-wiki' ); ?></a></p>
 </section>
