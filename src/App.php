@@ -100,13 +100,8 @@ class App extends BaseApp {
 	}
 
 	protected function get_plugin_name(): string {
-		if ( ! function_exists( 'get_file_data' ) ) {
-			return 'Familypedia';
-		}
-
-		$plugin_data = get_file_data( dirname( __DIR__ ) . '/family-wiki.php', array( 'name' => 'Plugin Name' ) );
-
-		return $plugin_data['name'] ? $plugin_data['name'] : 'Familypedia';
+		// Keep app navigation concise; the plugin listing name includes a tagline.
+		return 'Familypedia';
 	}
 
 	protected function setup_storage(): void {
