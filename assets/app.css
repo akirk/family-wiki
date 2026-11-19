@@ -1213,3 +1213,37 @@ fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family dd
 	font-weight: 400;
 	text-decoration: underline;
 }
+
+.familypedia-reunions-heading {
+	align-items: baseline;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	justify-content: space-between;
+	margin-bottom: 1rem;
+}
+
+.familypedia-reunions-heading h1 {
+	margin-bottom: 0;
+}
+
+.familypedia-reunion-filter {
+	align-items: center;
+	display: flex;
+	gap: 0.4rem;
+	margin-left: auto;
+	max-width: 100%;
+	font-size: 0.875rem;
+}
+
+body.familypedia .familypedia-reunion-filter input {
+	font-size: inherit;
+	min-width: 0;
+	padding: 0.35rem 0.5rem;
+	width: 12rem;
+}
+
+body.familypedia .familypedia-reunion-filter .familypedia-button {
+	font-size: inherit;
+	padding: 0.35rem 0.5rem;
+}
