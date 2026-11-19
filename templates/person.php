@@ -54,54 +54,29 @@ require __DIR__ . '/partials/header.php';
 ?>
 
 <article class="familypedia-person">
-	<header class="familypedia-person__header">
+	<header id="person-actions" class="familypedia-person__header">
 		<h1><?php echo esc_html( $familypedia_title ); ?></h1>
 		<?php if ( Editor::can_edit( $familypedia_person->ID ) ) : ?>
-			<nav id="person-actions" class="familypedia-person__actions" aria-label="<?php esc_attr_e( 'Page actions', 'family-wiki' ); ?>">
-				<details class="familypedia-action-menu" name="person-actions">
-					<summary><?php esc_html_e( 'Edit', 'family-wiki' ); ?></summary>
-					<ul>
-						<?php if ( Reunion::is_reunion( $familypedia_person ) ) : ?>
-							<li><a href="<?php echo esc_url( Reunion::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Reunion or visit facts', 'family-wiki' ); ?></a></li>
-						<?php elseif ( ! Wiki_Page::is_page( $familypedia_person ) ) : ?>
-							<li><a href="<?php echo esc_url( Person::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Facts', 'family-wiki' ); ?></a></li>
-						<?php endif; ?>
-						<li><a href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php echo esc_html( Interview::is_session( $familypedia_person ) ? __( 'Continue interview', 'family-wiki' ) : __( 'Page text', 'family-wiki' ) ); ?></a></li>
-					</ul>
-				</details>
-				<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && ( Editor::can_create() || Related_Page::can_create( $familypedia_person->ID ) ) ) : ?>
-					<details class="familypedia-action-menu" name="person-actions">
-						<summary><?php esc_html_e( 'Add', 'family-wiki' ); ?></summary>
-						<ul>
-							<?php if ( Editor::can_create() ) : ?>
-								<li><a href="#add-family-member"><?php esc_html_e( 'Family member', 'family-wiki' ); ?></a></li>
-							<?php endif; ?>
-							<?php if ( Related_Page::can_create( $familypedia_person->ID ) ) : ?>
-								<li><a href="<?php echo esc_url( Related_Page::add_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Related page', 'family-wiki' ); ?></a></li>
-							<?php endif; ?>
-							<?php if ( Interview::can_manage( $familypedia_person->ID ) ) : ?>
-								<li><a href="<?php echo esc_url( Interview::url( $familypedia_person->ID ) ); ?>"><?php esc_html_e( 'Interview', 'family-wiki' ); ?></a></li>
-							<?php endif; ?>
-						</ul>
-					</details>
-				<?php endif; ?>
-			</nav>
+			<a class="familypedia-person__edit" href="<?php echo esc_url( Interview::edit_url( $familypedia_person ) ); ?>"><?php esc_html_e( 'Edit', 'family-wiki' ); ?></a>
 		<?php endif; ?>
 	</header>
 
 	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Person::field( 'is_stub', $familypedia_person->ID ) ) : ?>
-		<p class="familypedia-person__stub"><span class="familypedia-stub-badge"><?php esc_html_e( 'Stub', 'family-wiki' ); ?></span> <?php esc_html_e( 'This person needs more information. Uncheck the stub box under Edit → Facts when complete.', 'family-wiki' ); ?></p>
+		<p class="familypedia-person__stub"><span class="familypedia-stub-badge"><?php esc_html_e( 'Stub', 'family-wiki' ); ?></span> <?php esc_html_e( 'This person needs more information. Uncheck the stub box in the facts editor when complete.', 'family-wiki' ); ?></p>
 	<?php endif; ?>
 	<?php if ( ! Wiki_Page::is_page( $familypedia_person ) && Editor::can_edit( $familypedia_person->ID ) && Editor::can_create() ) : ?>
 		<?php require __DIR__ . '/partials/add-relative.php'; ?>
 	<?php endif; ?>
 
 	<?php
+	if ( ! $familypedia_facts_id && ! Wiki_Page::is_page( $familypedia_person ) && ! Reunion::is_reunion( $familypedia_person ) && Editor::can_edit( $familypedia_person->ID ) ) {
+		$familypedia_facts_id = $familypedia_person->ID;
+	}
 	if ( $familypedia_facts_id ) {
 		$familypedia_infobox = new Infobox( $familypedia_facts_id, $familypedia_person->ID );
 		// Built from escaped parts; wp_kses_post() would strip the markup the
 		// collapse toggle needs.
-		echo $familypedia_infobox->render(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo $familypedia_infobox->render( true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	}
 	?>
 

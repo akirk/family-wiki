@@ -205,11 +205,15 @@ body.familypedia ::placeholder {
 	justify-content: space-between;
 }
 
-.familypedia-person__actions {
+.familypedia-person__edit {
+	margin-left: auto;
+}
+
+.familypedia-section-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 1rem;
-	margin: 0;
+	gap: 0.5rem 1rem;
+	margin: 0 0 1rem;
 }
 
 .familypedia-person__content::after {
@@ -635,40 +639,6 @@ body.familypedia input[type="checkbox"].familypedia-gedcom-tree__front-check {
 
 .familypedia-add-relative:target {
 	display: block;
-}
-
-.familypedia-action-menu {
-	position: relative;
-}
-
-.familypedia-action-menu > summary {
-	color: var(--familypedia-primary);
-	cursor: pointer;
-}
-
-.familypedia-action-menu > ul {
-	background: var(--familypedia-surface);
-	border: 1px solid var(--familypedia-border);
-	border-radius: var(--familypedia-radius);
-	box-shadow: 0 4px 12px rgb(0 0 0 / 12%);
-	list-style: none;
-	margin: 0.35rem 0 0;
-	min-width: 10rem;
-	padding: 0.25rem;
-	position: absolute;
-	right: 0;
-	z-index: 10;
-}
-
-.familypedia-action-menu a {
-	display: block;
-	padding: 0.4rem 0.65rem;
-	white-space: nowrap;
-}
-
-.familypedia-action-menu a:hover,
-.familypedia-action-menu a:focus-visible {
-	background: var(--familypedia-surface-alt);
 }
 
 .familypedia-add-relative {
@@ -1189,4 +1159,22 @@ fieldset.familypedia-gedcom-clickable > .familypedia-gedcom-comparison-family dd
 
 .familypedia-reunion-facts dd {
 	margin: 0 0 .75rem;
+}
+
+.familypedia-infobox__actions {
+	font-size: 0.8rem;
+	border-top: 1px solid var(--familypedia-border);
+	margin: 0;
+	padding: 0.65rem;
+}
+
+.familypedia-infobox__empty {
+	padding: 0 0.65rem;
+}
+
+.familypedia-infobox__title .familypedia-infobox__edit {
+	color: var(--familypedia-primary);
+	font-size: 0.8rem;
+	font-weight: 400;
+	text-decoration: underline;
 }

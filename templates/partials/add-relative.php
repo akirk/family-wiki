@@ -29,6 +29,6 @@ wp_app_enqueue_script( 'familypedia-family-entry', Assets::url( 'family-entry.js
 		<?php echo Family_Graph::render( $familypedia_person->ID, true ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped by renderer. ?>
 		<p data-family-status role="status" aria-live="polite"></p>
 		<p><button class="familypedia-button familypedia-button--primary" type="submit"><?php esc_html_e( 'Save family members', 'family-wiki' ); ?></button> <a href="#person-actions"><?php esc_html_e( 'Close', 'family-wiki' ); ?></a></p>
-		<noscript><?php esc_html_e( 'Enable JavaScript to build the family visually. You can also use Edit → Facts.', 'family-wiki' ); ?></noscript>
+		<noscript><?php esc_html_e( 'Enable JavaScript to build the family visually. You can also use the Edit link in the facts header.', 'family-wiki' ); ?></noscript>
 	</form>
 </section>
