@@ -1,7 +1,7 @@
 # Familypedia — Your private family wiki
 
 - Contributors: akirk
-- Tags: family, wiki, genealogy
+- Tags: family, wiki, genealogy, wpapps
 - Requires at least: 6.0
 - Requires PHP: 7.4
 - Tested up to: 7.1
