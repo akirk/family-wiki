@@ -15,6 +15,8 @@ Keep your family history in a private wiki app hosted on WordPress.
 
 Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator or Editor account. Advanced Custom Fields is no longer required.
 
+[Try the historical Habsburg family demo in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/akirk/family-wiki/main/demo.json).
+
 On Import / Export, choose **Upload for comparison only** to review GEDCOM differences without changing the wiki. Each person has a comparison section. Edit the wiki value or use the copy arrow to carry over a GEDCOM value. Modified rows are checked automatically; review the individual name, sex, birth or death facts and press **Apply selected changes** to save. Missing facts never erase data; unmatched people, relationships and page text are left untouched. Facts edited since the comparison was opened are skipped.
 
 Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and their selected option in Settings → Reading. Once displayed in Settings → Reading, its availability is remembered so administrators can disable and later re-enable it. The option is not offered on sites without legacy privacy. WpApp protects app content and its REST endpoints independently of whole-site visibility.
@@ -50,6 +52,25 @@ Select saved interviews to create an attributed biography outline. Edit and save
 Development happens on `main`. Dependencies in `vendor/` are ignored by Git; run `composer install --no-dev` before using a source checkout. For development checks, run `composer install` followed by `composer test`. The migration tests use an in-memory fixture and do not connect to WordPress or its database.
 
 Every push to a source branch builds an installable `dist/<branch>` branch with production dependencies and appends the source commit to the plugin version. The build can also be run manually for a source branch from GitHub Actions. Use `dist/main` for installations and WordPress Playground; PR previews use their corresponding distribution branches and become available once the build finishes.
+
+`demo.json` installs the app, signs in and imports the historical family from `demo/demo.ged`, adds the biography in `demo/demo-content.xml`, and places a descendant tree on the homepage. The seed data ships with the plugin so the gallery demo can also load it from a WordPress.org installation. The development-only generator can refresh the GEDCOM from Wikidata with `php demo/generate-demo-gedcom.php`; the XML includes its biography attribution and portrait source.
+
+## Screenshots
+
+1. The demo homepage with the Habsburg family tree and family highlights.
+   ![Demo homepage](.wordpress-org/screenshot-1.png)
+2. Elisabeth von Bayern’s biography, portrait, facts and family relationships.
+   ![Biography and family facts](.wordpress-org/screenshot-2.png)
+3. The descendant tree rooted at Franz Karl von Habsburg.
+   ![Descendant tree](.wordpress-org/screenshot-3.png)
+4. The family calendar showing birthdays and anniversaries in December.
+   ![Family calendar](.wordpress-org/screenshot-4.png)
+5. The alphabetical index of people in the demo family.
+   ![All pages](.wordpress-org/screenshot-5.png)
+6. GEDCOM and content import/export tools.
+   ![Import and export](.wordpress-org/screenshot-6.png)
+7. A person’s page on mobile with the fact box expanded.
+   ![Mobile biography with expanded facts](.wordpress-org/screenshot-7.png)
 
 ## Changelog
 
