@@ -7,6 +7,5 @@
 .agents export-ignore
 .claude export-ignore
 .codex export-ignore
-bin export-ignore
 tests export-ignore
 blueprint.json export-ignore
