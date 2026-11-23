@@ -172,7 +172,7 @@ function convert_readme_md( $readme_md, $print_errors = false ) {
 		$readme_txt
 	);
 	$readme_txt = preg_replace(
-		'#^!\[([^\]]+)\]\(/assets/screenshot-.*\)#m',
+		'#^!\[([^\]]+)\]\(/\.wordpress-org/screenshot-.*\)#m',
 		'$1',
 		$readme_txt
 	);
