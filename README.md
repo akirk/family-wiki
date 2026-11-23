@@ -51,6 +51,25 @@ Development happens on `main`. Dependencies in `vendor/` are ignored by Git; run
 
 Every push to a source branch builds an installable `dist/<branch>` branch with production dependencies and appends the source commit to the plugin version. The build can also be run manually for a source branch from GitHub Actions. Use `dist/main` for installations and WordPress Playground; PR previews use their corresponding distribution branches and become available once the build finishes.
 
+## Screenshots
+
+These screenshots show the legacy Family Wiki 1.x interface, before the Familypedia app introduced in 2.0.0.
+
+1. The wiki homepage with links to family members.
+   ![Wiki homepage](.wordpress-org/screenshot-1.png)
+2. A person's page with biographical facts and a link to their spouse.
+   ![Elvis Presley's biography](.wordpress-org/screenshot-2.png)
+3. Editing a biography with date shortcodes and links to relatives.
+   ![Biography in the WordPress editor](.wordpress-org/screenshot-3.png)
+4. A missing relative's page with a toolbar shortcut to create it.
+   ![Create a missing relative's page](.wordpress-org/screenshot-4.png)
+5. A relative's page with biographical text and links.
+   ![Priscilla Presley's biography](.wordpress-org/screenshot-5.png)
+6. The family calendar with birthdays and death anniversaries.
+   ![Family calendar](.wordpress-org/screenshot-6.png)
+7. The Birthday Calendar block in the WordPress editor.
+   ![Birthday Calendar block](.wordpress-org/screenshot-7.png)
+
 ## Changelog
 
 ### 2.0.0
