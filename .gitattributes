@@ -9,3 +9,5 @@
 .codex export-ignore
 tests export-ignore
 blueprint.json export-ignore
+demo.json export-ignore
+demo/generate-demo-gedcom.php export-ignore
