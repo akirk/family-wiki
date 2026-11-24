@@ -26,15 +26,15 @@ Who is in that old photograph? How did your grandparents meet? What do you remem
 - **Build on research you already have.** Import and export GEDCOM to exchange family-tree data with other genealogy tools. A separate content export/import carries biographies and related pages along with people.
 - **Contribute as a family.** Give relatives WordPress accounts so they can add people, upload photos and improve each other's pages.
 
-### Why a WP App?
+### At home on your WordPress site
 
-Familypedia is a dedicated web app hosted inside WordPress. You open it at `/familypedia/`, with its own interface and navigation for people, trees, interviews and calendars.
+Familypedia is a WP App: an app that runs on your own WordPress site, with its own interface for people, trees, interviews and calendars. Open it at `/familypedia/` and use your WordPress account to sign in.
 
-- **A focused place for your family.** Browse and edit in the app's own interface, independent of your site's active theme. Family contributors can work directly in Familypedia.
-- **Fits alongside your existing website.** Keep your public WordPress homepage and run the family wiki at its own address on the same site. You can also choose to show the wiki homepage to signed-in family members at `/`.
-- **One set of accounts.** Use WordPress sign-in and roles instead of managing a separate family-history service. Familypedia also appears in the WP Apps launcher.
-- **Private app access.** App pages and their REST data require an authorized WordPress account, independently of whether the rest of your website is public.
-- **Your hosting, your family archive.** People and facts live in your WordPress database, and photos and recordings use its Media Library. Manage the plugin through WordPress and include it in your normal database and uploads backups. GEDCOM and content exports let you take your work with you.
+It can live alongside your existing website. Keep your public homepage, blog or business site while your family wiki stays private: only signed-in users with wiki access can open its pages or read its REST data. The app's interface is independent of your site's theme.
+
+A dedicated WordPress site for your family makes sense too. Give your family archive its own address, invite relatives to contribute, and optionally make the wiki the homepage for signed-in members. The wiki still requires an authorized account to access it.
+
+Either way, you use WordPress accounts, hosting and plugin management, and Familypedia appears in the WP Apps launcher. People and facts live in your WordPress database; photos and recordings use its Media Library. Include them in your normal database and uploads backups, and take your work with you through GEDCOM and content exports.
 
 ### Get started
 
