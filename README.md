@@ -28,13 +28,11 @@ Who is in that old photograph? How did your grandparents meet? What do you remem
 
 ### At home on your WordPress site
 
-Familypedia is a WP App: an app that runs on your own WordPress site, with its own interface for people, trees, interviews and calendars. Open it at `/familypedia/` and use your WordPress account to sign in.
+Familypedia is a [WP App](https://wpapps.kirk.at/): an app that runs on your own WordPress site, with its own interface for people, trees, interviews and calendars. Open it at `/familypedia/` and use your WordPress account to sign in.
 
-It can live alongside your existing website. Keep your public homepage, blog or business site while your family wiki stays private: only signed-in users with wiki access can open its pages or read its REST data. The app's interface is independent of your site's theme.
+It can live alongside your existing website. Keep your public homepage, blog or business site while your family wiki stays private: only signed-in users with wiki access can open its pages. The app's interface is independent of your site's theme.
 
 A dedicated WordPress site for your family makes sense too. Give your family archive its own address, invite relatives to contribute, and optionally make the wiki the homepage for signed-in members. The wiki still requires an authorized account to access it.
-
-Familypedia is part of a growing collection of [WP Apps](https://wpapps.kirk.at/) that give different parts of your life a home on your own WordPress. Add a cookbook for family recipes, plan your travels, keep notes or organize a collection alongside your family history. Each app has its own purpose, and they can all live together on the same WordPress site. Start with your family wiki and add more whenever you find something useful, for yourself or the people you invite.
 
 ### Get started
 
@@ -59,11 +57,9 @@ Interview notes stay separate from the person's biography and facts until you re
 
 Use **Import / Export → Upload for comparison only** to review a GEDCOM file without changing your wiki. Compare each person's name, sex, birth and death facts, edit a value or copy it from the GEDCOM, then choose **Apply selected changes**. Missing facts never erase existing data, and facts changed since you opened the comparison are skipped. Unmatched people, relationships and page text are left untouched by this comparison workflow.
 
-### Privacy and backups
+### Back up your family archive
 
-Familypedia protects app pages and their REST endpoints, but uploaded files need separate consideration: anyone with a direct interview recording URL can play or download it. Recordings have randomized filenames; these are not a substitute for file access controls. On WpApp versions that support attachment access restrictions, REST discovery of recordings is restricted through the parent interview, while direct file URLs remain accessible. Back up your WordPress database and uploads directory to preserve the records and their media. Recording format validation requires PHP Fileinfo.
-
-Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and its option in **Settings → Reading**. Once displayed there, the option remains available to disable and re-enable. It is not offered on sites without legacy privacy; app access protection applies independently.
+Include your WordPress database and uploads directory in your backups to preserve your family records, photos and recordings.
 
 ### Upgrading from Family Wiki 1.x
 
