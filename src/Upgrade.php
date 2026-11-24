@@ -309,7 +309,6 @@ class Upgrade {
 				return new \WP_Error( 'family_wiki_reserved_slug', __( 'A selected page uses a reserved app URL. Change its slug before migrating.', 'family-wiki' ) );
 			}
 			if ( $page->post_parent && ! isset( $pages[ $page->post_parent ] ) && Person::POST_TYPE !== get_post_type( $page->post_parent ) ) {
-				wp_update_post( array( 'ID' => $page->ID, 'post_content' => '' ) );
 				return new \WP_Error( 'family_wiki_parent', __( 'Select the parent pages too before migrating this hierarchy.', 'family-wiki' ) );
 			}
 		}
