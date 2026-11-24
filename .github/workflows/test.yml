@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  standalone:
+    name: Standalone PHP regressions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - name: Run all behavioral scripts
+        run: |
+          php tests/upgrade.php
+          php tests/gedcom-compare.php
+          php tests/roles.php
+          php tests/privacy.php
+          php tests/app-privacy.php
+          php tests/reunions.php
+          php tests/reunion-highlights.php
+          php tests/settings.php
+          php tests/relatives.php
+          php tests/stubs.php
+          php tests/interviews.php
