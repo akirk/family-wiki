@@ -41,7 +41,7 @@ A dedicated WordPress site for your family makes sense too. Give your family arc
 3. Choose **Add Person** to start with someone you know, or use **Import / Export** to bring in a GEDCOM family tree.
 4. Invite family contributors with WordPress Editor accounts, then add stories, photos and interviews together.
 
-Advanced Custom Fields is not required. Administrators manage settings; both Administrators and Editors can create, edit and delete wiki content and upload media. Other standard WordPress roles do not have wiki access. The Editor role also grants editing and deletion permissions across the WordPress site, so assign it to trusted contributors.
+Administrators manage settings; both Administrators and Editors can create, edit and delete wiki content and upload media. Other standard WordPress roles do not have wiki access. The Editor role also grants editing and deletion permissions across the WordPress site, so assign it to trusted contributors.
 
 In **Settings → Familypedia**, you can enable **Show the wiki at the homepage for signed-in wiki members**. Authorized members then see the app homepage at `/`; person pages and tools remain under `/familypedia/`. Other visitors keep the normal WordPress homepage, subject to the site's privacy setting. This option defaults off.
 
@@ -65,9 +65,9 @@ Include your WordPress database and uploads directory in your backups to preserv
 
 Back up your database, then open Tools → Upgrade Familypedia. Review and select your people and related pages. Pages with family facts are selected initially; include relatives and child pages together. Migration validates these dependencies before moving any posts.
 
-Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, ACF dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
+Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
 
-Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Existing ACF metadata is retained. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
+Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
 
 ### Development
 
@@ -97,7 +97,7 @@ Every push to a source branch builds an installable `dist/<branch>` branch with 
 ## Changelog
 
 ### 2.0.0
-- Adopt the Familypedia app interface without an ACF dependency.
+- Adopt the Familypedia app interface.
 - Add reviewed migration of existing wiki pages, settings and legacy URLs.
 - Add an optional wiki homepage for signed-in members.
 - Preserve whole-site privacy, existing bio shortcodes and saved wiki blocks.
@@ -114,14 +114,14 @@ Every push to a source branch builds an installable `dist/<branch>` branch with 
 - Fix a cross-wiki privacy leak.
 
 ### 1.1.9
-- Translated ACF fields to German.
+- Translated family fact fields to German.
 - Lots of translation fixes.
 - Fix translation loading to translate.wordpress.org.
 - Redirect to the front page after logging in.
 - Improve output escaping.
 
 ### 1.1.0
-- Switch to using Advanced Custom Fields for metadata.
+- Update metadata storage.
 
 ### 1.0.0
 - Initial version
