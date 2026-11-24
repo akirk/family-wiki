@@ -34,7 +34,7 @@ It can live alongside your existing website. Keep your public homepage, blog or 
 
 A dedicated WordPress site for your family makes sense too. Give your family archive its own address, invite relatives to contribute, and optionally make the wiki the homepage for signed-in members. The wiki still requires an authorized account to access it.
 
-Either way, you use WordPress accounts, hosting and plugin management, and Familypedia appears in the WP Apps launcher. People and facts live in your WordPress database; photos and recordings use its Media Library. Include them in your normal database and uploads backups, and take your work with you through GEDCOM and content exports.
+Familypedia is part of a growing collection of [WP Apps](https://wpapps.kirk.at/) that give different parts of your life a home on your own WordPress. Add a cookbook for family recipes, plan your travels, keep notes or organize a collection alongside your family history. Each app has its own purpose, and they can all live together on the same WordPress site. Start with your family wiki and add more whenever you find something useful, for yourself or the people you invite.
 
 ### Get started
 
