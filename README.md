@@ -41,7 +41,7 @@ A dedicated WordPress site for your family makes sense too. Give your family arc
 3. Choose **Add Person** to start with someone you know, or use **Import / Export** to bring in a GEDCOM family tree.
 4. Invite family contributors with WordPress Editor accounts, then add stories, photos and interviews together.
 
-Administrators manage settings; both Administrators and Editors can create, edit and delete wiki content and upload media. Other standard WordPress roles do not have wiki access. The Editor role also grants editing and deletion permissions across the WordPress site, so assign it to trusted contributors.
+Wiki access is restricted to users with the Editor role or above.
 
 In **Settings → Familypedia**, you can enable **Show the wiki at the homepage for signed-in wiki members**. Authorized members then see the app homepage at `/`; person pages and tools remain under `/familypedia/`. Other visitors keep the normal WordPress homepage, subject to the site's privacy setting. This option defaults off.
 
