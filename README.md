@@ -45,13 +45,11 @@ Wiki access is restricted to users with the Editor role or above.
 
 You can optionally make the wiki the homepage for signed-in family members in **Settings → Familypedia**.
 
-### Make an interview part of the family record
+### Preserve family voices and memories
 
-Choose **Add → Interview** on a person's page. Record who is speaking and when, then explore the question topics in any order. Written notes save automatically, and you can return to a saved interview later. Customize your personal question library or import and export question sets as JSON. Saved interviews retain the questions used when they began.
+Guided interviews help you capture the stories behind your family tree. Customizable questions spark conversations, while saved notes and audio recordings preserve memories in your relatives' own words. Question timestamps make recordings easy to revisit, and you can return to an interview whenever more stories come to mind.
 
-Over HTTPS, you can record audio with microphone permission and the speaker's consent. Pause and resume, review the clip, then name and save it. Moving between questions adds timestamps so you can jump back to those moments during playback. Clips stop automatically around 20 MB; your server's upload limit may be lower. If saving fails, retry or download the local copy before closing the page. External audio uploads and transcription are not included.
-
-Interview notes stay separate from the person's biography and facts until you review and apply them. Select interviews to create an attributed biography outline, edit it, and explicitly review it before appending it to the biography. This works without an external text-generation service.
+Bring those memories into the family record with attributed biography outlines drawn from your interviews. You review what becomes part of a person's biography or facts, while the original interview stays available as a source.
 
 ### Keep control when bringing in new research
 
