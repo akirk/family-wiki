@@ -9,7 +9,7 @@
 - License URI: https://www.gnu.org/licenses/gpl-2.0.html
 - Stable tag: 2.0.0
 
-Like Wikipedia, but private and just for your family. Give every relative a page, connect the family tree, and keep the stories, photos and voices that make those names meaningful.
+A private family wiki on your WordPress: preserve stories, photos and interviews, explore your family tree, and build your history together.
 
 ## Description
 
