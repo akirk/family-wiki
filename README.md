@@ -22,8 +22,8 @@ Who is in that old photograph? How did your grandparents meet? What do you remem
 - **Put stories beside the facts.** Give each person a biography, portrait and structured family facts. Add related pages for the memories and stories that deserve more room.
 - **See how everyone connects.** Follow relationships between relatives and explore descendant trees to put names and generations in context.
 - **Keep family occasions close.** Browse birthdays and wedding anniversaries in the calendar, and collect reunions and visits alongside the people who took part.
-- **Capture memories while you can.** Guided interviews offer questions and follow-ups, saved notes and audio recording. Turn selected interviews into an attributed biography outline, then review it before adding it to a person's story.
-- **Build on research you already have.** Import and export GEDCOM to exchange family-tree data with other genealogy tools. A separate content export/import carries biographies and related pages along with people.
+- **Capture memories while you can.** Use guided interviews, notes and audio recordings to preserve your relatives' memories and turn their conversations into biographies.
+- **Build on research you already have.** Bring in an existing family tree, exchange discoveries with relatives using other genealogy tools, and take your biographies and stories with you through content exports.
 - **Contribute as a family.** Give relatives WordPress accounts so they can add people, upload photos and improve each other's pages.
 
 ### At home on your WordPress site
@@ -36,14 +36,12 @@ A dedicated WordPress site for your family makes sense too. Give your family arc
 
 ### Get started
 
-1. Install and activate Familypedia on a WordPress site running WordPress 6.0 or later and PHP 7.4 or later. For a GitHub installation, use the [`dist/main` branch](https://github.com/akirk/family-wiki/tree/dist/main), which includes the required dependencies. Source checkouts need `composer install --no-dev` first.
+1. Install and activate Familypedia on a WordPress site running WordPress 6.0 or later and PHP 7.4 or later. For a GitHub installation, use the [`dist/main` branch](https://github.com/akirk/family-wiki/tree/dist/main), which includes the required dependencies.
 2. Sign in as an Administrator and open `/familypedia/` on your site.
 3. Choose **Add Person** to start with someone you know, or use **Import / Export** to bring in a GEDCOM family tree.
 4. Invite family contributors with WordPress Editor accounts, then add stories, photos and interviews together.
 
 Wiki access is restricted to users with the Editor role or above.
-
-You can optionally make the wiki the homepage for signed-in family members in **Settings → Familypedia**.
 
 ### Bring your family history to life
 
@@ -63,13 +61,9 @@ Include your WordPress database and uploads directory in your backups to preserv
 
 ### Upgrading from Family Wiki 1.x
 
-Familypedia no longer requires Advanced Custom Fields (ACF). The migration carries over your existing family facts and retains the original ACF metadata.
+Familypedia no longer requires Advanced Custom Fields (ACF). Migration preserves your existing family facts, biographies, photos and relationships, retains the original ACF metadata, and redirects old person links to the app.
 
-Back up your database, then open Tools → Upgrade Familypedia. Review and select your people and related pages. Pages with family facts are selected initially; include relatives and child pages together. Migration validates these dependencies before moving any posts.
-
-Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, ACF dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
-
-Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
+Back up your database, then open **Tools → Upgrade Familypedia** to review and select the people and related pages to move together. Ordinary pages you leave unselected stay on your WordPress site, and you can run the migration again later. Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. To undo a migration, restore your backup.
 
 ### Development
 
