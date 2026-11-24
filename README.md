@@ -9,17 +9,61 @@
 - License URI: https://www.gnu.org/licenses/gpl-2.0.html
 - Stable tag: 2.0.0
 
-Keep your family history in a private wiki app hosted on WordPress.
+Like Wikipedia, but private and just for your family. Give every relative a page, connect the family tree, and keep the stories, photos and voices that make those names meaningful.
 
 ## Description
 
-Familypedia brings the former Family Wiki plugin a dedicated interface, with people, stories, photos, family trees, calendars and GEDCOM import/export. Open the app at `/familypedia/`. It requires an Administrator or Editor account. Advanced Custom Fields is no longer required.
+Who is in that old photograph? How did your grandparents meet? What do you remember about the last family reunion? Familypedia gives your family a shared place to collect the answers on your own WordPress site. Start with a few people and memories, or bring an existing family tree through GEDCOM and build on it together.
 
-[Try the historical Habsburg family demo in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/akirk/family-wiki/main/demo.json).
+[Try Familypedia with the historical Habsburg family in WordPress Playground](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/akirk/family-wiki/main/demo.json).
 
-On Import / Export, choose **Upload for comparison only** to review GEDCOM differences without changing the wiki. Each person has a comparison section. Edit the wiki value or use the copy arrow to carry over a GEDCOM value. Modified rows are checked automatically; review the individual name, sex, birth or death facts and press **Apply selected changes** to save. Missing facts never erase data; unmatched people, relationships and page text are left untouched. Facts edited since the comparison was opened are skipped.
+### A family history you can explore and grow together
 
-Assign family contributors the standard WordPress Editor role to create, edit and delete wiki content and upload media. Administrators also manage settings. Other standard roles do not have wiki access. Editor permissions apply across the WordPress site, including deletion. Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and their selected option in Settings → Reading. Once displayed in Settings → Reading, its availability is remembered so administrators can disable and later re-enable it. The option is not offered on sites without legacy privacy. WpApp protects app content and its REST endpoints independently of whole-site visibility.
+- **Put stories beside the facts.** Give each person a biography, portrait and structured family facts. Add related pages for the memories and stories that deserve more room.
+- **See how everyone connects.** Follow relationships between relatives and explore descendant trees to put names and generations in context.
+- **Keep family occasions close.** Browse birthdays and wedding anniversaries in the calendar, and collect reunions and visits alongside the people who took part.
+- **Capture memories while you can.** Guided interviews offer questions and follow-ups, saved notes and audio recording. Turn selected interviews into an attributed biography outline, then review it before adding it to a person's story.
+- **Build on research you already have.** Import and export GEDCOM to exchange family-tree data with other genealogy tools. A separate content export/import carries biographies and related pages along with people.
+- **Contribute as a family.** Give relatives WordPress accounts so they can add people, upload photos and improve each other's pages.
+
+### Why a WP App?
+
+Familypedia is a dedicated web app hosted inside WordPress. You open it at `/familypedia/`, with its own interface and navigation for people, trees, interviews and calendars.
+
+- **A focused place for your family.** Browse and edit in the app's own interface, independent of your site's active theme. Family contributors can work directly in Familypedia.
+- **Fits alongside your existing website.** Keep your public WordPress homepage and run the family wiki at its own address on the same site. You can also choose to show the wiki homepage to signed-in family members at `/`.
+- **One set of accounts.** Use WordPress sign-in and roles instead of managing a separate family-history service. Familypedia also appears in the WP Apps launcher.
+- **Private app access.** App pages and their REST data require an authorized WordPress account, independently of whether the rest of your website is public.
+- **Your hosting, your family archive.** People and facts live in your WordPress database, and photos and recordings use its Media Library. Manage the plugin through WordPress and include it in your normal database and uploads backups. GEDCOM and content exports let you take your work with you.
+
+### Get started
+
+1. Install and activate Familypedia on a WordPress site running WordPress 6.0 or later and PHP 7.4 or later. For a GitHub installation, use the [`dist/main` branch](https://github.com/akirk/family-wiki/tree/dist/main), which includes the required dependencies. Source checkouts need `composer install --no-dev` first.
+2. Sign in as an Administrator and open `/familypedia/` on your site.
+3. Choose **Add Person** to start with someone you know, or use **Import / Export** to bring in a GEDCOM family tree.
+4. Invite family contributors with WordPress Editor accounts, then add stories, photos and interviews together.
+
+Advanced Custom Fields is not required. Administrators manage settings; both Administrators and Editors can create, edit and delete wiki content and upload media. Other standard WordPress roles do not have wiki access. The Editor role also grants editing and deletion permissions across the WordPress site, so assign it to trusted contributors.
+
+In **Settings → Familypedia**, you can enable **Show the wiki at the homepage for signed-in wiki members**. Authorized members then see the app homepage at `/`; person pages and tools remain under `/familypedia/`. Other visitors keep the normal WordPress homepage, subject to the site's privacy setting. This option defaults off.
+
+### Make an interview part of the family record
+
+Choose **Add → Interview** on a person's page. Record who is speaking and when, then explore the question topics in any order. Written notes save automatically, and you can return to a saved interview later. Customize your personal question library or import and export question sets as JSON. Saved interviews retain the questions used when they began.
+
+Over HTTPS, you can record audio with microphone permission and the speaker's consent. Pause and resume, review the clip, then name and save it. Moving between questions adds timestamps so you can jump back to those moments during playback. Clips stop automatically around 20 MB; your server's upload limit may be lower. If saving fails, retry or download the local copy before closing the page. External audio uploads and transcription are not included.
+
+Interview notes stay separate from the person's biography and facts until you review and apply them. Select interviews to create an attributed biography outline, edit it, and explicitly review it before appending it to the biography. This works without an external text-generation service.
+
+### Keep control when bringing in new research
+
+Use **Import / Export → Upload for comparison only** to review a GEDCOM file without changing your wiki. Compare each person's name, sex, birth and death facts, edit a value or copy it from the GEDCOM, then choose **Apply selected changes**. Missing facts never erase existing data, and facts changed since you opened the comparison are skipped. Unmatched people, relationships and page text are left untouched by this comparison workflow.
+
+### Privacy and backups
+
+Familypedia protects app pages and their REST endpoints, but uploaded files need separate consideration: anyone with a direct interview recording URL can play or download it. Recordings have randomized filenames; these are not a substitute for file access controls. On WpApp versions that support attachment access restrictions, REST discovery of recordings is restricted through the parent interview, while direct file URLs remain accessible. Back up your WordPress database and uploads directory to preserve the records and their media. Recording format validation requires PHP Fileinfo.
+
+Sites already using the legacy whole-site privacy setting (`blog_public = -1`) retain that protection and its option in **Settings → Reading**. Once displayed there, the option remains available to disable and re-enable. It is not offered on sites without legacy privacy; app access protection applies independently.
 
 ### Upgrading from Family Wiki 1.x
 
@@ -28,24 +72,6 @@ Back up your database, then open Tools → Upgrade Familypedia. Review and selec
 Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, ACF dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
 
 Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Existing ACF metadata is retained. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
-
-### Optional member homepage
-
-In Settings → Familypedia, enable “Show the wiki at the homepage for signed-in wiki members.” Authorized members then see the app homepage at `/`. Person pages and tools remain under `/familypedia/`. Anonymous visitors and accounts without wiki access keep the normal WordPress homepage, subject to the site's privacy setting. The option defaults off.
-
-### Family interviews
-
-Choose **Add → Interview** on a person's page to start a conversation or resume saved notes. Record the speaker and interview date, and choose whether they are describing their own life or someone else's. Topic chips let you browse optional question cards in any order. Selecting a card opens its follow-ups and an optional written-notes area; notes save automatically and can also be saved with the Save interview button. Without JavaScript, all questions appear together with expandable written notes and saving is manual.
-
-Each interview is a separate draft related page containing the source notes. The fact review keeps the values recorded when the interview began, the speaker's account and any uncertainty. Applying a proposed fact is a separate action; year-only dates retain their approximate precision, and changed facts require review on the person's facts page.
-
-Use **Customize questions** to edit your personal library and import or export JSON question sets. Untouched starter questions, topics and hints use WordPress translations; edited fields and custom questions keep your wording. Exports include the full topic, question and hint text, along with starter IDs where applicable. Importing an export preserves its wording, including unchanged starter text. Existing text-only libraries remain custom text. Saved interviews retain the wording used when they were started.
-
-Record audio directly in an interview over HTTPS after allowing microphone access. Ask the speaker before recording. Pause/resume as needed, then stop, review, name and save the clip. Saved recordings can be renamed or permanently deleted (including the audio file) from the interview. The recorder floats at the bottom of the interview and continues across question changes. Switching questions automatically adds a timestamp (excluding paused time); the timeline is saved with the clip and its entries jump to that moment during playback. If saving fails, retry or download the local copy before closing the page. Clips stop automatically around 20 MB; server upload limits may be lower. External audio-file uploads and transcription are not included.
-
-Recordings use standard WordPress Media Library attachments parented to their interview posts, with a cryptographically random 192-bit filename suffix. Anyone with a direct file URL can play or download the recording. WpApp versions supporting attachment access restrictions limit REST discovery through the parent app-owned post; this does not restrict direct file URLs. Back up recordings with the normal WordPress uploads directory and database. PHP Fileinfo is used to validate recording formats.
-
-Select saved interviews to create an attributed biography outline. Edit and save the draft, then explicitly review it before adding its text after the existing biography. Interview sources remain linked and unchanged. This version collects typed notes and creates outlines without an external text-generation service.
 
 ### Development
 
