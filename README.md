@@ -43,7 +43,7 @@ A dedicated WordPress site for your family makes sense too. Give your family arc
 
 Wiki access is restricted to users with the Editor role or above.
 
-In **Settings → Familypedia**, you can enable **Show the wiki at the homepage for signed-in wiki members**. Authorized members then see the app homepage at `/`; person pages and tools remain under `/familypedia/`. Other visitors keep the normal WordPress homepage, subject to the site's privacy setting. This option defaults off.
+You can optionally make the wiki the homepage for signed-in family members in **Settings → Familypedia**.
 
 ### Make an interview part of the family record
 
