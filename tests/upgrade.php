@@ -127,10 +127,23 @@ namespace {
 	$GLOBALS['options'] = $saved_options;
 	$GLOBALS['options']['blog_public'] = -1;
 
-	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 2 ) ) ), 'Child without parent must be rejected.' );
-	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1 ) ) ), 'Parent without child must be rejected.' );
-	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 1, 2 ) ) ), 'Omitted spouse must be rejected.' );
-	check( get_post_type( 1 ) === 'page', 'Failed validation must leave posts untouched.' );
+	$snapshot = static function() {
+		return array(
+			'posts' => array_map( 'get_object_vars', $GLOBALS['posts'] ),
+			'meta' => $GLOBALS['meta'],
+			'options' => $GLOBALS['options'],
+		);
+	};
+	$before_rejected_migrations = $snapshot();
+	foreach ( array(
+		'child without parent' => array( array( 2 ), 'family_wiki_parent' ),
+		'parent without child' => array( array( 1 ), 'family_wiki_children' ),
+		'omitted spouse' => array( array( 1, 2 ), 'family_wiki_relationship' ),
+	) as $case => $input ) {
+		$result = \Family_Wiki\Upgrade::migrate( $input[0] );
+		check( is_wp_error( $result ) && $result->code === $input[1], $case . ': selection must fail for the expected reason.' );
+		check( $snapshot() === $before_rejected_migrations, $case . ': rejection must preserve every page, metadata entry and option.' );
+	}
 	get_post( 4 )->post_name = 'tree';
 	check( is_wp_error( \Family_Wiki\Upgrade::migrate( array( 4 ) ) ), 'Reserved app slugs must be rejected before conversion.' );
 	get_post( 4 )->post_name = 'contact';
