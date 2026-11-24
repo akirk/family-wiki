@@ -45,11 +45,11 @@ Wiki access is restricted to users with the Editor role or above.
 
 You can optionally make the wiki the homepage for signed-in family members in **Settings → Familypedia**.
 
-### Preserve family voices and memories
+### Bring your family history to life
 
-Guided interviews help you capture the stories behind your family tree. Customizable questions spark conversations, while saved notes and audio recordings preserve memories in your relatives' own words. Question timestamps make recordings easy to revisit, and you can return to an interview whenever more stories come to mind.
+Start with what you know: add a relative, write down a memory, upload a photo and connect the people in it. Each contribution gives the next person something to build on. Your family wiki can grow a little at a time as relatives add their own stories and fill in the gaps.
 
-Bring those memories into the family record with attributed biography outlines drawn from your interviews. You review what becomes part of a person's biography or facts, while the original interview stays available as a source.
+Talking to family members is a useful way to discover what to add. Ask about a childhood home, a familiar tradition or the story behind an old photograph. Familypedia's interview feature helps you capture those conversations with suggested questions, written notes and audio recordings. You can return to them later and turn the memories into a biography, keeping the original interview as a source.
 
 ### Keep control when bringing in new research
 
