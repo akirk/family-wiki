@@ -1,6 +1,6 @@
 <?php
 /** Run with php tests/stubs.php; isolated stub review fixture. */
-require __DIR__ . '/relatives.php';
+require __DIR__ . '/relative-fixture.php';
 require __DIR__ . '/../src/Stubs.php';
 
 function has_post_thumbnail( $id ) { return ! empty( $GLOBALS['photos'][ $id ] ); }
