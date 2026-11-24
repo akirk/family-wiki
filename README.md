@@ -51,9 +51,11 @@ Start with what you know: add a relative, write down a memory, upload a photo an
 
 Talking to family members is a useful way to discover what to add. Ask about a childhood home, a familiar tradition or the story behind an old photograph. Familypedia's interview feature helps you capture those conversations with suggested questions, written notes and audio recordings. You can return to them later and turn the memories into a biography, keeping the original interview as a source.
 
-### Keep control when bringing in new research
+### Build on each other's research
 
-Use **Import / Export → Upload for comparison only** to review a GEDCOM file without changing your wiki. Compare each person's name, sex, birth and death facts, edit a value or copy it from the GEDCOM, then choose **Apply selected changes**. Missing facts never erase existing data, and facts changed since you opened the comparison are skipped. Unmatched people, relationships and page text are left untouched by this comparison workflow.
+If a relative is researching your family in another genealogy app, ask them to share a GEDCOM file. Familypedia can compare it with your family record, helping you spot missing dates and other details they have uncovered. Review the differences and choose which facts to bring into your wiki, filling gaps while keeping control over what changes.
+
+You can also export your own family tree as GEDCOM to share your discoveries with them, so your research can grow together even when you use different tools.
 
 ### Back up your family archive
 
