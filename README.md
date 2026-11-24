@@ -63,9 +63,11 @@ Include your WordPress database and uploads directory in your backups to preserv
 
 ### Upgrading from Family Wiki 1.x
 
+Familypedia no longer requires Advanced Custom Fields (ACF). The migration carries over your existing family facts and retains the original ACF metadata.
+
 Back up your database, then open Tools → Upgrade Familypedia. Review and select your people and related pages. Pages with family facts are selected initially; include relatives and child pages together. Migration validates these dependencies before moving any posts.
 
-Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
+Selected pages become app posts with the same IDs, content, featured images and hierarchy. Relationship IDs remain intact, ACF dates are normalized, settings are copied, and old person URLs redirect to the app. The original homepage remains a WordPress page; its content is also copied into the app homepage. Unselected ordinary site pages stay in WordPress. The migration can be run again for remaining pages.
 
 Existing bio shortcodes and Family Wiki tree/calendar blocks continue to work. Converting posts back to ordinary pages is not an automatic downgrade path; restore your backup to revert the migration.
 
